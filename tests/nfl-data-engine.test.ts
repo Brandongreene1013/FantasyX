@@ -7,6 +7,7 @@ import { GET as statsGET } from "@/app/api/admin/nfl/stats/route";
 import { POST as syncPOST } from "@/app/api/admin/nfl/sync-demo/route";
 import { sessionCookieName } from "@/lib/session";
 import { createSession } from "@/lib/session-store";
+import { csrfTokenForRequest } from "@/lib/csrf";
 
 const prisma = new PrismaClient();
 
@@ -23,7 +24,7 @@ let traderSessionCookie = "";
 
 function makeAdminRequest(path: string): Request {
   return new Request(`http://localhost${path}`, {
-    headers: { cookie: adminSessionCookie },
+    headers: csrfHeaders(adminSessionCookie),
   });
 }
 
@@ -31,6 +32,11 @@ function makeTraderRequest(path: string): Request {
   return new Request(`http://localhost${path}`, {
     headers: { cookie: traderSessionCookie },
   });
+}
+
+function csrfHeaders(cookie: string) {
+  const request = new Request("http://localhost", { headers: { cookie } });
+  return { cookie, "x-csrf-token": csrfTokenForRequest(request) ?? "" };
 }
 
 function makeAnonRequest(path: string): Request {

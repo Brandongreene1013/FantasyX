@@ -70,7 +70,9 @@ Use `npm run vercel-build` only for Vercel-style migration/build verification ag
 - Admin and portfolio route protection
 - Database-backed market slate, trades, portfolio, leaderboard, and settlements
 - Mock-credit AMM price movement
+- Buy and sell YES/NO position flow
 - Trade safeguards for locked, settled, void, and insufficient-balance cases
+- Session-bound CSRF protection for authenticated state-changing routes
 - Admin rank settlement, lock/open, and void flows
 - Settlement double-pay and void double-refund prevention
 - WCAG-oriented accessibility pass with axe tests
@@ -85,3 +87,4 @@ Use `npm run vercel-build` only for Vercel-style migration/build verification ag
 - API routes must derive the user from the session cookie, not client payloads.
 - Admin APIs must require an authenticated admin role.
 - `SESSION_SECRET` must be set in production.
+- Client mutations include `x-csrf-token`; server routes reject missing or invalid tokens.

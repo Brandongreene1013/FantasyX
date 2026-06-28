@@ -15,6 +15,7 @@ export type SessionResponse = {
     mockBalance: number;
     startingBalance: number;
   } | null;
+  csrfToken?: string | null;
 };
 
 export type SlateResponse = {
@@ -83,6 +84,7 @@ export type PortfolioResponse = {
     id: string;
     marketId: string;
     playerName: string;
+    action: "BUY" | "SELL";
     side: Side;
     spend: number;
     shares: number;
@@ -103,6 +105,7 @@ export type TradeHistoryResponse = {
     position: "QB" | "RB" | "WR" | "TE";
     thresholdType: "TOP_3" | "TOP_5" | "TOP_10";
     status: "OPEN" | "LOCKED" | "SETTLED" | "VOID";
+    action: "BUY" | "SELL";
     side: Side;
     executionPrice: number;
     marketPriceAfter: number;
@@ -261,23 +264,44 @@ export async function apiGet<T>(url: string): Promise<T> {
 }
 
 export async function apiPost<T>(url: string, body: unknown): Promise<T> {
+  const csrfToken = await getCsrfTokenForMutation(url);
   const response = await fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(csrfToken ? { "x-csrf-token": csrfToken } : {}) },
+    credentials: "same-origin",
+    body: JSON.stringify(body)
+  });
+  const parsed = await parseResponse<T>(response);
+  if (url === "/api/auth/login" || url === "/api/auth/signup" || url === "/api/auth/logout") {
+    csrfTokenCache = null;
+  }
+  return parsed;
+}
+
+export async function apiPatch<T>(url: string, body: unknown): Promise<T> {
+  const csrfToken = await getCsrfTokenForMutation(url);
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", ...(csrfToken ? { "x-csrf-token": csrfToken } : {}) },
     credentials: "same-origin",
     body: JSON.stringify(body)
   });
   return parseResponse<T>(response);
 }
 
-export async function apiPatch<T>(url: string, body: unknown): Promise<T> {
-  const response = await fetch(url, {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    credentials: "same-origin",
-    body: JSON.stringify(body)
-  });
-  return parseResponse<T>(response);
+let csrfTokenCache: string | null = null;
+
+async function getCsrfTokenForMutation(url: string) {
+  if (url === "/api/auth/login" || url === "/api/auth/signup") {
+    return null;
+  }
+  if (csrfTokenCache) {
+    return csrfTokenCache;
+  }
+
+  const session = await apiGet<SessionResponse>("/api/session");
+  csrfTokenCache = session.csrfToken ?? null;
+  return csrfTokenCache;
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {

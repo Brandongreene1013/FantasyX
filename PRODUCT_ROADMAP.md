@@ -167,7 +167,8 @@ Status:
 
 - Completed in FX009 for real account creation, password hashing, server-side sessions, role-backed admin authorization, account/settings pages, and demo-login removal.
 - FX009.5 hardened route protection, safe login redirects, admin-email signup reservation, stale documentation cleanup, and auth routing tests.
-- Remaining hardening: CSRF protection and durable rate limiting.
+- FX010 added session-bound CSRF protection for authenticated mutations, sell trades, trade idempotency keys, and serializable trade execution.
+- Remaining hardening: durable/shared rate limiting.
 
 Features:
 
@@ -185,7 +186,7 @@ API changes:
 
 - Login issues signed/server-side session.
 - Logout invalidates session.
-- POST routes require CSRF validation.
+- Authenticated mutating routes require CSRF validation.
 - Admin APIs use permission guard.
 
 UI changes:
@@ -198,7 +199,7 @@ UI changes:
 Tests required:
 
 - Forged session rejected.
-- Missing CSRF rejected.
+- Missing CSRF rejected for authenticated mutations.
 - Non-admin cannot settle.
 - Logged-out user cannot trade.
 - Existing forged `userId` test remains.
@@ -208,7 +209,7 @@ Definition of Done:
 - Raw `userId` cookie is gone.
 - Sensitive routes validate an authenticated server session.
 - Admin access is enforced server-side by role/permission.
-- CSRF protection remains a follow-up before broader public release.
+- CSRF protection covers authenticated mutating routes before broader public release.
 
 Estimated complexity:
 

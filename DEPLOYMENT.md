@@ -27,6 +27,8 @@ If an older production database already has the admin email but a stale or empty
 
 Login redirects only allow internal `next` paths. External or protocol-relative redirect targets fall back to `/markets`.
 
+Authenticated client mutations fetch a CSRF token from `/api/session` and send it as `x-csrf-token`. Production `SESSION_SECRET` must stay stable across deployments or existing session/CSRF tokens will become invalid.
+
 ## Local Verification
 
 ```powershell

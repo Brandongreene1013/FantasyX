@@ -15,6 +15,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
   const [marketId, setMarketId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MarketDetailResponse | null>(null);
   const [balance, setBalance] = useState(0);
+  const [marketPosition, setMarketPosition] = useState<PortfolioResponse["positions"][number] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +33,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
       ]);
       setDetail(detailData);
       setBalance(portfolioData.user.mockBalance);
+      setMarketPosition(portfolioData.positions.find((position) => position.marketId === id) ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load market");
     } finally {
@@ -135,6 +137,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
             market={market}
             player={player}
             balance={balance}
+            position={marketPosition}
             onTradeComplete={() => void load(marketId!)}
           />
         </div>

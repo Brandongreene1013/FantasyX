@@ -34,7 +34,7 @@ Implemented:
 - Removed the public demo account selector flow.
 - Signup grants 10,000 mock credits through the ledger.
 - Seed creates an administrator from `ADMIN_*` environment variables.
-- Added `tests/auth-accounts.test.ts`. All 137 tests pass.
+- Added `tests/auth-accounts.test.ts`; the suite has continued to grow in later sprints.
 
 ## Completed - FX-007 Market Intelligence & Analytics
 
@@ -128,7 +128,7 @@ Implemented:
 
 Implemented:
 
-- Append-only `AccountLedgerEntry` records for seed grants, trade spends, settlement payouts, and void refunds.
+- Append-only `AccountLedgerEntry` records for seed grants, trade spends, trade proceeds, settlement payouts, and void refunds.
 - Market summary fields for opening price, volume, and open interest.
 - Unified `MarketEvent` records for trades, price changes, lock, unlock, settle, void, and admin notes.
 - Immutable-style `AdminAuditLog` records for settlement, void, lock, and unlock actions.
@@ -140,7 +140,7 @@ Implemented:
 Remaining Sprint 1 follow-up:
 
 - FX-002 Admin Audit: add the `ADMIN_ADJUSTMENT` workflow and complete market-edit audit coverage.
-- Add concurrency-safe trade execution.
+- Production load test concurrency-safe trade execution.
 
 ## P0 - Correctness and Safety Foundation - 78% Complete
 
@@ -163,10 +163,11 @@ Goal: make the money/market core reliable before adding new features.
    - Leaderboard recalculation in `lib/leaderboard.service.ts`.
    - Typed domain errors with stable codes in `lib/domain-errors.ts`.
 
-4. Add concurrency protection - not started
-   - Review Prisma transaction isolation.
-   - Ensure market pools and user balances cannot be double-spent or overwritten by simultaneous trades.
-   - Add tests for simultaneous buys on the same market and simultaneous buys by the same user.
+4. Add concurrency protection - implemented in FX010
+   - Trade execution uses serializable transactions.
+   - User and market rows are locked during trade execution.
+   - Trade idempotency keys prevent duplicate client retries.
+   - Remaining: production load testing under concurrent trade pressure.
 
 5. Add admin audit log - complete
    - Completed: settle, lock, unlock, and void audit records.
@@ -181,9 +182,10 @@ Goal: harden the real account/session system before broader release.
    - Signed httpOnly cookie backed by server-side session rows.
    - Demo account selection removed.
 
-2. Add CSRF protection
-   - Protect all cookie-authenticated POST routes.
-   - Cover trades, settlements, login/logout if appropriate.
+2. Add CSRF protection - implemented in FX010
+   - Protect authenticated cookie-backed mutating routes.
+   - Cover trades, settlements, logout, settings, and admin actions.
+   - Login and signup remain exempt because they create sessions.
 
 3. Expand authorization model
    - Replace boolean-only admin checks with roles or permissions.
@@ -198,6 +200,7 @@ Goal: harden the real account/session system before broader release.
    - Logged-out user cannot trade.
    - Forged user ID cannot trade as another account.
    - Invalid/unsigned session is rejected.
+   - Missing/invalid CSRF is rejected for sell trades.
 
 ## P2 - Testing and Developer Workflow
 

@@ -9,7 +9,7 @@
 5. Added `/signup`, `/account`, and `/settings`; removed the demo account picker.
 6. Signup grants 10,000 mock credits through a ledger `SEED_GRANT`.
 7. Seed creates the admin from `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, and `ADMIN_LAST_NAME`.
-8. Added `tests/auth-accounts.test.ts`. Total: 137 tests.
+8. Added `tests/auth-accounts.test.ts`; later sprints expanded the test suite.
 
 ## Completed - FX-007 Market Intelligence & Analytics
 
@@ -71,14 +71,15 @@
 4. Fixed leaderboard refresh scoping.
 5. Added 21 tests covering event consistency, ordering, admin workflows, and authorization.
 
-## P0 - Next Implementation Ticket
+## P0 - Recently Completed
 
-FX-008 - Concurrency Safety:
+FX-010 - Sell Positions, Trade Integrity & CSRF:
 
-1. Add row-level locking or a serializable transaction strategy for market pool and user balance reads during trade execution.
-2. Add simultaneous buys on the same market tests.
-3. Add simultaneous buys by the same user tests.
-4. Verify ledger idempotency and mock balance cache cannot diverge under concurrent trade pressure.
+1. Added sell execution for YES and NO positions.
+2. Added `TradeAction`, trade idempotency keys, and `TRADE_PROCEEDS` ledger rows.
+3. Added serializable trade transactions with row locks on user and market rows.
+4. Added CSRF validation for authenticated mutating routes.
+5. Added sell and CSRF tests.
 
 Remaining backlog:
 
@@ -96,13 +97,13 @@ Remaining backlog:
 
 ## P2 - Bugs / Risk Areas To Watch
 
-1. Concurrent trades may still read stale market pool or user balance data - row-level locking needed.
+1. Concurrent trade handling has row locks and serializable transactions, but still needs production load testing.
 2. The append-only trigger is committed in migration; local `prisma db push` databases do not automatically receive trigger behavior.
 3. Seed resets all exchange history; this is fine for local demo but not for persistent environments.
 4. In-memory rate limiting is not durable across instances.
-5. CSRF protection is still needed for cookie-authenticated POST routes before broader public release.
+5. CSRF protection is active for authenticated mutating routes; keep coverage updated as new routes are added.
 6. Legacy `lib/store.tsx` can confuse future work if accidentally imported.
-7. Trade request idempotency keys are not implemented yet; only ledger mutations have idempotency coverage.
+7. Trade request idempotency keys exist for buy/sell trades; extend the same pattern to any future retryable mutations.
 
 ## P3 - Future Improvements
 

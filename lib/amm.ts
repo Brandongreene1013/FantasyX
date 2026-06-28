@@ -61,6 +61,54 @@ export function executeBuy(market: Market, side: Side, spend: number) {
   };
 }
 
+export function quoteSell(market: Market, side: Side, shares: number) {
+  if (shares <= 0) {
+    return { proceeds: 0, priceBefore: getSidePrice(market, side), priceAfter: getSidePrice(market, side) };
+  }
+
+  const k = market.yesPool * market.noPool;
+  const priceBefore = getSidePrice(market, side);
+
+  if (side === "YES") {
+    const nextYesPool = market.yesPool + shares;
+    const nextNoPool = k / nextYesPool;
+    const nextMarket = { ...market, yesPool: nextYesPool, noPool: nextNoPool };
+    return {
+      proceeds: Math.max(0, market.noPool - nextNoPool),
+      priceBefore,
+      priceAfter: getYesPrice(nextMarket)
+    };
+  }
+
+  const nextNoPool = market.noPool + shares;
+  const nextYesPool = k / nextNoPool;
+  const nextMarket = { ...market, yesPool: nextYesPool, noPool: nextNoPool };
+  return {
+    proceeds: Math.max(0, market.yesPool - nextYesPool),
+    priceBefore,
+    priceAfter: getNoPrice(nextMarket)
+  };
+}
+
+export function executeSell(market: Market, side: Side, shares: number) {
+  const quote = quoteSell(market, side, shares);
+  const k = market.yesPool * market.noPool;
+
+  if (side === "YES") {
+    const yesPool = market.yesPool + shares;
+    return {
+      market: { ...market, yesPool, noPool: k / yesPool, liquidity: Math.max(0, market.liquidity - quote.proceeds) },
+      quote
+    };
+  }
+
+  const noPool = market.noPool + shares;
+  return {
+    market: { ...market, yesPool: k / noPool, noPool, liquidity: Math.max(0, market.liquidity - quote.proceeds) },
+    quote
+  };
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }

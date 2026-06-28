@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { apiGet, type PortfolioResponse } from "@/lib/client-api";
+import { apiGet, apiPost, type PortfolioResponse } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
 import { PageHeading } from "@/components/page-heading";
 import { EquityCurveChart } from "@/components/analytics-charts";
@@ -81,6 +81,7 @@ export default function PortfolioPage() {
             emptyText="No open positions yet."
             positions={openPositions}
             emptyAction
+            onSold={loadPortfolio}
           />
 
           <PositionSection
@@ -109,16 +110,17 @@ function signedCredits(value: number) {
 
 type PortfolioPosition = PortfolioResponse["positions"][number];
 
-function PositionSection({ title, positions, emptyText, emptyAction = false }: { title: string; positions: PortfolioPosition[]; emptyText: string; emptyAction?: boolean }) {
+function PositionSection({ title, positions, emptyText, emptyAction = false, onSold }: { title: string; positions: PortfolioPosition[]; emptyText: string; emptyAction?: boolean; onSold?: () => void }) {
   return (
     <section className="mb-5 overflow-hidden rounded border border-ink/10 bg-white shadow-soft">
-      <div className="hidden grid-cols-[1.25fr_0.75fr_0.75fr_0.7fr_0.75fr_0.75fr] gap-3 border-b border-ink/10 bg-chalk px-4 py-3 text-xs font-black uppercase tracking-widest text-ink/70 md:grid">
+      <div className="hidden grid-cols-[1.25fr_0.65fr_0.65fr_0.6fr_0.65fr_0.65fr_1fr] gap-3 border-b border-ink/10 bg-chalk px-4 py-3 text-xs font-black uppercase tracking-widest text-ink/70 md:grid">
         <span>{title}</span>
         <span>Average entry</span>
         <span>Current value</span>
         <span>Shares</span>
         <span>P&L</span>
         <span>Return</span>
+        <span>Sell</span>
       </div>
       <div className="border-b border-ink/10 bg-chalk px-4 py-3 md:hidden">
         <h2 className="text-sm font-black uppercase tracking-widest text-ink/70">{title}</h2>
@@ -138,7 +140,7 @@ function PositionSection({ title, positions, emptyText, emptyAction = false }: {
             const totalShares = position.yesShares + position.noShares;
             const sideLabel = position.yesShares > 0 && position.noShares > 0 ? "YES / NO" : position.yesShares > 0 ? "YES" : "NO";
             return (
-              <article className="grid gap-3 p-4 md:grid-cols-[1.25fr_0.75fr_0.75fr_0.7fr_0.75fr_0.75fr]" key={position.id}>
+              <article className="grid gap-3 p-4 md:grid-cols-[1.25fr_0.65fr_0.65fr_0.6fr_0.65fr_0.65fr_1fr]" key={position.id}>
                 <div>
                   <p className="font-black">{position.playerName}</p>
                   <p className="text-sm font-semibold text-ink/70">{position.position} - {thresholdLabel(position.thresholdType)} - {sideLabel} - {position.status}</p>
@@ -148,12 +150,60 @@ function PositionSection({ title, positions, emptyText, emptyAction = false }: {
                 <Metric label="Shares" value={totalShares.toFixed(2)} />
                 <PnlMetric label="P&L" value={position.pnl} />
                 <PnlMetric label="Return" value={position.returnPct} percent />
+                {onSold && (position.status === "OPEN" || position.status === "LOCKED") ? <SellPositionControl position={position} onSold={onSold} /> : <Metric label="Sell" value="-" />}
               </article>
             );
           })}
         </div>
       )}
     </section>
+  );
+}
+
+function SellPositionControl({ position, onSold }: { position: PortfolioPosition; onSold: () => void }) {
+  const defaultSide: "YES" | "NO" = position.yesShares > 0 ? "YES" : "NO";
+  const [side, setSide] = useState<"YES" | "NO">(defaultSide);
+  const [shares, setShares] = useState(Math.max(0, defaultSide === "YES" ? position.yesShares : position.noShares));
+  const [isSelling, setIsSelling] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const ownedShares = side === "YES" ? position.yesShares : position.noShares;
+  const canSell = position.status === "OPEN" && shares > 0 && shares <= ownedShares && !isSelling;
+
+  async function sell() {
+    if (!canSell) return;
+    setIsSelling(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await apiPost("/api/trades", { action: "SELL", marketId: position.marketId, side, shares, idempotencyKey: crypto.randomUUID() });
+      setMessage("Sold.");
+      onSold();
+    } catch (sellError) {
+      setError(sellError instanceof Error ? sellError.message : "Sell failed");
+    } finally {
+      setIsSelling(false);
+    }
+  }
+
+  return (
+    <div>
+      <p className="text-xs font-black uppercase tracking-widest text-ink/70 md:hidden">Sell</p>
+      <div className="grid gap-2">
+        <div className="grid grid-cols-2 gap-1">
+          <button type="button" disabled={position.yesShares <= 0} aria-pressed={side === "YES"} onClick={() => { setSide("YES"); setShares(position.yesShares); }} className={`rounded border px-2 py-1 text-xs font-black disabled:opacity-40 ${side === "YES" ? "border-field bg-field/10" : "border-ink/10"}`}>YES</button>
+          <button type="button" disabled={position.noShares <= 0} aria-pressed={side === "NO"} onClick={() => { setSide("NO"); setShares(position.noShares); }} className={`rounded border px-2 py-1 text-xs font-black disabled:opacity-40 ${side === "NO" ? "border-field bg-field/10" : "border-ink/10"}`}>NO</button>
+        </div>
+        <input className="h-9 rounded border border-ink/15 px-2 text-sm font-bold" type="number" min={0.000001} step={0.000001} max={ownedShares} value={shares} onChange={(event) => setShares(Number(event.target.value))} aria-label={`Shares of ${side} to sell`} />
+        <div className="flex gap-1">
+          <button className="flex-1 rounded border border-ink/10 px-2 py-1 text-xs font-black hover:bg-ink/5" type="button" disabled={ownedShares <= 0} onClick={() => setShares(ownedShares)}>All</button>
+          <button className="flex-1 rounded bg-ink px-2 py-1 text-xs font-black text-white hover:bg-field disabled:opacity-40" type="button" disabled={!canSell} onClick={sell}>{isSelling ? "Selling" : "Sell"}</button>
+        </div>
+        {position.status !== "OPEN" ? <p className="text-xs font-bold text-ink/60">Market is {position.status.toLowerCase()}.</p> : null}
+        {error ? <p className="text-xs font-bold text-rush" role="alert">{error}</p> : null}
+        {message ? <p className="text-xs font-bold text-field" role="status">{message}</p> : null}
+      </div>
+    </div>
   );
 }
 

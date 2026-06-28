@@ -9,6 +9,7 @@ import { GET as getTradeHistory } from "@/app/api/trade-history/route";
 import { GET as getPortfolio } from "@/app/api/portfolio/route";
 import { sessionCookieName } from "@/lib/session";
 import { createSession } from "@/lib/session-store";
+import { csrfTokenForRequest } from "@/lib/csrf";
 import { applyLedgerBalanceChange, calculateLedgerBalance, reconcileUserLedger } from "@/lib/ledger-service";
 
 const prisma = new PrismaClient();
@@ -227,7 +228,7 @@ describe("database-backed trading and settlement", () => {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        cookie: userSessionCookie
+        ...csrfHeaders(userSessionCookie)
       },
       body: JSON.stringify({
         userId: otherUserId,
@@ -252,6 +253,101 @@ describe("database-backed trading and settlement", () => {
 
     expect(sessionPosition).not.toBeNull();
     expect(forgedPosition).toBeNull();
+  });
+
+  it("sells YES shares, credits balance, reduces position, and writes proceeds ledger", async () => {
+    const buy = await prisma.$transaction((tx) =>
+      executeDbBuy(tx, { userId, marketId: marketId("TOP_10"), side: "YES", spend: 100 })
+    );
+
+    const response = await postTrade(tradeRequest({ action: "SELL", marketId: marketId("TOP_10"), side: "YES", shares: toNumber(buy.shares) / 2, idempotencyKey: "sell_yes_test_key" }));
+    expect(response.status).toBe(200);
+
+    const position = await prisma.position.findUniqueOrThrow({ where: { userId_marketId: { userId, marketId: marketId("TOP_10") } } });
+    const ledger = await prisma.accountLedgerEntry.findFirstOrThrow({ where: { userId, type: "TRADE_PROCEEDS" }, orderBy: { createdAt: "desc" } });
+    const sellTrade = await prisma.trade.findFirstOrThrow({ where: { idempotencyKey: "sell_yes_test_key" } });
+
+    expect(toNumber(position.yesShares)).toBeCloseTo(toNumber(buy.shares) / 2);
+    expect(toNumber(ledger.amount)).toBeGreaterThan(0);
+    expect(sellTrade.action).toBe("SELL");
+    expect(await getUserBalance(userId)).toBeGreaterThan(900);
+  });
+
+  it("sells NO shares", async () => {
+    const buy = await prisma.$transaction((tx) =>
+      executeDbBuy(tx, { userId, marketId: marketId("TOP_5"), side: "NO", spend: 80 })
+    );
+
+    const response = await postTrade(tradeRequest({ action: "SELL", marketId: marketId("TOP_5"), side: "NO", shares: toNumber(buy.shares), idempotencyKey: "sell_no_test_key" }));
+    expect(response.status).toBe(200);
+
+    const position = await prisma.position.findUniqueOrThrow({ where: { userId_marketId: { userId, marketId: marketId("TOP_5") } } });
+    expect(toNumber(position.noShares)).toBeCloseTo(0);
+  });
+
+  it("rejects selling more shares than owned", async () => {
+    await prisma.$transaction((tx) =>
+      executeDbBuy(tx, { userId, marketId: marketId("TOP_3"), side: "YES", spend: 50 })
+    );
+
+    const response = await postTrade(tradeRequest({ action: "SELL", marketId: marketId("TOP_3"), side: "YES", shares: 9999, idempotencyKey: "oversell_test_key" }));
+    expect(response.status).toBe(400);
+    const body = await response.json() as { code: string };
+    expect(body.code).toBe("INSUFFICIENT_SHARES");
+  });
+
+  it("rejects sell trades on locked, settled, and void markets", async () => {
+    const lockedBuy = await prisma.$transaction((tx) =>
+      executeDbBuy(tx, { userId, marketId: marketId("TOP_3"), side: "YES", spend: 30 })
+    );
+    await prisma.$transaction((tx) => lockDbMarket(tx, marketId("TOP_3"), userId, "Locked for test"));
+    const locked = await postTrade(tradeRequest({ action: "SELL", marketId: marketId("TOP_3"), side: "YES", shares: toNumber(lockedBuy.shares) / 2 }));
+    expect(locked.status).toBe(400);
+
+    const settledBuy = await prisma.$transaction((tx) =>
+      executeDbBuy(tx, { userId, marketId: marketId("TOP_5"), side: "YES", spend: 30 })
+    );
+    await prisma.$transaction((tx) => settleDbMarket(tx, { marketId: marketId("TOP_5"), result: "YES", settledById: userId }));
+    const settled = await postTrade(tradeRequest({ action: "SELL", marketId: marketId("TOP_5"), side: "YES", shares: toNumber(settledBuy.shares) / 2 }));
+    expect(settled.status).toBe(400);
+
+    const voidBuy = await prisma.$transaction((tx) =>
+      executeDbBuy(tx, { userId, marketId: marketId("TOP_10"), side: "NO", spend: 30 })
+    );
+    await prisma.$transaction((tx) => voidDbMarket(tx, marketId("TOP_10"), userId, "Void for test"));
+    const voided = await postTrade(tradeRequest({ action: "SELL", marketId: marketId("TOP_10"), side: "NO", shares: toNumber(voidBuy.shares) / 2 }));
+    expect(voided.status).toBe(400);
+  });
+
+  it("rejects sell trades without a valid CSRF token", async () => {
+    await prisma.$transaction((tx) =>
+      executeDbBuy(tx, { userId, marketId: marketId("TOP_3"), side: "YES", spend: 50 })
+    );
+
+    const missing = await postTrade(new Request("http://localhost/api/trades", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: userSessionCookie },
+      body: JSON.stringify({ action: "SELL", marketId: marketId("TOP_3"), side: "YES", shares: 1 })
+    }));
+    const invalid = await postTrade(new Request("http://localhost/api/trades", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: userSessionCookie, "x-csrf-token": "bad-token" },
+      body: JSON.stringify({ action: "SELL", marketId: marketId("TOP_3"), side: "YES", shares: 1 })
+    }));
+
+    expect(missing.status).toBe(403);
+    expect(invalid.status).toBe(403);
+  });
+
+  it("returns the same trade for duplicate idempotency keys", async () => {
+    const first = await postTrade(tradeRequest({ action: "BUY", marketId: marketId("TOP_10"), side: "YES", spend: 25, idempotencyKey: "duplicate_buy_key" }));
+    const second = await postTrade(tradeRequest({ action: "BUY", marketId: marketId("TOP_10"), side: "YES", spend: 25, idempotencyKey: "duplicate_buy_key" }));
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+
+    const trades = await prisma.trade.findMany({ where: { idempotencyKey: "duplicate_buy_key" } });
+    expect(trades).toHaveLength(1);
+    expect(await getUserBalance(userId)).toBeCloseTo(975);
   });
 
   it("returns authenticated trade history with execution details", async () => {
@@ -612,4 +708,20 @@ function authenticatedRequest(url: string) {
       cookie: userSessionCookie
     }
   });
+}
+
+function tradeRequest(body: unknown) {
+  return new Request("http://localhost/api/trades", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...csrfHeaders(userSessionCookie)
+    },
+    body: JSON.stringify(body)
+  });
+}
+
+function csrfHeaders(cookie: string) {
+  const request = new Request("http://localhost", { headers: { cookie } });
+  return { cookie, "x-csrf-token": csrfTokenForRequest(request) ?? "" };
 }

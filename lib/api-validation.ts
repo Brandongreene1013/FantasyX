@@ -6,8 +6,18 @@ export const weekQuerySchema = z.object({
 
 export const tradeSchema = z.object({
   marketId: z.string().min(1),
+  action: z.enum(["BUY", "SELL"]).default("BUY"),
   side: z.enum(["YES", "NO"]),
-  spend: z.number().positive()
+  spend: z.number().positive().optional(),
+  shares: z.number().positive().optional(),
+  idempotencyKey: z.string().min(8).max(120).optional()
+}).superRefine((value, ctx) => {
+  if (value.action === "BUY" && typeof value.spend !== "number") {
+    ctx.addIssue({ code: "custom", path: ["spend"], message: "Spend is required for buy trades" });
+  }
+  if (value.action === "SELL" && typeof value.shares !== "number") {
+    ctx.addIssue({ code: "custom", path: ["shares"], message: "Shares are required for sell trades" });
+  }
 });
 
 export const loginSchema = z.object({

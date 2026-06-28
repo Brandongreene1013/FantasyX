@@ -378,7 +378,7 @@ Covers home, markets, portfolio, leaderboard, admin, and trade modal with axe.
 - `npx prisma migrate deploy` - passed after local baseline of older `db push` schema
 - `npm run lint` - passed on 2026-06-28
 - `npm run typecheck` - passed on 2026-06-28
-- `npm test` - passed on 2026-06-28, 137 tests
+- `npm test` - passed on 2026-06-28, 150 tests
 - `npm run build` - passed on 2026-06-28
 - `npm run prisma:seed` - passed
 - `npm run test:a11y` - passed, 6 tests
@@ -389,9 +389,9 @@ Known non-blocking warning: Playwright dev server may show a future Next.js `all
 
 - A migration exists, but docs/scripts still need to fully switch from `prisma db push` to migrate-first workflows.
 - In-memory rate limiting is only a placeholder.
-- CSRF protection is still needed for cookie-authenticated POST routes before broader public release.
+- CSRF protection is active for authenticated mutating routes.
 - `/markets` is route-protected so users choose an account before trading.
-- Trade execution still lacks explicit concurrency controls/row-level locking.
+- Trade execution now uses serializable transactions, user/market row locks, and trade idempotency keys. Production load testing is still recommended.
 - `ADMIN_ADJUSTMENT` API workflow exists (`POST /api/admin/adjustments`) but has no admin UI page yet.
 - Legacy `lib/store.tsx` may still exist but should not be used for real app state.
 - No Solana integration yet by design.
@@ -399,4 +399,4 @@ Known non-blocking warning: Playwright dev server may show a future Next.js `all
 
 ## Recommended Next Implementation Ticket
 
-Next ticket: FX-008 — Concurrency Safety (row-level locking or serializable strategy for trade execution, simultaneous trade tests, and balance/pool overwrite protection).
+Next ticket: production load testing and durable/shared rate limiting before broader public release.

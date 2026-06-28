@@ -171,6 +171,8 @@ Current implementation:
 - The browser receives a signed httpOnly `fantasyx_session` cookie.
 - API routes derive the user from the session and never trust a client-supplied user id.
 - Signup creates a 10,000 mock-credit `SEED_GRANT` ledger entry.
+- `/api/session` returns a session-bound CSRF token for authenticated clients.
+- Cookie-authenticated state-changing routes require `x-csrf-token`.
 - Middleware protects `/markets`, `/markets/*`, `/players/*`, `/portfolio`, `/history`, `/admin`, `/account`, and `/settings`.
 - Logged-in users visiting `/login` or `/signup` are redirected to `/markets`.
 - Login `next` redirects are constrained to internal paths to prevent open redirects.
@@ -181,11 +183,14 @@ Responsibilities:
 
 - Validate market tradability.
 - Validate user balance.
-- Quote and execute AMM trade.
+- Validate position inventory for sell trades.
+- Quote and execute AMM buy/sell trades.
 - Update market pools.
 - Create trade record.
 - Update position.
-- Write ledger entry.
+- Write ledger entry for trade spends and trade proceeds.
+- Enforce idempotency keys for client-submitted trades.
+- Execute in serializable transactions with row locks on user and market rows.
 - Return execution result.
 
 ### AMM Service
@@ -193,6 +198,7 @@ Responsibilities:
 Responsibilities:
 
 - Quote YES/NO trades.
+- Quote YES/NO sells against the opposite AMM pool.
 - Calculate shares, price before, price after, average price, and slippage.
 - Enforce optional max slippage.
 - Maintain pure deterministic math separate from database writes.

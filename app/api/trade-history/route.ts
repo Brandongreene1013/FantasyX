@@ -48,6 +48,7 @@ export async function GET(request: Request) {
         position: trade.market.position,
         thresholdType: trade.market.thresholdType,
         status: trade.market.status,
+        action: trade.action,
         side: trade.side,
         executionPrice: toNumber(trade.priceBefore),
         marketPriceAfter: toNumber(trade.priceAfter),

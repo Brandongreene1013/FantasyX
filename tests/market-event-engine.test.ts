@@ -4,6 +4,7 @@ import { executeDbBuy, lockDbMarket, openDbMarket, settleDbMarket, settleDbPlaye
 import { toNumber } from "@/lib/db-serialization";
 import { sessionCookieName } from "@/lib/session";
 import { createSession } from "@/lib/session-store";
+import { csrfTokenForRequest } from "@/lib/csrf";
 import { emitAdminNoteEvent, snapshotFromMarket } from "@/lib/market-event.service";
 import { POST as postAdjustment } from "@/app/api/admin/adjustments/route";
 import { POST as postNote } from "@/app/api/admin/notes/route";
@@ -675,7 +676,7 @@ function adminRequest(url: string, body: unknown) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      cookie: adminSessionCookie,
+      ...csrfHeaders(adminSessionCookie),
     },
     body: JSON.stringify(body),
   });
@@ -686,8 +687,13 @@ function traderRequest(url: string, body: unknown) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      cookie: traderSessionCookie,
+      ...csrfHeaders(traderSessionCookie),
     },
     body: JSON.stringify(body),
   });
+}
+
+function csrfHeaders(cookie: string) {
+  const request = new Request("http://localhost", { headers: { cookie } });
+  return { cookie, "x-csrf-token": csrfTokenForRequest(request) ?? "" };
 }

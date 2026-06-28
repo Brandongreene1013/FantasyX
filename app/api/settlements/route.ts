@@ -5,11 +5,13 @@ import { voidDbMarket } from "@/lib/void.service";
 import { apiError } from "@/lib/api-response";
 import { settlementSchema } from "@/lib/api-validation";
 import { requireAdminUser } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 
 export async function POST(request: Request) {
   try {
     const body = settlementSchema.parse(await request.json());
     const admin = await requireAdminUser(request);
+    await requireCsrf(request);
 
     const result = await prisma.$transaction(async (tx) => {
       if (body.action === "SETTLE_PLAYER") {

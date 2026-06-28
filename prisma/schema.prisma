@@ -40,10 +40,16 @@ enum TradeSide {
 enum LedgerEntryType {
   SEED_GRANT
   TRADE_SPEND
+  TRADE_PROCEEDS
   SETTLEMENT_PAYOUT
   VOID_REFUND
   ADMIN_ADJUSTMENT
   CORRECTION
+}
+
+enum TradeAction {
+  BUY
+  SELL
 }
 
 enum MarketEventType {
@@ -217,11 +223,13 @@ model Trade {
   user        User      @relation(fields: [userId], references: [id])
   marketId    String    @map("market_id")
   market      Market    @relation(fields: [marketId], references: [id])
+  action      TradeAction @default(BUY)
   side        TradeSide
   spend       Decimal   @db.Decimal(14, 2)
   shares      Decimal   @db.Decimal(14, 6)
   priceBefore Decimal   @map("price_before") @db.Decimal(8, 6)
   priceAfter  Decimal   @map("price_after") @db.Decimal(8, 6)
+  idempotencyKey String? @unique @map("idempotency_key")
   createdAt   DateTime  @default(now()) @map("created_at")
   ledgerEntries AccountLedgerEntry[]
   events      MarketEvent[]

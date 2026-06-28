@@ -91,6 +91,7 @@ export async function GET(request: Request) {
       id: trade.id,
       marketId: trade.marketId,
       playerName: trade.market.player.name,
+      action: trade.action,
       side: trade.side,
       spend: toNumber(trade.spend),
       shares: toNumber(trade.shares),

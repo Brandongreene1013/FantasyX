@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { requireCsrf } from "@/lib/csrf";
 import { sessionCookieName } from "@/lib/session";
 import { destroySession, readSessionCookie } from "@/lib/session-store";
 
 export async function POST(request: Request) {
+  await requireCsrf(request);
   await destroySession(readSessionCookie(request));
   const response = NextResponse.json({ ok: true });
   response.cookies.set(sessionCookieName, "", {

@@ -4,41 +4,35 @@ Date: 2026-06-28
 
 ## Production Gaps
 
-1. Sell positions are not implemented.
-   - Current app supports buy YES, buy NO, settlement payouts, and void refunds.
-   - There is no sell quote, sell execution service, sell ledger type, API route, UI, or test coverage.
-   - This should be its own product/trading sprint because it changes AMM and ledger behavior.
-
-2. Admin create-market UI is not implemented.
+1. Admin create-market UI is not implemented.
    - Markets are created by seed data and NFL sync.
    - Arbitrary market creation requires validation, audit policy, duplicate prevention, and admin UI.
 
-3. Trade execution lacks explicit concurrency locking.
-   - Current transactions are atomic for ordinary execution.
-   - Simultaneous trade pressure can still risk stale market pool or balance reads.
-   - Recommended next ticket: row-level locking or serializable transaction strategy.
+2. Trade execution concurrency needs production load testing.
+   - FX010 added serializable trade transactions, row-level user/market locks, and bounded retries.
+   - High-volume multi-instance behavior should still be load-tested before public beta.
 
-4. CSRF protection is not implemented yet.
-   - Real accounts now use signed httpOnly sessions backed by server-side session rows.
-   - Cookie-authenticated POST routes still need CSRF token issuance and validation before broader public release.
+3. CSRF is active, but token rotation is simple.
+   - FX010 added session-bound CSRF tokens for authenticated state-changing routes.
+   - Future hardening can rotate tokens periodically or per form if needed.
 
-5. Rate limiting is in-memory.
+4. Rate limiting is in-memory.
    - Middleware rate limits are per runtime instance.
    - Use durable/shared rate limiting before broader public usage.
 
-6. Seed resets seeded market/account data.
+5. Seed resets seeded market/account data.
    - `npm run prisma:seed` is idempotent in the sense that it does not duplicate data.
    - It intentionally resets seeded market, trade, account, and analytics data and should only be run deliberately.
 
-7. Live NFL stats are not connected.
+6. Live NFL stats are not connected.
    - FX-006 added provider abstraction and demo sync.
    - Player projections/history still use demo model data until a real provider is connected.
 
-8. Production observability is minimal.
+7. Production observability is minimal.
    - FX008 added structured server error logging and request IDs.
    - There is no external log drain, alerting, or metrics dashboard yet.
 
-9. npm audit reports 2 moderate findings.
+8. npm audit reports 2 moderate findings.
    - `npm install` completed successfully but reported moderate vulnerabilities.
    - No `npm audit fix --force` was run because it may introduce breaking dependency changes.
 

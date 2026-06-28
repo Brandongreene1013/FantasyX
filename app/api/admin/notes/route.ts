@@ -3,12 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-response";
 import { adminNoteSchema } from "@/lib/api-validation";
 import { requireAdminUser } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { emitAdminNoteEvent, snapshotFromMarket } from "@/lib/market-event.service";
 import { DomainError } from "@/lib/domain-errors";
 
 export async function POST(request: Request) {
   try {
     const admin = await requireAdminUser(request);
+    await requireCsrf(request);
     const body = adminNoteSchema.parse(await request.json());
 
     const event = await prisma.$transaction(async (tx) => {

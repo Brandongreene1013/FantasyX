@@ -12,6 +12,7 @@ import { GET as getNflStats } from "@/app/api/admin/nfl/stats/route";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { createSession } from "@/lib/session-store";
 import { sessionCookieName } from "@/lib/session";
+import { csrfTokenForRequest } from "@/lib/csrf";
 
 const prisma = new PrismaClient();
 const weekId = "test_week_auth_accounts";
@@ -80,7 +81,7 @@ describe("FX009 real account auth", () => {
     const signupResponse = await signup(signupRequest("logout@example.com"));
     const cookie = getCookie(signupResponse);
 
-    const logoutResponse = await logout(new Request("http://localhost/api/auth/logout", { method: "POST", headers: { cookie } }));
+    const logoutResponse = await logout(new Request("http://localhost/api/auth/logout", { method: "POST", headers: csrfHeaders(cookie) }));
     expect(logoutResponse.status).toBe(200);
 
     const sessionResponse = await getSession(new Request("http://localhost/api/session", { headers: { cookie } }));
@@ -165,10 +166,15 @@ function jsonRequest(path: string, body: unknown, cookie?: string) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      ...(cookie ? { cookie } : {})
+      ...(cookie ? csrfHeaders(cookie) : {})
     },
     body: JSON.stringify(body)
   });
+}
+
+function csrfHeaders(cookie: string) {
+  const request = new Request("http://localhost", { headers: { cookie } });
+  return { cookie, "x-csrf-token": csrfTokenForRequest(request) ?? "" };
 }
 
 function getCookie(response: Response) {
