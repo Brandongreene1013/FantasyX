@@ -144,7 +144,7 @@ export default function PlayerPage({ params }: { params: Promise<{ playerId: str
               </div>
             </dl>
             <p className="mt-3 text-xs font-semibold text-ink/40">
-              Placeholder data. Real NFL stats integration planned for a future sprint.
+              Demo projection model. Live NFL stats integration is planned for a future sprint.
             </p>
           </section>
 
@@ -201,7 +201,7 @@ export default function PlayerPage({ params }: { params: Promise<{ playerId: str
               <HistStat label="Worst finish" value={`#${Math.max(...intelligence.historicalFinishes.map((r) => r.finish))}`} />
             </div>
             <p className="mt-3 text-xs font-semibold text-ink/40">
-              Placeholder data. Real performance history planned for a future sprint.
+              Demo performance history. Live weekly results integration is planned for a future sprint.
             </p>
           </section>
         </div>

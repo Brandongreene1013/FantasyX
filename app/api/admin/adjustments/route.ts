@@ -5,6 +5,7 @@ import { adminAdjustmentSchema } from "@/lib/api-validation";
 import { requireAdminUser } from "@/lib/auth";
 import { applyLedgerBalanceChange } from "@/lib/ledger-service";
 import { createAdminAuditLog } from "@/lib/exchange-records";
+import { DomainError } from "@/lib/domain-errors";
 
 export async function POST(request: Request) {
   try {
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
         where: { id: body.userId },
       });
       if (!targetUser) {
-        throw new Error("Target user not found");
+        throw new DomainError("NOT_FOUND", "Target user not found", 400);
       }
 
       const ledgerEntry = await applyLedgerBalanceChange(tx, {
@@ -46,6 +47,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ entry });
   } catch (error) {
-    return apiError(error, "Admin adjustment failed");
+    return apiError(error, "Admin adjustment failed", undefined, request);
   }
 }

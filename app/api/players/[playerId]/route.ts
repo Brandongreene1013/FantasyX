@@ -71,6 +71,6 @@ export async function GET(
       intelligence
     });
   } catch (error) {
-    return apiError(error, "Could not load player");
+    return apiError(error, "Could not load player", undefined, request);
   }
 }

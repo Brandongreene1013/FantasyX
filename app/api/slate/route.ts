@@ -35,6 +35,6 @@ export async function GET(request: Request) {
       markets: markets.map(serializeMarket)
     });
   } catch (error) {
-    return apiError(error, "Could not load slate");
+    return apiError(error, "Could not load slate", undefined, request);
   }
 }

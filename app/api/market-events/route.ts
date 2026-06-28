@@ -49,6 +49,6 @@ export async function GET(request: Request) {
       }))
     });
   } catch (error) {
-    return apiError(error, "Could not load market events");
+    return apiError(error, "Could not load market events", undefined, request);
   }
 }

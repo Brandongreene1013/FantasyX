@@ -37,6 +37,8 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/fantasyx?schema=publ
 
 Do not commit `.env` files or secrets.
 
+Production deployment uses Vercel + Neon/Postgres. See `DEPLOYMENT.md`.
+
 ## Main Commands
 
 ```powershell
@@ -46,9 +48,12 @@ npm run typecheck
 npm run test
 npm run test:a11y
 npm run build
+npm run vercel-build
 npm run prisma:push
 npm run prisma:seed
 ```
+
+Use `npm run vercel-build` only for Vercel-style migration/build verification against a migration-managed database.
 
 ## Current Features
 
@@ -60,6 +65,8 @@ npm run prisma:seed
 - Admin rank settlement, lock/open, and void flows
 - Settlement double-pay and void double-refund prevention
 - WCAG-oriented accessibility pass with axe tests
+- Production-safe API errors with request IDs
+- Vercel deployment support with Prisma migrations
 
 ## Important Constraints
 

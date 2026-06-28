@@ -127,6 +127,6 @@ export async function GET(request: Request) {
       trades
     });
   } catch (error) {
-    return apiError(error, "Could not load portfolio");
+    return apiError(error, "Could not load portfolio", undefined, request);
   }
 }

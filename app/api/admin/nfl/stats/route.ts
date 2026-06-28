@@ -39,6 +39,6 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    return apiError(error, "Failed to load NFL stats");
+    return apiError(error, "Failed to load NFL stats", undefined, request);
   }
 }

@@ -26,6 +26,6 @@ export async function POST(request: Request) {
     });
     return response;
   } catch (error) {
-    return apiError(error, "Login failed");
+    return apiError(error, "Login failed", undefined, request);
   }
 }

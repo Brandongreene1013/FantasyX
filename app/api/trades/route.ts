@@ -20,6 +20,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ trade });
   } catch (error) {
-    return apiError(error, "Trade failed");
+    return apiError(error, "Trade failed", undefined, request);
   }
 }

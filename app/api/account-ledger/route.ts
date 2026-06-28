@@ -38,6 +38,6 @@ export async function GET(request: Request) {
       }))
     });
   } catch (error) {
-    return apiError(error, "Could not load account ledger");
+    return apiError(error, "Could not load account ledger", undefined, request);
   }
 }

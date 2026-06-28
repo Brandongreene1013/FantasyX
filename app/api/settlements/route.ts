@@ -29,6 +29,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ result });
   } catch (error) {
-    return apiError(error, "Settlement failed");
+    return apiError(error, "Settlement failed", undefined, request);
   }
 }

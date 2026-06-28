@@ -16,6 +16,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ result });
   } catch (error) {
-    return apiError(error, "NFL demo sync failed");
+    return apiError(error, "NFL demo sync failed", undefined, request);
   }
 }

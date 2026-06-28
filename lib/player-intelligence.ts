@@ -91,7 +91,7 @@ export function getIntelligence(
     projectedRank: projectedRankLabel(projection, position),
     confidenceScore,
     injuryStatus: "ACTIVE",
-    matchupNotes: `Facing ${opponent} — ${data.matchupRating.toLowerCase()} matchup for ${position}. Placeholder: real matchup data requires NFL stats integration.`,
+    matchupNotes: `Facing ${opponent} — ${data.matchupRating.toLowerCase()} matchup for ${position}. Demo model uses seeded projections until live NFL matchup data is connected.`,
     historicalFinishes: getPlaceholderHistory(playerId, projection)
   };
 }

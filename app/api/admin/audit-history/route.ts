@@ -51,6 +51,6 @@ export async function GET(request: Request) {
       })),
     });
   } catch (error) {
-    return apiError(error, "Could not load audit history");
+    return apiError(error, "Could not load audit history", undefined, request);
   }
 }

@@ -1,10 +1,12 @@
 node_modules
 .next
 .local
-.env
+.env*
 *.log
 dev-server*.log
 test-results
 playwright-report
 *.zip
 tsconfig.tsbuildinfo
+
+.vercel

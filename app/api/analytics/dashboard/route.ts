@@ -8,6 +8,6 @@ export async function GET(request: Request) {
     const weekId = searchParams.get("weekId") ?? undefined;
     return NextResponse.json(await getDashboardAnalytics(weekId));
   } catch (error) {
-    return apiError(error, "Could not load analytics dashboard");
+    return apiError(error, "Could not load analytics dashboard", undefined, request);
   }
 }
