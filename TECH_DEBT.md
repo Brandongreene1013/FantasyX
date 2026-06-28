@@ -44,30 +44,13 @@ Recommendation:
 - Use row-level locking where practical or optimistic concurrency via version fields.
 - Add concurrent trade tests.
 
-### TD-003: Raw user ID session cookie
+### TD-003: CSRF protection for real account sessions
 
 Impact: High
 
 Current State:
 
-- Mock auth stores `fantasyx_user_id` as a raw httpOnly cookie.
-
-Risk:
-
-- Cookie can be forged by anyone with local/dev access.
-- This is not safe outside a mock demo environment.
-
-Recommendation:
-
-- Replace with signed cookie or server-side session ID.
-- Keep demo auth clearly labeled.
-
-### TD-004: No CSRF protection
-
-Impact: High
-
-Current State:
-
+- Real accounts use signed httpOnly cookies backed by server-side `Session` rows.
 - Cookie-authenticated POST routes do not validate CSRF tokens.
 
 Risk:
@@ -77,7 +60,23 @@ Risk:
 Recommendation:
 
 - Add CSRF token issuance and validation.
-- Cover trade and settlement routes.
+- Cover trade, settlement, account, settings, and auth state-changing routes.
+
+### TD-004: Durable/shared rate limiting
+
+Impact: High
+
+Current State:
+
+- Middleware rate limiting uses an in-memory map per runtime instance.
+
+Risk:
+
+- Limits are not shared across serverless instances.
+
+Recommendation:
+
+- Move rate limiting to a durable/shared store before broader release.
 
 ### TD-005: No committed migrations
 
@@ -413,7 +412,7 @@ Recommendation:
 2. TD-001: Add ledger.
 3. TD-002: Add trade concurrency controls.
 4. TD-006: Split domain services.
-5. TD-003 and TD-004: Signed sessions and CSRF.
+5. TD-003 and TD-004: CSRF and durable rate limiting.
 6. TD-008: Admin audit log.
 7. TD-013: E2E smoke tests.
 8. TD-009: Remove legacy store.

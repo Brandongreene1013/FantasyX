@@ -25,6 +25,8 @@ Open `http://localhost:3000/signup`.
 
 If an older production database already has the admin email but a stale or empty password hash, logging in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` upgrades that account to the admin role and refreshes its password hash.
 
+Login redirects only allow internal `next` paths. External or protocol-relative redirect targets fall back to `/markets`.
+
 ## Local Verification
 
 ```powershell

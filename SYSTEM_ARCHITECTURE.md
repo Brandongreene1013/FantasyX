@@ -171,6 +171,9 @@ Current implementation:
 - The browser receives a signed httpOnly `fantasyx_session` cookie.
 - API routes derive the user from the session and never trust a client-supplied user id.
 - Signup creates a 10,000 mock-credit `SEED_GRANT` ledger entry.
+- Middleware protects `/markets`, `/markets/*`, `/players/*`, `/portfolio`, `/history`, `/admin`, `/account`, and `/settings`.
+- Logged-in users visiting `/login` or `/signup` are redirected to `/markets`.
+- Login `next` redirects are constrained to internal paths to prevent open redirects.
 
 ### Trade Service
 

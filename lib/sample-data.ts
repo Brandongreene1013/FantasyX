@@ -4,7 +4,7 @@ export const currentWeek = 1;
 
 export const mockAccount: Account = {
   id: "acct_demo",
-  name: "Demo Coach",
+  name: "Founding Coach",
   balance: 1000,
   startingBalance: 1000
 };

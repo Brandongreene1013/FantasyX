@@ -20,6 +20,15 @@ FX009 replaces the demo account selector with real email/password accounts while
 - Navigation now shows Login/Sign Up when logged out and Markets/Portfolio/Leaderboard/Account/Settings/Logout when logged in.
 - Admin APIs authorize via authenticated admin role/session.
 
+## FX009.5 Follow-Up
+
+- Middleware now includes `/account`, `/settings`, `/login`, and `/signup` in the matcher.
+- Logged-out protected pages redirect to `/login?next=...`.
+- Logged-in users visiting `/login` or `/signup` redirect to `/markets`.
+- Login `next` paths are sanitized to internal URLs only.
+- Normal signup cannot reserve the configured `ADMIN_EMAIL`.
+- Stale current-state demo-auth documentation was cleaned up.
+
 ## Required Environment Variables
 
 - `DATABASE_URL`

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { safeInternalPath } from "@/lib/redirects";
 import { sessionCookieName } from "@/lib/session";
 
 const buckets = new Map<string, { count: number; resetAt: number }>();
@@ -9,16 +10,22 @@ export function middleware(request: NextRequest) {
   const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-request-id", requestId);
+  const hasSession = Boolean(request.cookies.get(sessionCookieName)?.value);
 
   if (request.nextUrl.pathname === "/markets" || request.nextUrl.pathname.startsWith("/markets/") || request.nextUrl.pathname.startsWith("/players/") || request.nextUrl.pathname === "/portfolio" || request.nextUrl.pathname === "/history" || request.nextUrl.pathname === "/admin" || request.nextUrl.pathname === "/account" || request.nextUrl.pathname === "/settings") {
-    const hasSession = Boolean(request.cookies.get(sessionCookieName)?.value);
     if (!hasSession) {
       const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("next", request.nextUrl.pathname);
+      loginUrl.searchParams.set("next", safeInternalPath(`${request.nextUrl.pathname}${request.nextUrl.search}`));
       const response = NextResponse.redirect(loginUrl);
       response.headers.set("x-request-id", requestId);
       return response;
     }
+  }
+
+  if (hasSession && (request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup")) {
+    const response = NextResponse.redirect(new URL("/markets", request.url));
+    response.headers.set("x-request-id", requestId);
+    return response;
   }
 
   if (!request.nextUrl.pathname.startsWith("/api")) {
@@ -57,5 +64,5 @@ function withRateHeaders(response: NextResponse, remaining: number, resetAt: num
 }
 
 export const config = {
-  matcher: ["/api/:path*", "/markets", "/markets/:path*", "/players/:path*", "/portfolio", "/history", "/admin"]
+  matcher: ["/api/:path*", "/markets", "/markets/:path*", "/players/:path*", "/portfolio", "/history", "/admin", "/account", "/settings", "/login", "/signup"]
 };

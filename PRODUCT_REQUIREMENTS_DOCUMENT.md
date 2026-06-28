@@ -12,7 +12,7 @@ FantasyX is not a real-money wagering product in its current phase. It does not 
 
 ## Core Product
 
-Users select a demo account, browse weekly NFL player markets, and buy YES or NO shares using mock credits.
+Users create a free-play account, browse weekly NFL player markets, and buy YES or NO shares using mock credits.
 
 Supported MVP markets:
 
@@ -172,7 +172,7 @@ Rules:
 Capabilities:
 
 - View home page.
-- Select demo account.
+- Create an account or log in.
 
 Restrictions:
 

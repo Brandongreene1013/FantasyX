@@ -18,17 +18,17 @@ Date: 2026-06-28
    - Simultaneous trade pressure can still risk stale market pool or balance reads.
    - Recommended next ticket: row-level locking or serializable transaction strategy.
 
-4. Demo auth is not production-grade identity.
-   - Demo account selection uses an httpOnly cookie with account ID.
-   - This remains acceptable only for free-play MVP/demo usage.
+4. CSRF protection is not implemented yet.
+   - Real accounts now use signed httpOnly sessions backed by server-side session rows.
+   - Cookie-authenticated POST routes still need CSRF token issuance and validation before broader public release.
 
 5. Rate limiting is in-memory.
    - Middleware rate limits are per runtime instance.
    - Use durable/shared rate limiting before broader public usage.
 
-6. Seed resets demo data.
+6. Seed resets seeded market/account data.
    - `npm run prisma:seed` is idempotent in the sense that it does not duplicate data.
-   - It intentionally resets demo data and should only be run deliberately.
+   - It intentionally resets seeded market, trade, account, and analytics data and should only be run deliberately.
 
 7. Live NFL stats are not connected.
    - FX-006 added provider abstraction and demo sync.

@@ -15,6 +15,10 @@ export async function POST(request: Request) {
     const passwordHash = await hashPassword(body.password);
     const displayName = `${body.firstName} ${body.lastName}`.trim();
 
+    if (process.env.ADMIN_EMAIL && body.email === process.env.ADMIN_EMAIL.toLowerCase()) {
+      return NextResponse.json({ error: "An account with that email already exists" }, { status: 409 });
+    }
+
     const existing = await prisma.user.findUnique({
       where: { email: body.email },
       select: { id: true }

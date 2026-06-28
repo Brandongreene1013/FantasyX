@@ -43,9 +43,9 @@ Against `https://fantasy-x.vercel.app`:
 
 - Home loads.
 - Login page loads.
-- Demo accounts API returns users.
+- Real-account auth superseded the former demo accounts API in FX009.
 - Analytics dashboard API returns active seeded market data.
-- Demo login works.
+- Email/password login works after FX009.
 - Authenticated portfolio fetch works.
 - Small authenticated YES trade succeeds and updates balance.
 - Small authenticated NO trade succeeds and updates balance.
@@ -53,7 +53,7 @@ Against `https://fantasy-x.vercel.app`:
 
 ## Implemented Routes Verified By Existing Tests
 
-- Demo account login/logout/session.
+- Real account signup/login/logout/session after FX009.
 - Market slate.
 - Trade API for YES and NO buys.
 - Portfolio API.

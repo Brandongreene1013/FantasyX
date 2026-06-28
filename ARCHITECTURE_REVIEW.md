@@ -144,7 +144,7 @@ Recommended Refactors:
 
 - Replace raw `userId` cookie with signed session token or server-side session ID.
 - Add CSRF protection for state-changing requests.
-- Separate demo auth from future wallet-linked auth behind an `AuthProvider` interface.
+- Keep real account auth separate from future wallet-linked identity behind a provider boundary.
 - Add session expiration and rotation.
 
 Suggested Folder Structure:
@@ -615,7 +615,7 @@ Recommended Refactors:
 - Add CSRF token validation.
 - Add durable rate limiting.
 - Add security headers policy.
-- Restrict demo account listing to development or explicitly label it as demo-only.
+- Keep seeded test/analytics users out of public auth flows.
 - Add admin audit logging.
 
 Suggested Folder Structure:

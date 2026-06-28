@@ -42,7 +42,7 @@ FantasyX/
 
 `app/` contains Next.js App Router pages, layout, global styles, and API route handlers.
 
-`app/api/auth/` contains demo login, logout, and demo-user listing routes.
+`app/api/auth/` contains email/password signup, login, and logout routes.
 
 `app/api/trades/`, `portfolio/`, `settlements/`, `slate/`, and `leaderboard/` are the database-backed product APIs.
 

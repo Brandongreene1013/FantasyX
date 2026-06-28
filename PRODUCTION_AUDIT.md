@@ -6,7 +6,7 @@ Production URL: https://fantasy-x.vercel.app
 
 ## Summary
 
-FantasyX is deployed on Vercel with a Neon PostgreSQL database. The core implemented production loop was verified: demo login, market browsing, YES/NO buys, portfolio reads, leaderboard reads, admin lock/open/void/settlement APIs, migrations, seeded data, and page refresh.
+FantasyX is deployed on Vercel with a Neon PostgreSQL database. The core implemented production loop was verified: real account signup/login, market browsing, YES/NO buys, portfolio reads, leaderboard reads, admin lock/open/void/settlement APIs, migrations, seeded data, and page refresh.
 
 This sprint did not add new product features. Two requested flows, selling positions and creating markets from the UI, are not part of the current implemented application and remain documented gaps.
 
@@ -28,7 +28,7 @@ This sprint did not add new product features. Two requested flows, selling posit
 | `sell positions` flow missing | High | Current product only implements buy YES/NO and settlement payouts/refunds; no sell service, API, UI, or tests exist. | Not implemented in FX008 because it is new product/trading functionality and conflicts with "Do NOT build new product features." | Open |
 | `create market` admin flow missing | Medium | Current market creation is via seed and NFL sync service; admin UI does not create arbitrary markets. | Not implemented in FX008 because it is new product/admin functionality and conflicts with sprint scope. | Open |
 | Trade execution lacks explicit row-level locking | High | Current Prisma transaction does not lock user/market rows for simultaneous trade pressure. | Documented as next correctness ticket; existing tests still cover ordinary transaction safety. | Open |
-| Demo auth is not production-grade identity | Medium | Demo account cookie stores account ID for MVP convenience. | Kept by design for free-play demo; documented as known issue. | Open |
+| Real-account auth still lacks CSRF protection | Medium | FX009 added signed server-side sessions; CSRF tokens are not implemented yet. | Documented as follow-up hardening work. | Open |
 | In-memory rate limiting is not durable | Medium | Middleware Map is per runtime instance. | Kept as MVP protection only; documented as known issue. | Open |
 
 ## Production Smoke Results
@@ -37,8 +37,8 @@ Verified against `https://fantasy-x.vercel.app`:
 
 - `GET /` -> 200
 - `GET /login` -> 200
-- `GET /api/auth/demo-users` -> 200
 - `GET /api/analytics/dashboard?weekId=nfl_2026_w1` -> 200 with active market data
+- `POST /api/auth/signup` -> 201 with cookie session
 - `POST /api/auth/login` -> 200 with cookie session
 - `GET /api/portfolio` with session -> 200
 - `POST /api/trades` with session -> 200 for a small YES trade
@@ -47,10 +47,12 @@ Verified against `https://fantasy-x.vercel.app`:
 
 Implemented API routes:
 
-- `GET /api/auth/demo-users`
+- `POST /api/auth/signup`
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
 - `GET /api/session`
+- `GET /api/account`
+- `PATCH /api/settings`
 - `GET /api/slate`
 - `POST /api/trades`
 - `GET /api/portfolio`

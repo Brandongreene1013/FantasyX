@@ -4,6 +4,8 @@ import { GET as getSession } from "@/app/api/session/route";
 import { POST as login } from "@/app/api/auth/login/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
 import { POST as signup } from "@/app/api/auth/signup/route";
+import { GET as getAccount } from "@/app/api/account/route";
+import { PATCH as patchSettings } from "@/app/api/settings/route";
 import { POST as trade } from "@/app/api/trades/route";
 import { GET as getPortfolio } from "@/app/api/portfolio/route";
 import { GET as getNflStats } from "@/app/api/admin/nfl/stats/route";
@@ -51,6 +53,17 @@ describe("FX009 real account auth", () => {
     expect((await signup(signupRequest("duplicate@example.com"))).status).toBe(409);
   });
 
+  it("does not allow normal signup to reserve the configured admin email", async () => {
+    const previousAdminEmail = process.env.ADMIN_EMAIL;
+    process.env.ADMIN_EMAIL = "reserved-admin@example.com";
+    try {
+      const response = await signup(signupRequest("reserved-admin@example.com"));
+      expect(response.status).toBe(409);
+    } finally {
+      process.env.ADMIN_EMAIL = previousAdminEmail;
+    }
+  });
+
   it("logs in with valid credentials and rejects invalid credentials generically", async () => {
     await signup(signupRequest("login@example.com"));
 
@@ -72,6 +85,18 @@ describe("FX009 real account auth", () => {
 
     const sessionResponse = await getSession(new Request("http://localhost/api/session", { headers: { cookie } }));
     expect(sessionResponse.status).toBe(401);
+  });
+
+  it("requires auth for account and settings APIs", async () => {
+    const accountResponse = await getAccount(new Request("http://localhost/api/account"));
+    const settingsResponse = await patchSettings(jsonRequest("/api/settings", {
+      firstName: "No",
+      lastName: "Session",
+      displayName: "No Session"
+    }));
+
+    expect(accountResponse.status).toBe(401);
+    expect(settingsResponse.status).toBe(401);
   });
 
   it("requires authentication for trading and executes trades as the session user", async () => {

@@ -175,11 +175,11 @@ Goal: make the money/market core reliable before adding new features.
 
 ## P1 - Auth, Authorization, and Security Hardening
 
-Goal: keep mock auth but prevent accidental production-grade assumptions.
+Goal: harden the real account/session system before broader release.
 
-1. Replace raw `userId` cookie
-   - Use signed cookies or server-side session IDs.
-   - Keep demo account selection but make session tampering harder.
+1. Real account sessions - complete in FX009/FX009.5
+   - Signed httpOnly cookie backed by server-side session rows.
+   - Demo account selection removed.
 
 2. Add CSRF protection
    - Protect all cookie-authenticated POST routes.
@@ -193,7 +193,7 @@ Goal: keep mock auth but prevent accidental production-grade assumptions.
    - Use a durable/shared store before deployment.
    - Keep route-specific limits for trade and settlement routes.
 
-5. Add security tests
+5. Add security tests - in progress
    - Non-admin cannot settle.
    - Logged-out user cannot trade.
    - Forged user ID cannot trade as another account.

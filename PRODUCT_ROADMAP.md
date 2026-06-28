@@ -161,11 +161,12 @@ Risk level:
 
 Goal:
 
-Keep mock auth but prevent unsafe assumptions and easy tampering.
+Use real free-play user accounts while preventing unsafe session assumptions and easy tampering.
 
 Status:
 
 - Completed in FX009 for real account creation, password hashing, server-side sessions, role-backed admin authorization, account/settings pages, and demo-login removal.
+- FX009.5 hardened route protection, safe login redirects, admin-email signup reservation, stale documentation cleanup, and auth routing tests.
 - Remaining hardening: CSRF protection and durable rate limiting.
 
 Features:
@@ -215,7 +216,7 @@ Estimated complexity:
 
 Dependencies:
 
-- Existing mock auth.
+- Existing account/session implementation.
 
 Risk level:
 

@@ -65,6 +65,7 @@ Use `npm run vercel-build` only for Vercel-style migration/build verification ag
 - Real email/password signup and login
 - Password hashing with scrypt
 - Server-side session table with signed httpOnly session cookie
+- Protected routes redirect logged-out users to `/login?next=...` with internal-only redirect handling
 - Account and settings pages
 - Admin and portfolio route protection
 - Database-backed market slate, trades, portfolio, leaderboard, and settlements
@@ -83,3 +84,4 @@ Use `npm run vercel-build` only for Vercel-style migration/build verification ag
 - Do not add Solana/mainnet settlement yet.
 - API routes must derive the user from the session cookie, not client payloads.
 - Admin APIs must require an authenticated admin role.
+- `SESSION_SECRET` must be set in production.

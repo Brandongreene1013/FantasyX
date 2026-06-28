@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeading } from "@/components/page-heading";
 import { apiGet, apiPost, type SessionResponse } from "@/lib/client-api";
+import { safeInternalPath } from "@/lib/redirects";
 
 export default function LoginPage() {
   return (
@@ -28,7 +29,7 @@ function LoginLoading() {
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/markets";
+  const next = safeInternalPath(searchParams.get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,7 +40,7 @@ function LoginContent() {
     apiGet<SessionResponse>("/api/session")
       .then((data) => {
         if (active && data.user) {
-          router.replace(next as Route);
+          router.replace("/markets" as Route);
         }
       })
       .catch(() => undefined);
