@@ -1,5 +1,6 @@
 import type { MarketEventType, Prisma } from "@prisma/client";
 import { toNumber } from "@/lib/db-serialization";
+import { recordMarketPriceSnapshot } from "@/lib/market-analytics.service";
 
 export type MarketSnapshot = {
   yesPrice: unknown;
@@ -34,7 +35,7 @@ export async function emitMarketEvent(
     ? toNumber(input.snapshot.openInterest)
     : undefined;
 
-  return tx.marketEvent.create({
+  const event = await tx.marketEvent.create({
     data: {
       marketId: input.marketId,
       type: input.type,
@@ -49,6 +50,22 @@ export async function emitMarketEvent(
       note: input.note,
     },
   });
+
+  if (input.snapshot) {
+    const yesPrice = toNumber(input.snapshot.yesPrice);
+    await recordMarketPriceSnapshot(tx, {
+      marketId: input.marketId,
+      yesPrice,
+      noPrice: input.snapshot.noPrice === undefined ? 1 - yesPrice : toNumber(input.snapshot.noPrice),
+      yesPool: toNumber(input.snapshot.yesPool),
+      noPool: toNumber(input.snapshot.noPool),
+      volume: volume ?? 0,
+      openInterest: openInterest ?? 0,
+      source: input.type
+    });
+  }
+
+  return event;
 }
 
 export function snapshotFromMarket(market: MarketSnapshot): MarketSnapshot {

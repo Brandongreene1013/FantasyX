@@ -50,6 +50,18 @@ export type PortfolioResponse = {
     pnl: number;
     returnPct: number;
   }>;
+  analytics: {
+    currentPortfolioValue: number;
+    weeklyPnl: number;
+    allTimePnl: number;
+    unrealizedGainLoss: number;
+    realizedGainLoss: number;
+    winRate: number;
+    averageEntry: number;
+    largestPosition: { playerName: string; thresholdType: string; costBasis: number } | null;
+    bestTrade: { id: string; marketId: string; playerName: string; efficiency: number } | null;
+    worstTrade: { id: string; marketId: string; playerName: string; efficiency: number } | null;
+  };
   equityCurve: Array<{
     id: string;
     createdAt: string;
@@ -141,7 +153,83 @@ export type PlayerDetailResponse = {
 export type MarketDetailResponse = {
   market: Market & { weekId: string; kickoffTime: string; yesPrice: number; noPrice: number; openingPrice: number; volume: number; openInterest: number };
   player: Player | null;
+  history: MarketHistoryPoint[];
+  sentiment: MarketSentimentResponse;
   events: MarketEventsResponse["events"];
+};
+
+export type MarketHistoryPoint = {
+  id: string;
+  createdAt: string;
+  yesPrice: number;
+  noPrice: number;
+  liquidity: number;
+  volume: number;
+  openInterest: number;
+};
+
+export type MarketSentimentResponse = {
+  bullishScore: number;
+  bearishScore: number;
+  confidenceScore: number;
+  recentPriceChange: number;
+  label: "Bullish" | "Bearish" | "Neutral";
+};
+
+export type AnalyticsMarketCard = {
+  marketId: string;
+  playerId: string;
+  playerName: string;
+  team: string;
+  position: string;
+  threshold: string;
+  yesPrice: number;
+  noPrice: number;
+  volume: number;
+  openInterest: number;
+  liquidity: number;
+  priceChange: number;
+  recentTradeCount: number;
+  score: number;
+};
+
+export type DashboardAnalyticsResponse = {
+  weekId: string;
+  trendingMarkets: AnalyticsMarketCard[];
+  biggestMovers: {
+    yesIncrease: AnalyticsMarketCard[];
+    yesDecrease: AnalyticsMarketCard[];
+    volumeIncrease: AnalyticsMarketCard[];
+    liquidityIncrease: AnalyticsMarketCard[];
+  };
+  recentlySettled: Array<AnalyticsMarketCard & { result: "YES" | "NO" | null }>;
+  highestVolume: AnalyticsMarketCard[];
+  highestOpenInterest: AnalyticsMarketCard[];
+  mostActivePlayers: Array<{ playerId: string; playerName: string; team: string; volume: number; openInterest: number; markets: number }>;
+};
+
+export type NflSyncResponse = {
+  result: {
+    provider: string;
+    season: number;
+    week: number;
+    weeks:   { created: number; updated: number };
+    teams:   { total: number };
+    players: { created: number; updated: number };
+    games:   { created: number; updated: number };
+    markets: { created: number; skipped: number };
+  };
+};
+
+export type NflStatsResponse = {
+  stats: {
+    weeks: number;
+    players: number;
+    games: number;
+    markets: number;
+    playersByStatus: Record<string, number>;
+    marketsByStatus: Record<string, number>;
+  };
 };
 
 export type LeaderboardResponse = {

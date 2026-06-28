@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiGet, type PortfolioResponse } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
 import { PageHeading } from "@/components/page-heading";
+import { EquityCurveChart } from "@/components/analytics-charts";
 
 export default function PortfolioPage() {
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
@@ -42,26 +43,34 @@ export default function PortfolioPage() {
       </PageHeading>
 
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <SummaryCard label="Open value" value={credits(openValue)} />
-        <SummaryCard label="Unrealized P&L" value={`${unrealizedPnl >= 0 ? "+" : ""}${credits(unrealizedPnl)}`} tone={unrealizedPnl >= 0 ? "positive" : "negative"} />
-        <SummaryCard label="Realized P&L" value={`${realizedPnl >= 0 ? "+" : ""}${credits(realizedPnl)}`} tone={realizedPnl >= 0 ? "positive" : "negative"} />
+        <SummaryCard label="Current value" value={portfolio ? credits(portfolio.analytics.currentPortfolioValue) : credits(openValue)} />
+        <SummaryCard label="Weekly P&L" value={portfolio ? signedCredits(portfolio.analytics.weeklyPnl) : signedCredits(unrealizedPnl)} tone={(portfolio?.analytics.weeklyPnl ?? unrealizedPnl) >= 0 ? "positive" : "negative"} />
+        <SummaryCard label="All-time P&L" value={portfolio ? signedCredits(portfolio.analytics.allTimePnl) : signedCredits(realizedPnl)} tone={(portfolio?.analytics.allTimePnl ?? realizedPnl) >= 0 ? "positive" : "negative"} />
       </div>
+
+      {portfolio ? (
+        <section className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Portfolio analytics">
+          <SummaryCard label="Unrealized G/L" value={signedCredits(portfolio.analytics.unrealizedGainLoss)} tone={portfolio.analytics.unrealizedGainLoss >= 0 ? "positive" : "negative"} />
+          <SummaryCard label="Realized G/L" value={signedCredits(portfolio.analytics.realizedGainLoss)} tone={portfolio.analytics.realizedGainLoss >= 0 ? "positive" : "negative"} />
+          <SummaryCard label="Win rate" value={pct(portfolio.analytics.winRate)} />
+          <SummaryCard label="Average entry" value={pct(portfolio.analytics.averageEntry)} />
+          <SummaryCard label="Largest position" value={portfolio.analytics.largestPosition ? `${portfolio.analytics.largestPosition.playerName} - ${credits(portfolio.analytics.largestPosition.costBasis)}` : "None"} />
+          <SummaryCard label="Best trade" value={portfolio.analytics.bestTrade ? portfolio.analytics.bestTrade.playerName : "None"} tone="positive" />
+          <SummaryCard label="Worst trade" value={portfolio.analytics.worstTrade ? portfolio.analytics.worstTrade.playerName : "None"} tone={portfolio.analytics.worstTrade ? "negative" : "default"} />
+          <SummaryCard label="Open value" value={credits(openValue)} />
+        </section>
+      ) : null}
 
       <section className="mb-5 rounded border border-ink/10 bg-white p-4 shadow-soft">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-black uppercase tracking-widest text-ink/70">Historical Equity Curve</h2>
-            <p className="mt-1 text-sm font-semibold text-ink/70">Ledger-based balance points. Chart visualization placeholder for Sprint 1.</p>
+            <h2 className="text-sm font-black uppercase tracking-widest text-ink/70">Equity Curve</h2>
+            <p className="mt-1 text-sm font-semibold text-ink/70">Ledger-based portfolio value history.</p>
           </div>
           <span className="rounded bg-field/10 px-2 py-1 text-xs font-black text-field">{portfolio?.equityCurve.length ?? 0} points</span>
         </div>
-        <div className="mt-4 flex h-28 items-end gap-1 rounded border border-ink/10 bg-chalk p-3" aria-label="Historical equity curve placeholder">
-          {(portfolio?.equityCurve ?? []).slice(-24).map((point) => {
-            const max = Math.max(...(portfolio?.equityCurve ?? []).map((entry) => entry.balance), 1);
-            const height = Math.max(8, (point.balance / max) * 96);
-            return <div key={point.id} className="flex-1 rounded-t bg-field" style={{ height }} title={`${point.type}: ${credits(point.balance)}`} />;
-          })}
-          {portfolio && portfolio.equityCurve.length === 0 ? <p className="self-center text-sm font-bold text-ink/60">No ledger history yet.</p> : null}
+        <div className="mt-4">
+          <EquityCurveChart points={portfolio?.equityCurve ?? []} />
         </div>
       </section>
 
@@ -92,6 +101,10 @@ export default function PortfolioPage() {
       </section>
     </>
   );
+}
+
+function signedCredits(value: number) {
+  return `${value >= 0 ? "+" : ""}${credits(value)}`;
 }
 
 type PortfolioPosition = PortfolioResponse["positions"][number];

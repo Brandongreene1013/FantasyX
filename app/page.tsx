@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { ArrowRight, BarChart3, CheckCircle2, Trophy } from "lucide-react";
+import { AnalyticsDashboard } from "@/components/analytics-dashboard";
 
 export default function Home() {
   return (
     <div className="pb-20">
-      <section className="grid min-h-[calc(100vh-9rem)] content-center gap-8 py-8 sm:grid-cols-[1.1fr_0.9fr] sm:items-center sm:py-14">
+      <section className="grid min-h-[calc(100vh-14rem)] content-center gap-8 py-8 sm:grid-cols-[1.1fr_0.9fr] sm:items-center sm:py-14">
         <div>
           <p className="mb-3 text-xs font-black uppercase tracking-widest text-field">Free-play Week 1 markets</p>
           <h1 className="max-w-3xl text-5xl font-black leading-[0.96] tracking-normal text-ink sm:text-6xl">
@@ -52,6 +53,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <AnalyticsDashboard />
     </div>
   );
 }

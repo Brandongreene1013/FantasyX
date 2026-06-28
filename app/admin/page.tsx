@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Ban, CheckCircle2, Lock, Unlock } from "lucide-react";
+import { Ban, CheckCircle2, Database, Lock, RefreshCw, Unlock } from "lucide-react";
 import { PageHeading } from "@/components/page-heading";
 import { getNoPrice, getYesPrice } from "@/lib/amm";
-import { apiGet, apiPost, defaultWeekId, type SessionResponse, type SlateResponse } from "@/lib/client-api";
+import { apiGet, apiPost, defaultWeekId, type NflStatsResponse, type NflSyncResponse, type SessionResponse, type SlateResponse } from "@/lib/client-api";
 import { pct, thresholdLabel } from "@/lib/format";
 import type { Player } from "@/lib/types";
 
@@ -20,6 +20,10 @@ export default function AdminPage() {
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [liveMessage, setLiveMessage] = useState("");
+  const [nflStats, setNflStats] = useState<NflStatsResponse["stats"] | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<NflSyncResponse["result"] | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const loadSlate = useCallback(async () => {
     setIsLoading(true);
@@ -33,10 +37,38 @@ export default function AdminPage() {
     }
   }, [weekId]);
 
+  const loadNflStats = useCallback(async () => {
+    try {
+      const data = await apiGet<NflStatsResponse>("/api/admin/nfl/stats");
+      setNflStats(data.stats);
+    } catch {
+      // non-critical; silently ignore
+    }
+  }, []);
+
   useEffect(() => {
     apiGet<SessionResponse>("/api/session").then((data) => setSession(data.user)).catch(() => setSession(null));
     void loadSlate();
-  }, [loadSlate]);
+    void loadNflStats();
+  }, [loadSlate, loadNflStats]);
+
+  async function syncDemoData() {
+    setIsSyncing(true);
+    setSyncError(null);
+    setSyncResult(null);
+    try {
+      const data = await apiPost<NflSyncResponse>("/api/admin/nfl/sync-demo", {});
+      setSyncResult(data.result);
+      setLiveMessage("Demo NFL data synced successfully.");
+      void loadNflStats();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Sync failed";
+      setSyncError(msg);
+      setLiveMessage(msg);
+    } finally {
+      setIsSyncing(false);
+    }
+  }
 
   const markets = useMemo(() => slate?.markets ?? [], [slate]);
   const playerMap = useMemo(() => new Map((slate?.players ?? []).map((player) => [player.id, player])), [slate]);
@@ -120,6 +152,56 @@ export default function AdminPage() {
         </div>
       </section>
 
+      {/* ── NFL Data Section ─────────────────────────────────────────────── */}
+      <section className="mb-5 rounded border border-ink/10 bg-white p-4 shadow-soft" aria-labelledby="nfl-data-heading">
+        <div className="mb-3 flex items-center gap-2">
+          <Database className="h-4 w-4 text-field" aria-hidden />
+          <h2 id="nfl-data-heading" className="text-sm font-black uppercase tracking-widest">NFL Data</h2>
+        </div>
+
+        {nflStats ? (
+          <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <StatBox label="Weeks"   value={nflStats.weeks} />
+            <StatBox label="Players" value={nflStats.players} />
+            <StatBox label="Games"   value={nflStats.games} />
+            <StatBox label="Markets" value={nflStats.markets} />
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            className="inline-flex h-10 items-center gap-2 rounded bg-field px-4 text-sm font-black text-white transition hover:bg-field/80 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isSyncing}
+            onClick={() => void syncDemoData()}
+            type="button"
+            aria-describedby="sync-demo-help"
+          >
+            <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} aria-hidden />
+            {isSyncing ? "Syncing…" : "Sync Demo NFL Data"}
+          </button>
+          <span id="sync-demo-help" className="text-xs font-semibold text-ink/60">
+            Idempotent — safe to run multiple times. Does not affect ledger, trades, or settlement.
+          </span>
+        </div>
+
+        {syncError ? (
+          <p className="mt-3 text-xs font-bold text-rush" role="alert">{syncError}</p>
+        ) : null}
+
+        {syncResult ? (
+          <div className="mt-3 rounded border border-field/20 bg-field/5 p-3 text-xs font-bold text-field">
+            <p className="mb-1">Sync complete — provider: {syncResult.provider}</p>
+            <ul className="list-inside list-disc space-y-0.5 font-semibold text-ink/70">
+              <li>Weeks: {syncResult.weeks.created} created, {syncResult.weeks.updated} updated</li>
+              <li>Players: {syncResult.players.created} created, {syncResult.players.updated} updated</li>
+              <li>Games: {syncResult.games.created} created, {syncResult.games.updated} updated</li>
+              <li>Markets: {syncResult.markets.created} created, {syncResult.markets.skipped} skipped (existing)</li>
+            </ul>
+          </div>
+        ) : null}
+      </section>
+
+      {/* ── Settlement Section ────────────────────────────────────────────── */}
       {isLoading ? <StatePanel text="Loading markets for settlement..." /> : null}
       {error ? <StatePanel text={error} tone="error" actionLabel="Retry" onAction={loadSlate} /> : null}
       {!isLoading && session && !session.isAdmin ? <StatePanel text="Admin access is required for settlement tools." tone="error" /> : null}
@@ -273,6 +355,15 @@ function statusClass(status: SlateMarket["status"]) {
     return `${base} bg-rush/10 text-rush`;
   }
   return `${base} bg-ink text-white`;
+}
+
+function StatBox({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded border border-ink/10 bg-chalk p-3 text-center">
+      <p className="text-2xl font-black tabular-nums">{value}</p>
+      <p className="mt-0.5 text-xs font-black uppercase tracking-widest text-ink/50">{label}</p>
+    </div>
+  );
 }
 
 function StatePanel({ text, tone = "default", actionLabel, onAction }: { text: string; tone?: "default" | "error"; actionLabel?: string; onAction?: () => void }) {

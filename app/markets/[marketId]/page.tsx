@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { ArrowLeft, Activity, Clock, Lock, CheckCircle, XCircle, User } from "lucide-react";
 import { MarketTimeline } from "@/components/market-timeline";
 import { TradePanel } from "@/components/trade-panel";
+import { MarketHistoryCharts } from "@/components/analytics-charts";
 import { apiGet } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
 import type { MarketDetailResponse, PortfolioResponse } from "@/lib/client-api";
@@ -104,6 +105,30 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
         </dl>
       </div>
 
+      <section className="mt-5 rounded border border-ink/10 bg-white p-5 shadow-soft" aria-label="Market sentiment">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-widest text-ink/70">Market Sentiment</h2>
+            <p className="mt-1 text-sm font-semibold text-ink/60">
+              {detail.sentiment.label} read from price, flow, open interest, and recent movement.
+            </p>
+          </div>
+          <span className="rounded bg-field/10 px-3 py-1 text-xs font-black text-field">
+            Confidence {detail.sentiment.confidenceScore}
+          </span>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+          <SentimentMeter label="Bullish score" value={detail.sentiment.bullishScore} tone="field" />
+          <SentimentMeter label="Bearish score" value={detail.sentiment.bearishScore} tone="rush" />
+          <SentimentMeter label="Confidence" value={detail.sentiment.confidenceScore} tone="ink" />
+          <Stat label="YES move" value={`${detail.sentiment.recentPriceChange >= 0 ? "+" : ""}${pct(detail.sentiment.recentPriceChange)}`} accent={detail.sentiment.recentPriceChange >= 0} />
+        </div>
+      </section>
+
+      <section className="mt-5" aria-label="Market charts">
+        <MarketHistoryCharts history={detail.history} />
+      </section>
+
       <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_2fr]">
         <div>
           <TradePanel
@@ -124,6 +149,19 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
           </div>
           <MarketTimeline events={events} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SentimentMeter({ label, value, tone }: { label: string; value: number; tone: "field" | "rush" | "ink" }) {
+  const barClass = tone === "field" ? "bg-field" : tone === "rush" ? "bg-rush" : "bg-ink";
+  return (
+    <div className="rounded border border-ink/10 bg-chalk p-3">
+      <p className="text-xs font-black uppercase tracking-widest text-ink/60">{label}</p>
+      <p className="mt-1 text-lg font-black">{value}</p>
+      <div className="mt-2 h-2 overflow-hidden rounded bg-white">
+        <div className={`h-full ${barClass}`} style={{ width: `${Math.max(4, Math.min(100, value))}%` }} />
       </div>
     </div>
   );

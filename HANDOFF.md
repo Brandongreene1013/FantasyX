@@ -20,6 +20,8 @@ Warning: no real-money wagering, deposits, withdrawals, custody, mainnet Solana,
 - FX-003 Service Layer Split is complete: trade, settlement, void, and leaderboard logic extracted from `lib/db-amm.ts` into dedicated services; typed domain errors with stable codes; `lib/db-amm.ts` reduced to a backward-compatible re-export barrel.
 - FX-004 Market Experience is complete: market detail pages, inline trade panel, market discovery filters/sort, UI polish, and expanded test coverage.
 - FX-005 Player Intelligence is complete: player detail pages at `/players/[playerId]` with intelligence panel, market sentiment, historical performance (placeholder), navigation from market cards and detail pages, 23 new tests.
+- FX-006 NFL Data Engine is complete: provider abstraction (`INflDataProvider`), `DemoNflDataProvider`, `FutureSportsDataProvider` placeholder, idempotent `syncNflData` service, `POST /api/admin/nfl/sync-demo`, `GET /api/admin/nfl/stats`, admin NFL Data panel, schema fields for `Player.status` and `externalProviderId` on Player and Game, Prisma migration, 27 new tests.
+- FX-007 Market Intelligence & Analytics is complete: market price history snapshots, Recharts market and portfolio charts, market sentiment scores, home dashboard analytics, trending markets, biggest movers, portfolio analytics summary, additive migration, and 6 new tests.
 - Accessibility hardening and axe tests are in place.
 
 ## Features Completed
@@ -28,8 +30,13 @@ Warning: no real-money wagering, deposits, withdrawals, custody, mainnet Solana,
 - Protected `/markets`, `/markets/[marketId]`, `/players/[playerId]`, `/portfolio`, `/history`, and `/admin` routes.
 - Market detail pages at `/markets/[marketId]` with player info, market stats, inline trade panel, and full event timeline.
 - Player detail pages at `/players/[playerId]` with intelligence panel, sentiment, historical performance, and per-player market cards with inline trade.
+- Market detail analytics with YES/NO price history, volume history, open-interest history, bullish/bearish/confidence scores, and MarketEvent fallback history.
+- Home market intelligence dashboard with trending markets, biggest movers, highest volume, highest open interest, most active players, and recently settled markets.
+- Portfolio analytics with current portfolio value, weekly/all-time P&L, unrealized/realized gain-loss, win rate, average entry, largest position, best trade, worst trade, and equity curve chart.
 - Market discovery with player name search, team filter, status filter, position tabs, threshold tabs, and multi-column sort.
-- Database-backed slate, trading, portfolio, leaderboard, settlement, history, ledger, and market events.
+- Database-backed slate, trading, portfolio, leaderboard, settlement, history, ledger, market events, and NFL data sync.
+- Provider-based NFL data layer with adapter pattern: `DemoNflDataProvider`, `FutureSportsDataProvider` placeholder, and `INflDataProvider` interface.
+- Idempotent NFL data sync service (`lib/nfl-sync.service.ts`): upserts weeks, games, players; creates only missing markets; never overwrites AMM pool state or trade history.
 - Constant-product AMM mock-credit trading.
 - Append-only account ledger entries for seed grants, trade spends, settlement payouts, and void refunds.
 - Ledger correction entries and admin-attributed ledger entries.
@@ -100,6 +107,7 @@ Main models:
 - `AccountLedgerEntry`
 - `MarketEvent`
 - `AdminAuditLog`
+- `MarketPriceHistory`
 
 Recent schema changes:
 
@@ -112,10 +120,17 @@ Recent schema changes:
 - Added `MarketEvent`.
 - Added `AdminAuditLog`.
 - Added relations from users, markets, trades, and settlements to exchange-history records.
+- FX-006: Added `Player.status` (String, default "ACTIVE") for injury/availability placeholder.
+- FX-006: Added `Player.externalProviderId` (String?, unique) for future real-data provider mapping.
+- FX-006: Added `Game.externalProviderId` (String?, unique) for provider mapping.
+- FX-006: Added `@default(cuid())` to `Game.id` to allow auto-generated IDs from sync service.
+- FX-007: Added `MarketPriceHistory` as an additive analytics read model with YES price, NO price, liquidity, volume, open interest, source, and timestamp.
 
-Migration:
+Migrations:
 
 - `prisma/migrations/20260628121000_fx001_append_only_ledger/migration.sql`
+- `prisma/migrations/20260628200000_fx006_nfl_data_engine/migration.sql`
+- `prisma/migrations/20260628220000_fx007_market_intelligence/migration.sql`
 - `prisma/migrations/migration_lock.toml`
 
 The migration includes indexes and append-only trigger protection for ledger update/delete attempts.
@@ -158,6 +173,9 @@ Ledger behavior:
 - `POST /api/admin/adjustments`
 - `POST /api/admin/notes`
 - `GET /api/admin/audit-history`
+- `POST /api/admin/nfl/sync-demo`
+- `GET /api/admin/nfl/stats`
+- `GET /api/analytics/dashboard`
 
 New API routes from Sprint 1:
 
@@ -185,9 +203,15 @@ New API routes from FX-002:
 - `lib/exchange-records.ts` - admin audit record helper
 - `lib/ledger-service.ts` - transaction-safe ledger balance changes and reconciliation utilities
 - `lib/market-event.service.ts` - market event engine with typed emit functions for all event types
+- `lib/market-analytics.service.ts` - FX-007 market history snapshots, chart data, sentiment, trending/mover algorithms, portfolio analytics, and dashboard reads
 - `lib/amm.ts` - pure AMM math
 - `lib/api-validation.ts` - Zod schemas
 - `middleware.ts` - route protection and placeholder rate limiting
+- `lib/nfl-data/types.ts` - shared provider data types
+- `lib/nfl-data/provider.ts` - INflDataProvider interface
+- `lib/nfl-data/demo-provider.ts` - DemoNflDataProvider (seeded 2026 demo data, 13 players, 10 games)
+- `lib/nfl-data/future-provider.placeholder.ts` - FutureSportsDataProvider stub
+- `lib/nfl-sync.service.ts` - syncNflData() idempotent upsert orchestrator
 
 ## Files Changed in Sprint 1
 
@@ -298,13 +322,48 @@ Covers home, markets, portfolio, leaderboard, admin, and trade modal with axe.
 - `TODO.md`
 - `ROADMAP.md`
 
+## Files Changed in FX-006
+
+- `lib/nfl-data/types.ts` (new) — NflTeam, NflPlayerRecord, NflGameRecord, NflWeekRecord, NflSlateRecord, NflSyncResult types
+- `lib/nfl-data/provider.ts` (new) — INflDataProvider interface
+- `lib/nfl-data/demo-provider.ts` (new) — DemoNflDataProvider: 20 teams, 13 players, 10 games, 1 week, full slate
+- `lib/nfl-data/future-provider.placeholder.ts` (new) — FutureSportsDataProvider stub with not-implemented errors
+- `lib/nfl-sync.service.ts` (new) — syncNflData(): idempotent upsert of weeks/games/players, create-only markets
+- `app/api/admin/nfl/sync-demo/route.ts` (new) — POST admin-only sync endpoint
+- `app/api/admin/nfl/stats/route.ts` (new) — GET admin-only stats endpoint
+- `prisma/schema.prisma` — added Player.status, Player.externalProviderId, Game.externalProviderId, Game.id @default(cuid())
+- `prisma/migrations/20260628200000_fx006_nfl_data_engine/migration.sql` (new) — schema migration
+- `app/admin/page.tsx` — added NFL Data panel with stats, Sync Demo button, and sync result display
+- `lib/client-api.ts` — added NflSyncResponse and NflStatsResponse types
+- `tests/nfl-data-engine.test.ts` (new) — 27 tests covering provider unit tests, sync idempotency, admin authorization
+- `HANDOFF.md`, `ROADMAP.md`, `TODO.md` — updated
+
+## Files Changed in FX-007
+
+- `prisma/schema.prisma` - added `MarketPriceHistory` relation/model.
+- `prisma/migrations/20260628220000_fx007_market_intelligence/migration.sql` - additive history table migration.
+- `lib/market-analytics.service.ts` - new analytics/history/sentiment/trending/portfolio service.
+- `lib/market-event.service.ts` - records material price snapshots when market events move price.
+- `app/api/markets/[marketId]/route.ts` - returns chart history and sentiment.
+- `app/api/portfolio/route.ts` - returns expanded portfolio analytics.
+- `app/api/analytics/dashboard/route.ts` - new dashboard analytics API.
+- `components/analytics-charts.tsx` - responsive Recharts market and equity charts.
+- `components/analytics-dashboard.tsx` - home dashboard sections.
+- `app/markets/[marketId]/page.tsx` - market sentiment and history charts.
+- `app/portfolio/page.tsx` - real equity curve and analytics summary.
+- `app/page.tsx` - market intelligence dashboard.
+- `lib/client-api.ts` - FX-007 response types.
+- `tests/market-analytics.test.ts` - 6 analytics tests.
+- `package.json`, `package-lock.json` - added Recharts.
+- `HANDOFF.md`, `ROADMAP.md`, `TODO.md` - updated.
+
 ## Last Verified Results
 
 - `npm run prisma:generate` - passed
 - `npm run prisma:push` - passed
 - `npm run lint` - passed on 2026-06-28
 - `npm run typecheck` - passed on 2026-06-28
-- `npm test` - passed on 2026-06-28, 71 tests (61 existing + 10 new FX-004)
+- `npm test` - passed on 2026-06-28, 127 tests (121 existing + 6 new FX-007)
 - `npm run build` - passed on 2026-06-28
 - `npm run prisma:seed` - passed
 - `npm run test:a11y` - passed, 6 tests
@@ -317,12 +376,12 @@ Known non-blocking warning: Playwright dev server may show a future Next.js `all
 - In-memory rate limiting is only a placeholder.
 - Demo auth has no passwords and is not production auth.
 - `/markets` is route-protected so users choose an account before trading.
-- Equity curve is a placeholder visualization, not a production chart.
 - Trade execution still lacks explicit concurrency controls/row-level locking.
 - `ADMIN_ADJUSTMENT` API workflow exists (`POST /api/admin/adjustments`) but has no admin UI page yet.
 - Legacy `lib/store.tsx` may still exist but should not be used for real app state.
 - No Solana integration yet by design.
+- FX-007 charts use persisted snapshots when present and MarketEvent/opening/current fallback data for older markets.
 
 ## Recommended Next Implementation Ticket
 
-Next ticket: FX-005 — Concurrency Safety (row-level locking for trades), E2E smoke tests, and admin UI for ADMIN_ADJUSTMENT.
+Next ticket: FX-008 — Concurrency Safety (row-level locking or serializable strategy for trade execution, simultaneous trade tests, and balance/pool overwrite protection).

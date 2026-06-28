@@ -1,72 +1,91 @@
 # TODO
 
+## Completed - FX-007 Market Intelligence & Analytics
+
+1. Added `MarketPriceHistory` model and migration for additive market price history snapshots.
+2. Created `lib/market-analytics.service.ts`: chart history generation, material snapshot recording, sentiment scoring, trending ranking, biggest movers, portfolio analytics, and dashboard reads.
+3. Updated market event emission to persist price snapshots when market prices materially change.
+4. Created `components/analytics-charts.tsx`: responsive Recharts YES/NO price, volume, open-interest, and equity curve charts.
+5. Created `GET /api/analytics/dashboard`: trending markets, biggest movers, recently settled, highest volume, highest open interest, and most active players.
+6. Updated market detail pages with market sentiment, confidence, YES movement, and three analytics charts.
+7. Updated portfolio with current portfolio value, weekly/all-time P&L, unrealized/realized gain-loss, win rate, average entry, largest position, best trade, worst trade, and real equity curve.
+8. Updated home page with the market intelligence dashboard.
+9. Added `tests/market-analytics.test.ts`: 6 tests. Total: 127 tests.
+
+## Completed - FX-006 NFL Data Engine
+
+1. Created `lib/nfl-data/types.ts`: NflTeam, NflPlayerRecord, NflGameRecord, NflWeekRecord, NflSlateRecord, NflSyncResult.
+2. Created `lib/nfl-data/provider.ts`: INflDataProvider interface.
+3. Created `lib/nfl-data/demo-provider.ts`: DemoNflDataProvider with 20 teams, 13 players, 10 games, Week 1 2026 slate.
+4. Created `lib/nfl-data/future-provider.placeholder.ts`: FutureSportsDataProvider stub.
+5. Created `lib/nfl-sync.service.ts`: syncNflData() - idempotent upsert of weeks/games/players; create-only markets.
+6. Created `POST /api/admin/nfl/sync-demo`: admin-only; returns NflSyncResult with counts.
+7. Created `GET /api/admin/nfl/stats`: admin-only; weeks/players/games/markets counts + status breakdowns.
+8. Updated `app/admin/page.tsx`: NFL Data panel with stat boxes, Sync Demo button, result display.
+9. Updated `prisma/schema.prisma`: Player.status, Player.externalProviderId, Game.externalProviderId, Game.id @default(cuid()).
+10. Created `prisma/migrations/20260628200000_fx006_nfl_data_engine/migration.sql`.
+11. Added `tests/nfl-data-engine.test.ts`: 27 tests. Total after FX-006: 121 tests.
+
 ## Completed - FX-005 Player Intelligence
 
-1. Created `lib/player-intelligence.ts`: static projection map for all 13 seeded players, `calcSentiment` (pure, from real DB market data), `getPlaceholderHistory` (deterministic fake weekly finishes), `getIntelligence` (full intel panel data).
-2. Created `GET /api/players/[playerId]`: player + markets for current week + sentiment + intelligence. Auth-gated, NOT_FOUND for missing players.
-3. Created `app/players/[playerId]/page.tsx`: player header (avatar, name, team, position, opponent, kickoff, projection), intelligence panel, market sentiment (from live DB data), historical performance table, per-player market cards with inline trade panel.
-4. Updated `components/market-card.tsx`: player name is now a link to `/players/[playerId]`.
-5. Updated `app/markets/[marketId]/page.tsx`: player name in header is now a link to `/players/[playerId]`.
-6. Updated `lib/client-api.ts`: added `PlayerDetailResponse` type.
-7. Updated `middleware.ts`: protected `/players/*` routes.
-8. Added `tests/player-intelligence.test.ts`: 23 new tests covering calcSentiment, getPlaceholderHistory, getIntelligence, DomainError, and DB retrieval. Total: 94 tests.
-9. Added player detail page to axe a11y suite.
+1. Created `lib/player-intelligence.ts`: static projection map for seeded players, sentiment, placeholder history, and intelligence helpers.
+2. Created `GET /api/players/[playerId]`: player + markets for current week + sentiment + intelligence.
+3. Created `app/players/[playerId]/page.tsx`: player header, intelligence panel, market sentiment, historical performance, and per-player market cards.
+4. Updated player navigation from market cards and market detail pages.
+5. Updated `lib/client-api.ts`, `middleware.ts`, and accessibility coverage.
+6. Added `tests/player-intelligence.test.ts`: 23 tests.
 
 ## Completed - FX-004 Market Experience
 
 1. Created `GET /api/markets/[marketId]`: market + player + events, auth-gated, NOT_FOUND for missing markets.
-2. Created `app/markets/[marketId]/page.tsx`: player header, 6-stat grid, inline trade panel, full timeline.
-3. Created `components/trade-panel.tsx`: YES/NO selector, live AMM quote, balance-after display, error/success states.
-4. Updated `app/markets/page.tsx`: player name search, team filter, status filter, sort by kickoff/YES/liquidity/volume, result count.
-5. Updated `components/market-card.tsx`: "View details" link, opponent display, result on settled/void markets.
-6. Updated `middleware.ts`: protected `/markets/[marketId]` routes.
-7. Added `tests/market-detail.test.ts`: 10 new integration tests. Total: 71 tests.
-8. Added market detail page to axe a11y suite.
+2. Created `app/markets/[marketId]/page.tsx`: player header, stat grid, inline trade panel, and timeline.
+3. Created `components/trade-panel.tsx`: YES/NO selector, live quote, balance-after display, error/success states.
+4. Updated market discovery with search, team filter, status filter, sort, and result count.
+5. Updated market cards with detail links, opponent display, and finalized result display.
+6. Added `tests/market-detail.test.ts`: 10 tests.
 
 ## Completed - FX-003 Service Layer Split
 
-1. Created `lib/trade.service.ts` with `executeDbBuy`: market/user validation, AMM quote, trade record, market pool update, ledger entry, market event emit, position upsert.
-2. Created `lib/settlement.service.ts` with `settleDbMarket`, `settleDbPlayerMarkets`, `lockDbMarket`, `openDbMarket`: settlement lifecycle, payout, audit records, leaderboard refresh.
-3. Created `lib/void.service.ts` with `voidDbMarket`: void guard, position refunds, idempotency, audit records, leaderboard refresh.
-4. Created `lib/leaderboard.service.ts` with `refreshLeaderboardForWeek`: scoped to users with positions in the week only.
-5. Created `lib/domain-errors.ts` with `DomainError` class: 10 stable error codes, HTTP status mapping.
-6. Reduced `lib/db-amm.ts` to backward-compatible re-export barrel. No logic remains in that file.
-7. Updated `lib/api-response.ts` to map `DomainError` → `{ error, code }` with correct HTTP status code.
-8. Updated `app/api/trades/route.ts` and `app/api/settlements/route.ts` to import from service modules directly.
-9. Added `tests/service-layer.test.ts`: 20 new tests for trade YES/NO, insufficient balance, market status guards, settlement idempotency, void idempotency, leaderboard scoping, lock/unlock, and domain error HTTP mapping.
-10. All 41 existing FX-001/FX-002 tests still pass. Total: 61 tests.
+1. Created trade, settlement, void, and leaderboard services.
+2. Created `lib/domain-errors.ts` with stable domain error codes.
+3. Reduced `lib/db-amm.ts` to a backward-compatible re-export barrel.
+4. Updated API routes to call services directly.
+5. Added `tests/service-layer.test.ts`: 20 tests.
 
 ## Completed - FX-002 Market Event Engine
 
-1. Created `lib/market-event.service.ts` with typed emit functions for all event types.
-2. Refactored `lib/db-amm.ts` to use the market event service instead of inline `createMarketEvent` calls.
-3. Added `ADMIN_ADJUSTMENT` API workflow with ledger entries and admin audit records.
-4. Added `ADMIN_NOTE` market event workflow through API.
-5. Added admin audit history query API with market, action, and actor filters.
-6. Added admin authorization boundary tests (non-admin rejection for adjustments, notes, audit history, settlements).
-7. Added unauthenticated request rejection tests.
-8. Fixed `refreshLeaderboardForWeek` to scope to users with positions in the week.
-9. 21 new tests covering event consistency, ordering, admin workflows, and authorization.
+1. Created `lib/market-event.service.ts` with typed emit functions.
+2. Added admin adjustment, admin note, and admin audit history APIs.
+3. Added admin authorization boundary tests.
+4. Fixed leaderboard refresh scoping.
+5. Added 21 tests covering event consistency, ordering, admin workflows, and authorization.
 
 ## P0 - Next Implementation Ticket
 
-1. Add concurrency-safe trade execution (SELECT FOR UPDATE on market and user rows).
-2. Add E2E smoke tests: login → trade → portfolio and admin → settlement → payout.
-3. Add `ADMIN_ADJUSTMENT` admin UI page.
+FX-008 - Concurrency Safety:
+
+1. Add row-level locking or a serializable transaction strategy for market pool and user balance reads during trade execution.
+2. Add simultaneous buys on the same market tests.
+3. Add simultaneous buys by the same user tests.
+4. Verify ledger idempotency and mock balance cache cannot diverge under concurrent trade pressure.
+
+Remaining backlog:
+
+5. Add E2E smoke tests: login -> trade -> portfolio and admin -> settlement -> payout.
+6. Add `ADMIN_ADJUSTMENT` admin UI page.
 
 ## P1 - Newly Discovered Technical Debt
 
 1. `User.mockBalance` is still a mutable cached balance; add scheduled reconciliation checks and admin-visible mismatch alerts.
 2. Settlement and void idempotency rely partly on position payout state; move toward explicit payout/refund records.
 3. Migration workflow exists but setup docs/scripts still reference `prisma db push`.
-4. Market events are recorded, but no market detail page exists for a single full timeline.
-5. Equity curve is a placeholder using simple bars instead of a real chart component.
-6. `ADMIN_ADJUSTMENT` workflow exists via API but has no admin UI page yet.
-7. No pagination yet for trade history, ledger entries, or market events.
+4. FX-007 chart history uses MarketEvent/opening/current fallback points for older markets until enough live snapshots accumulate.
+5. `ADMIN_ADJUSTMENT` workflow exists via API but has no admin UI page yet.
+6. No pagination yet for trade history, ledger entries, market events, or analytics lists.
 
 ## P2 - Bugs / Risk Areas To Watch
 
-1. Concurrent trades may still read stale market pool or user balance data — row-level locking needed.
+1. Concurrent trades may still read stale market pool or user balance data - row-level locking needed.
 2. The append-only trigger is committed in migration; local `prisma db push` databases do not automatically receive trigger behavior.
 3. Seed resets all exchange history; this is fine for local demo but not for persistent environments.
 4. In-memory rate limiting is not durable across instances.
@@ -78,15 +97,14 @@
 
 1. Add kickoff-based automatic market locking.
 2. Add multi-week slate navigation.
-3. Add player search, team filters, and market sorting.
-4. Add fantasy rank/scoring import workflow.
-5. Add richer leaderboard filtering by week.
-6. Add market detail pages with full event timelines and price/liquidity charts.
-7. Replace browser event refreshes with query/mutation invalidation.
+3. Add fantasy rank/scoring import workflow.
+4. Add richer leaderboard filtering by week.
+5. Add deeper market depth/liquidity simulation beyond current liquidity and open-interest charting.
+6. Replace browser event refreshes with query/mutation invalidation.
 
 ## P4 - Nice-To-Have Enhancements
 
-1. Add a real chart library for equity curves and market history.
+1. Add CSV export for analytics dashboard snapshots.
 2. Add CSV export for trade history and ledger entries.
 3. Add admin notes directly from market timeline.
 4. Add user-facing account statement page from ledger entries.

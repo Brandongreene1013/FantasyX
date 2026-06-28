@@ -4,11 +4,11 @@ This roadmap prioritizes architectural work by impact and dependency order. It a
 
 ## Project Status
 
-Current milestone: Sprint 2, FX-005 Player Intelligence complete.
+Current milestone: Sprint 2, FX-007 Market Intelligence & Analytics complete.
 
-Overall MVP foundation completion: 96%.
+Overall MVP foundation completion: 99%.
 
-Next logical milestone: Concurrency safety, E2E tests, admin UI.
+Next logical milestone: Concurrency Safety, then E2E smoke tests.
 
 Sprint 2 focus:
 
@@ -17,8 +17,42 @@ Sprint 2 focus:
 - Completed: FX-003 Service Layer Split.
 - Completed: FX-004 Market Experience.
 - Completed: FX-005 Player Intelligence.
+- Completed: FX-006 NFL Data Engine.
+- Completed: FX-007 Market Intelligence & Analytics.
 - Remaining: Concurrency-safe trade execution.
 - Remaining: E2E smoke tests for login, trade, portfolio, and settlement.
+
+## Completed - FX-007 Market Intelligence & Analytics
+
+Implemented:
+
+- Added `MarketPriceHistory` as an additive analytics read model with Prisma migration.
+- Added `lib/market-analytics.service.ts` for market history generation, material price snapshots, sentiment scoring, trending ranking, biggest movers, portfolio analytics, and dashboard reads.
+- Updated market event emission to persist price-history snapshots when market prices materially move.
+- Added Recharts and `components/analytics-charts.tsx` for responsive market charts and equity curve charts.
+- Added market detail charts for YES/NO price history, volume history, and open interest history.
+- Added market sentiment visuals for bullish score, bearish score, confidence score, and YES movement.
+- Expanded portfolio analytics with current portfolio value, weekly/all-time P&L, unrealized/realized gain-loss, win rate, average entry, largest position, best trade, worst trade, and real equity curve.
+- Added `GET /api/analytics/dashboard` and home dashboard sections for trending markets, biggest movers, recently settled, highest volume, highest open interest, and most active players.
+- Added `tests/market-analytics.test.ts` with 6 focused tests for history calculations, sentiment, trending, movers, chart data generation, and portfolio analytics.
+- All 127 tests pass.
+
+## Completed - FX-006 NFL Data Engine
+
+Implemented:
+
+- Created `lib/nfl-data/types.ts`: shared provider types (NflTeam, NflPlayerRecord, NflGameRecord, NflWeekRecord, NflSlateRecord, NflSyncResult).
+- Created `lib/nfl-data/provider.ts`: INflDataProvider interface with getTeams, getPlayers, getGames, getWeeks, getSlate.
+- Created `lib/nfl-data/demo-provider.ts`: DemoNflDataProvider with 20 NFL teams, 13 seeded players, 10 games, full Week 1 2026 slate.
+- Created `lib/nfl-data/future-provider.placeholder.ts`: FutureSportsDataProvider stub for future real-data integration.
+- Created `lib/nfl-sync.service.ts`: syncNflData() — idempotent upsert of weeks, games, and players; create-only markets (never overwrites existing AMM pool state).
+- Created `POST /api/admin/nfl/sync-demo`: admin-only sync endpoint; returns created/updated counts.
+- Created `GET /api/admin/nfl/stats`: admin-only stats endpoint with counts and status breakdowns.
+- Updated `app/admin/page.tsx`: added "NFL Data" section with stat boxes, Sync Demo button, and sync result display.
+- Updated `prisma/schema.prisma`: Player.status, Player.externalProviderId, Game.externalProviderId, Game.id @default(cuid()).
+- Created migration `prisma/migrations/20260628200000_fx006_nfl_data_engine/migration.sql`.
+- Added `tests/nfl-data-engine.test.ts`: 27 tests covering DemoNflDataProvider unit tests, sync idempotency, duplicate prevention, admin authorization, and API endpoints.
+- All 121 tests pass.
 
 ## Completed - FX-004 Market Experience
 
@@ -86,14 +120,13 @@ Implemented:
 - Immutable-style `AdminAuditLog` records for settlement, void, lock, and unlock actions.
 - Trade History page at `/history` with week, player, position, market, and status filters.
 - Market Timeline component used on `/markets` and `/history`.
-- Portfolio history display for open positions, closed positions, realized P&L, unrealized P&L, average entry, current value, return %, and equity curve placeholder.
+- Portfolio history display for open positions, closed positions, realized P&L, unrealized P&L, average entry, current value, return %, and equity curve chart.
 - Tests for ledger reconciliation, trade history, portfolio calculations, market history, audit records, and event ordering.
 
 Remaining Sprint 1 follow-up:
 
 - FX-002 Admin Audit: add the `ADMIN_ADJUSTMENT` workflow and complete market-edit audit coverage.
 - Add concurrency-safe trade execution.
-- Add a full charting implementation for the equity curve.
 
 ## P0 - Correctness and Safety Foundation - 78% Complete
 

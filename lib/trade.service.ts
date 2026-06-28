@@ -106,7 +106,8 @@ export async function executeDbBuy(
     priceBefore: quote.priceBefore,
     priceAfter: quote.priceAfter,
     snapshot: {
-      yesPrice: quote.priceAfter,
+      yesPrice,
+      noPrice,
       yesPool: nextMarket.yesPool,
       noPool: nextMarket.noPool,
       volume: nextVolume,

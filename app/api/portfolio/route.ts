@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/db-serialization";
 import { apiError } from "@/lib/api-response";
 import { requireSessionUser } from "@/lib/auth";
+import { calculatePortfolioAnalytics } from "@/lib/market-analytics.service";
 
 export async function GET(request: Request) {
   try {
@@ -86,6 +87,17 @@ export async function GET(request: Request) {
     const openValue = positions.reduce((total, position) => total + (position.status === "OPEN" || position.status === "LOCKED" ? position.value : 0), 0);
     const equity = toNumber(user.mockBalance) + openValue;
     const pnl = equity - toNumber(user.startingBalance);
+    const trades = user.trades.map((trade) => ({
+      id: trade.id,
+      marketId: trade.marketId,
+      playerName: trade.market.player.name,
+      side: trade.side,
+      spend: toNumber(trade.spend),
+      shares: toNumber(trade.shares),
+      priceBefore: toNumber(trade.priceBefore),
+      priceAfter: toNumber(trade.priceAfter),
+      createdAt: trade.createdAt.toISOString()
+    }));
 
     return NextResponse.json({
       user: {
@@ -98,6 +110,13 @@ export async function GET(request: Request) {
         pnl
       },
       positions,
+      analytics: calculatePortfolioAnalytics({
+        startingBalance: toNumber(user.startingBalance),
+        mockBalance: toNumber(user.mockBalance),
+        openValue,
+        positions,
+        trades
+      }),
       equityCurve: user.ledgerEntries.map((entry) => ({
         id: entry.id,
         createdAt: entry.createdAt.toISOString(),
@@ -105,17 +124,7 @@ export async function GET(request: Request) {
         amount: toNumber(entry.amount),
         type: entry.type
       })),
-      trades: user.trades.map((trade) => ({
-        id: trade.id,
-        marketId: trade.marketId,
-        playerName: trade.market.player.name,
-        side: trade.side,
-        spend: toNumber(trade.spend),
-        shares: toNumber(trade.shares),
-        priceBefore: toNumber(trade.priceBefore),
-        priceAfter: toNumber(trade.priceAfter),
-        createdAt: trade.createdAt.toISOString()
-      }))
+      trades
     });
   } catch (error) {
     return apiError(error, "Could not load portfolio");

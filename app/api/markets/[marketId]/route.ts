@@ -4,6 +4,7 @@ import { serializeMarket, serializePlayerFromMarket, toNumber } from "@/lib/db-s
 import { apiError } from "@/lib/api-response";
 import { requireSessionUser } from "@/lib/auth";
 import { DomainError } from "@/lib/domain-errors";
+import { getMarketAnalytics } from "@/lib/market-analytics.service";
 
 export async function GET(
   request: Request,
@@ -34,9 +35,13 @@ export async function GET(
       take: 50
     });
 
+    const analytics = await getMarketAnalytics(marketId);
+
     return NextResponse.json({
       market: serializeMarket(market),
       player: serializePlayerFromMarket(market),
+      history: analytics.history,
+      sentiment: analytics.sentiment,
       events: events.map((event) => ({
         id: event.id,
         marketId: event.marketId,

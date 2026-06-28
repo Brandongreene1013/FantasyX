@@ -87,13 +87,15 @@ model User {
 }
 
 model Player {
-  id         String         @id
-  name       String
-  team       String
-  position   PlayerPosition
-  createdAt  DateTime       @default(now()) @map("created_at")
-  updatedAt  DateTime       @updatedAt @map("updated_at")
-  markets    Market[]
+  id                 String         @id
+  name               String
+  team               String
+  position           PlayerPosition
+  status             String         @default("ACTIVE")
+  externalProviderId String?        @unique @map("external_provider_id")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  markets            Market[]
 
   @@map("players")
 }
@@ -116,15 +118,16 @@ model NflWeek {
 }
 
 model Game {
-  id           String   @id
-  weekId       String   @map("week_id")
-  week         NflWeek  @relation(fields: [weekId], references: [id])
-  homeTeam     String   @map("home_team")
-  awayTeam     String   @map("away_team")
-  kickoffTime  DateTime @map("kickoff_time")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  markets      Market[]
+  id                 String   @id @default(cuid())
+  weekId             String   @map("week_id")
+  week               NflWeek  @relation(fields: [weekId], references: [id])
+  homeTeam           String   @map("home_team")
+  awayTeam           String   @map("away_team")
+  kickoffTime        DateTime @map("kickoff_time")
+  externalProviderId String?  @unique @map("external_provider_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  markets            Market[]
 
   @@index([weekId])
   @@index([kickoffTime])
@@ -158,12 +161,29 @@ model Market {
   settlement    Settlement?
   ledgerEntries AccountLedgerEntry[]
   events        MarketEvent[]
+  priceHistory  MarketPriceHistory[]
   auditLogs     AdminAuditLog[]
 
   @@unique([playerId, weekId, thresholdType])
   @@index([weekId, position])
   @@index([status, kickoffTime])
   @@map("markets")
+}
+
+model MarketPriceHistory {
+  id           String   @id @default(cuid())
+  marketId     String   @map("market_id")
+  market       Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  yesPrice     Decimal  @map("yes_price") @db.Decimal(8, 6)
+  noPrice      Decimal  @map("no_price") @db.Decimal(8, 6)
+  liquidity    Decimal  @db.Decimal(14, 6)
+  volume       Decimal  @db.Decimal(14, 2)
+  openInterest Decimal  @map("open_interest") @db.Decimal(14, 6)
+  source       String   @default("MARKET_EVENT")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([marketId, createdAt])
+  @@map("market_price_history")
 }
 
 model Trade {
