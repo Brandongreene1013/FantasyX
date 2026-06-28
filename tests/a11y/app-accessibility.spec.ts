@@ -23,7 +23,24 @@ const pages = [
   { name: "admin page", path: "/admin" }
 ];
 
+const marketDetailPages = [
+  { name: "market detail page", path: "/markets/m_p_josh_allen_top_3" }
+];
+
 for (const pageConfig of pages) {
+  test(`${pageConfig.name} has no detectable axe violations`, async ({ page }) => {
+    await page.goto(pageConfig.path);
+    await page.getByRole("main").waitFor();
+
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+      .analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+}
+
+for (const pageConfig of marketDetailPages) {
   test(`${pageConfig.name} has no detectable axe violations`, async ({ page }) => {
     await page.goto(pageConfig.path);
     await page.getByRole("main").waitFor();

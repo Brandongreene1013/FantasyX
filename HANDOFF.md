@@ -18,12 +18,15 @@ Warning: no real-money wagering, deposits, withdrawals, custody, mainnet Solana,
 - FX-001 Append-Only Ledger Foundation is complete: true ledger service, reconciliation utilities, migration, metadata, admin attribution, correction type, append-only protection, and idempotency safeguards.
 - FX-002 Market Event Engine is complete: market event service with typed emit functions, admin adjustment workflow with ledger and audit records, admin note events, audit history API, and admin authorization boundary tests.
 - FX-003 Service Layer Split is complete: trade, settlement, void, and leaderboard logic extracted from `lib/db-amm.ts` into dedicated services; typed domain errors with stable codes; `lib/db-amm.ts` reduced to a backward-compatible re-export barrel.
+- FX-004 Market Experience is complete: market detail pages, inline trade panel, market discovery filters/sort, UI polish, and expanded test coverage.
 - Accessibility hardening and axe tests are in place.
 
 ## Features Completed
 
 - Mock account login with httpOnly cookie session.
-- Protected `/markets`, `/portfolio`, `/history`, and `/admin` routes.
+- Protected `/markets`, `/markets/[marketId]`, `/portfolio`, `/history`, and `/admin` routes.
+- Market detail pages at `/markets/[marketId]` with player info, market stats, inline trade panel, and full event timeline.
+- Market discovery with player name search, team filter, status filter, position tabs, threshold tabs, and multi-column sort.
 - Database-backed slate, trading, portfolio, leaderboard, settlement, history, ledger, and market events.
 - Constant-product AMM mock-credit trading.
 - Append-only account ledger entries for seed grants, trade spends, settlement payouts, and void refunds.
@@ -172,6 +175,7 @@ New API routes from FX-002:
 - `lib/session.ts` - cookie name constant safe for middleware/tests
 - `lib/db-amm.ts` - backward-compatible re-export barrel (calls services; do not add logic here)
 - `lib/trade.service.ts` - AMM trade execution, balance deduction, position update, ledger and event emit
+- `components/trade-panel.tsx` - inline trade panel (side selector, quote display, confirm) used on market detail page
 - `lib/settlement.service.ts` - market settlement, player market batch settlement, lock, unlock, payout, audit
 - `lib/void.service.ts` - market void, position refunds, audit
 - `lib/leaderboard.service.ts` - weekly leaderboard refresh scoped to users with positions
@@ -263,6 +267,19 @@ Covers home, markets, portfolio, leaderboard, admin, and trade modal with axe.
 - `ROADMAP.md`
 - `CLAUDE.md`
 
+## Files Changed in FX-004
+
+- `app/api/markets/[marketId]/route.ts` (new) — market detail API: market + player + events, auth-gated, NOT_FOUND DomainError
+- `app/markets/[marketId]/page.tsx` (new) — market detail page: player header, stats grid, inline trade panel, full timeline
+- `components/trade-panel.tsx` (new) — inline trade panel: YES/NO selector, amount input, live quote, confirm
+- `components/market-card.tsx` — added "View details" link to detail page, polished card layout
+- `app/markets/page.tsx` — added player search, team filter, status filter, sort (kickoff/YES price/liquidity/volume)
+- `lib/client-api.ts` — added `MarketDetailResponse` type
+- `middleware.ts` — extended protection to `/markets/[marketId]` routes
+- `tests/market-detail.test.ts` (new) — 10 integration tests for serialization, player resolution, event ordering, DomainError
+- `tests/a11y/app-accessibility.spec.ts` — added market detail page to axe suite
+- `HANDOFF.md`, `ROADMAP.md`, `TODO.md` — updated
+
 ## Files Changed in FX-003
 
 - `lib/domain-errors.ts` (new)
@@ -285,7 +302,7 @@ Covers home, markets, portfolio, leaderboard, admin, and trade modal with axe.
 - `npm run prisma:push` - passed
 - `npm run lint` - passed on 2026-06-28
 - `npm run typecheck` - passed on 2026-06-28
-- `npm test` - passed on 2026-06-28, 61 tests (41 existing + 20 new)
+- `npm test` - passed on 2026-06-28, 71 tests (61 existing + 10 new FX-004)
 - `npm run build` - passed on 2026-06-28
 - `npm run prisma:seed` - passed
 - `npm run test:a11y` - passed, 6 tests
@@ -306,13 +323,4 @@ Known non-blocking warning: Playwright dev server may show a future Next.js `all
 
 ## Recommended Next Implementation Ticket
 
-Next ticket: FX-003 Service Layer Split.
-
-Scope:
-
-1. Move trade execution out of `lib/db-amm.ts` into `lib/trade.service.ts`.
-2. Move settlement/void logic into `lib/settlement.service.ts`.
-3. Move leaderboard recalculation into `lib/leaderboard.service.ts`.
-4. Add typed domain errors.
-5. Add concurrency-safe trade execution with row-level locking.
-6. Add E2E smoke tests for login -> trade -> portfolio and admin -> settlement -> payout.
+Next ticket: FX-005 — Concurrency Safety (row-level locking for trades), E2E smoke tests, and admin UI for ADMIN_ADJUSTMENT.

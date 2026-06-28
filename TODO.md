@@ -1,5 +1,16 @@
 # TODO
 
+## Completed - FX-004 Market Experience
+
+1. Created `GET /api/markets/[marketId]`: market + player + events, auth-gated, NOT_FOUND for missing markets.
+2. Created `app/markets/[marketId]/page.tsx`: player header, 6-stat grid, inline trade panel, full timeline.
+3. Created `components/trade-panel.tsx`: YES/NO selector, live AMM quote, balance-after display, error/success states.
+4. Updated `app/markets/page.tsx`: player name search, team filter, status filter, sort by kickoff/YES/liquidity/volume, result count.
+5. Updated `components/market-card.tsx`: "View details" link, opponent display, result on settled/void markets.
+6. Updated `middleware.ts`: protected `/markets/[marketId]` routes.
+7. Added `tests/market-detail.test.ts`: 10 new integration tests. Total: 71 tests.
+8. Added market detail page to axe a11y suite.
+
 ## Completed - FX-003 Service Layer Split
 
 1. Created `lib/trade.service.ts` with `executeDbBuy`: market/user validation, AMM quote, trade record, market pool update, ledger entry, market event emit, position upsert.
@@ -27,8 +38,8 @@
 
 ## P0 - Next Implementation Ticket
 
-1. Add concurrency-safe trade execution with row-level locking (SELECT FOR UPDATE on market and user rows).
-2. Add E2E smoke tests for login -> trade -> portfolio and admin -> settlement -> payout.
+1. Add concurrency-safe trade execution (SELECT FOR UPDATE on market and user rows).
+2. Add E2E smoke tests: login → trade → portfolio and admin → settlement → payout.
 3. Add `ADMIN_ADJUSTMENT` admin UI page.
 
 ## P1 - Newly Discovered Technical Debt

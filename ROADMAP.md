@@ -4,20 +4,33 @@ This roadmap prioritizes architectural work by impact and dependency order. It a
 
 ## Project Status
 
-Current milestone: Sprint 2, FX-003 Service Layer Split complete.
+Current milestone: Sprint 2, FX-004 Market Experience complete.
 
-Overall MVP foundation completion: 88%.
+Overall MVP foundation completion: 93%.
 
-Next logical milestone: Concurrency safety, E2E tests, and admin UI.
+Next logical milestone: Concurrency safety, E2E tests, admin UI.
 
 Sprint 2 focus:
 
 - Completed: FX-001 Append-Only Ledger Foundation.
 - Completed: FX-002 Market Event Engine.
 - Completed: FX-003 Service Layer Split.
+- Completed: FX-004 Market Experience.
 - Remaining: Concurrency-safe trade execution.
-- Remaining: Real charting for equity and market timelines.
 - Remaining: E2E smoke tests for login, trade, portfolio, and settlement.
+
+## Completed - FX-004 Market Experience
+
+Implemented:
+
+- Created `GET /api/markets/[marketId]` returning market, player, game, and event timeline. Auth-gated; returns 404 DomainError for missing markets.
+- Created `app/markets/[marketId]/page.tsx`: player header with position/team/opponent/status badges, 6-stat grid (YES price, NO price, liquidity, volume, open interest, opening YES), inline trade panel, full event timeline.
+- Created `components/trade-panel.tsx`: inline YES/NO selector with live quote (estimated shares, average entry, balance after), confirm button, disabled states, accessible error/success regions.
+- Updated `app/markets/page.tsx`: added player name search, team filter dropdown, status filter dropdown, sort by kickoff/YES price asc/desc/liquidity/volume. Result count display.
+- Updated `components/market-card.tsx`: added "View details" link to market detail page, opponent display, result shown on settled/void markets.
+- Updated `middleware.ts`: extended route protection to `/markets/[marketId]`.
+- Added `tests/market-detail.test.ts`: 10 integration tests covering serialization, opponent resolution, event ordering, NOT_FOUND error code.
+- Added market detail page to axe accessibility suite (11 a11y tests total).
 
 ## Completed - FX-003 Service Layer Split
 

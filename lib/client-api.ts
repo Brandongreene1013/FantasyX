@@ -111,6 +111,12 @@ export type MarketEventsResponse = {
   }>;
 };
 
+export type MarketDetailResponse = {
+  market: Market & { weekId: string; kickoffTime: string; yesPrice: number; noPrice: number; openingPrice: number; volume: number; openInterest: number };
+  player: Player | null;
+  events: MarketEventsResponse["events"];
+};
+
 export type LeaderboardResponse = {
   weekId: string;
   entries: Array<{
