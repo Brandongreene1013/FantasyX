@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Activity, Clock, Lock, CheckCircle, XCircle } from "lucide-react";
+import type { Route } from "next";
+import { ArrowLeft, Activity, Clock, Lock, CheckCircle, XCircle, User } from "lucide-react";
 import { MarketTimeline } from "@/components/market-timeline";
 import { TradePanel } from "@/components/trade-panel";
 import { apiGet } from "@/lib/client-api";
@@ -71,7 +72,14 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
               <span className="text-xs font-bold text-ink/50">vs {player.opponent}</span>
               <StatusBadge status={market.status} result={market.result} />
             </div>
-            <h1 className="mt-2 text-3xl font-black">{player.name}</h1>
+            <Link
+              href={`/players/${player.id}` as Route}
+              className="mt-2 inline-flex items-center gap-2 text-3xl font-black hover:text-field"
+              aria-label={`View ${player.name} player page`}
+            >
+              {player.name}
+              <User className="h-5 w-5 text-ink/30" aria-hidden />
+            </Link>
             <p className="mt-1 text-base font-semibold text-ink/70">
               Will {player.name} finish {thresholdLabel(market.threshold)} at {player.position}?
             </p>

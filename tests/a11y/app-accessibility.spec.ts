@@ -24,7 +24,8 @@ const pages = [
 ];
 
 const marketDetailPages = [
-  { name: "market detail page", path: "/markets/m_p_josh_allen_top_3" }
+  { name: "market detail page", path: "/markets/m_p_josh_allen_top_3" },
+  { name: "player detail page", path: "/players/p_josh_allen" }
 ];
 
 for (const pageConfig of pages) {

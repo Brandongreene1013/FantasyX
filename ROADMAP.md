@@ -4,9 +4,9 @@ This roadmap prioritizes architectural work by impact and dependency order. It a
 
 ## Project Status
 
-Current milestone: Sprint 2, FX-004 Market Experience complete.
+Current milestone: Sprint 2, FX-005 Player Intelligence complete.
 
-Overall MVP foundation completion: 93%.
+Overall MVP foundation completion: 96%.
 
 Next logical milestone: Concurrency safety, E2E tests, admin UI.
 
@@ -16,6 +16,7 @@ Sprint 2 focus:
 - Completed: FX-002 Market Event Engine.
 - Completed: FX-003 Service Layer Split.
 - Completed: FX-004 Market Experience.
+- Completed: FX-005 Player Intelligence.
 - Remaining: Concurrency-safe trade execution.
 - Remaining: E2E smoke tests for login, trade, portfolio, and settlement.
 

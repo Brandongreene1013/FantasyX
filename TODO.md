@@ -1,5 +1,17 @@
 # TODO
 
+## Completed - FX-005 Player Intelligence
+
+1. Created `lib/player-intelligence.ts`: static projection map for all 13 seeded players, `calcSentiment` (pure, from real DB market data), `getPlaceholderHistory` (deterministic fake weekly finishes), `getIntelligence` (full intel panel data).
+2. Created `GET /api/players/[playerId]`: player + markets for current week + sentiment + intelligence. Auth-gated, NOT_FOUND for missing players.
+3. Created `app/players/[playerId]/page.tsx`: player header (avatar, name, team, position, opponent, kickoff, projection), intelligence panel, market sentiment (from live DB data), historical performance table, per-player market cards with inline trade panel.
+4. Updated `components/market-card.tsx`: player name is now a link to `/players/[playerId]`.
+5. Updated `app/markets/[marketId]/page.tsx`: player name in header is now a link to `/players/[playerId]`.
+6. Updated `lib/client-api.ts`: added `PlayerDetailResponse` type.
+7. Updated `middleware.ts`: protected `/players/*` routes.
+8. Added `tests/player-intelligence.test.ts`: 23 new tests covering calcSentiment, getPlaceholderHistory, getIntelligence, DomainError, and DB retrieval. Total: 94 tests.
+9. Added player detail page to axe a11y suite.
+
 ## Completed - FX-004 Market Experience
 
 1. Created `GET /api/markets/[marketId]`: market + player + events, auth-gated, NOT_FOUND for missing markets.

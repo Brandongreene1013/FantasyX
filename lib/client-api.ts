@@ -111,6 +111,33 @@ export type MarketEventsResponse = {
   }>;
 };
 
+export type PlayerDetailResponse = {
+  player: {
+    id: string;
+    name: string;
+    team: string;
+    position: "QB" | "RB" | "WR" | "TE";
+    opponent: string;
+    kickoff: string;
+  };
+  markets: SlateResponse["markets"];
+  sentiment: {
+    avgYesPrice: number;
+    totalVolume: number;
+    totalOpenInterest: number;
+    highestConfidenceMarket: { threshold: string; yesPrice: number };
+    lowestConfidenceMarket: { threshold: string; yesPrice: number };
+  } | null;
+  intelligence: {
+    projectedPoints: number;
+    projectedRank: string;
+    confidenceScore: number;
+    injuryStatus: "ACTIVE" | "QUESTIONABLE" | "DOUBTFUL" | "OUT";
+    matchupNotes: string;
+    historicalFinishes: Array<{ week: number; finish: number; points: number }>;
+  };
+};
+
 export type MarketDetailResponse = {
   market: Market & { weekId: string; kickoffTime: string; yesPrice: number; noPrice: number; openingPrice: number; volume: number; openInterest: number };
   player: Player | null;

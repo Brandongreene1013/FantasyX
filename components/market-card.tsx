@@ -29,7 +29,15 @@ export function MarketCard({
             <span className="text-xs font-bold text-ink/70">{player.team}</span>
             <span className="text-xs font-bold text-ink/50">vs {player.opponent}</span>
           </div>
-          <h2 className="mt-2 truncate text-xl font-black">{player.name}</h2>
+          <h2 className="mt-2 truncate text-xl font-black">
+            <Link
+              href={`/players/${player.id}` as Route}
+              className="hover:text-field"
+              aria-label={`View ${player.name} player page`}
+            >
+              {player.name}
+            </Link>
+          </h2>
         </div>
         <div className="text-right shrink-0">
           <p className="text-xs font-bold text-ink/60">Week {market.week}</p>

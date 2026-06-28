@@ -19,13 +19,15 @@ Warning: no real-money wagering, deposits, withdrawals, custody, mainnet Solana,
 - FX-002 Market Event Engine is complete: market event service with typed emit functions, admin adjustment workflow with ledger and audit records, admin note events, audit history API, and admin authorization boundary tests.
 - FX-003 Service Layer Split is complete: trade, settlement, void, and leaderboard logic extracted from `lib/db-amm.ts` into dedicated services; typed domain errors with stable codes; `lib/db-amm.ts` reduced to a backward-compatible re-export barrel.
 - FX-004 Market Experience is complete: market detail pages, inline trade panel, market discovery filters/sort, UI polish, and expanded test coverage.
+- FX-005 Player Intelligence is complete: player detail pages at `/players/[playerId]` with intelligence panel, market sentiment, historical performance (placeholder), navigation from market cards and detail pages, 23 new tests.
 - Accessibility hardening and axe tests are in place.
 
 ## Features Completed
 
 - Mock account login with httpOnly cookie session.
-- Protected `/markets`, `/markets/[marketId]`, `/portfolio`, `/history`, and `/admin` routes.
+- Protected `/markets`, `/markets/[marketId]`, `/players/[playerId]`, `/portfolio`, `/history`, and `/admin` routes.
 - Market detail pages at `/markets/[marketId]` with player info, market stats, inline trade panel, and full event timeline.
+- Player detail pages at `/players/[playerId]` with intelligence panel, sentiment, historical performance, and per-player market cards with inline trade.
 - Market discovery with player name search, team filter, status filter, position tabs, threshold tabs, and multi-column sort.
 - Database-backed slate, trading, portfolio, leaderboard, settlement, history, ledger, and market events.
 - Constant-product AMM mock-credit trading.
