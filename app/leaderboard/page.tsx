@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Trophy } from "lucide-react";
-import { PageHeading } from "@/components/page-heading";
+import Link from "next/link";
+import { Trophy, Medal, TrendingUp, TrendingDown, Crown } from "lucide-react";
 import { apiGet, defaultWeekId, type LeaderboardResponse, type SessionResponse } from "@/lib/client-api";
-import { credits } from "@/lib/format";
+import { credits, pct } from "@/lib/format";
+import { ErrorState } from "@/components/ui/empty-state";
 
 export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
@@ -12,84 +13,174 @@ export default function LeaderboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadLeaderboard = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const load = useCallback(async () => {
+    setIsLoading(true); setError(null);
     try {
-      setLeaderboard(await apiGet<LeaderboardResponse>(`/api/leaderboard?weekId=${defaultWeekId}`));
-      apiGet<SessionResponse>("/api/session").then((data) => setSession(data.user)).catch(() => setSession(null));
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load leaderboard");
+      const [lb, sess] = await Promise.all([
+        apiGet<LeaderboardResponse>(`/api/leaderboard?weekId=${defaultWeekId}`),
+        apiGet<SessionResponse>("/api/session").catch(() => null)
+      ]);
+      setLeaderboard(lb);
+      setSession(sess?.user ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load leaderboard");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    void loadLeaderboard();
-  }, [loadLeaderboard]);
+  useEffect(() => { void load(); }, [load]);
 
   const entries = leaderboard?.entries ?? [];
+  const top3    = entries.slice(0, 3);
+  const rest    = entries.slice(3);
+
+  if (error) return <ErrorState message={error} onRetry={load} />;
 
   return (
-    <>
-      <PageHeading title="Leaderboard" kicker="Week 1 standings">
-        <span>Weekly and total P&L are based on mock-credit trading performance.</span>
-      </PageHeading>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-black text-frost flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-gold" aria-hidden /> Leaderboard
+        </h1>
+        <p className="text-xs font-semibold text-muted mt-1">Week 1 standings · ranked by total P&L</p>
+      </div>
 
-      <section className="overflow-hidden rounded border border-ink/10 bg-white shadow-soft">
-        <div className="hidden grid-cols-[4rem_1fr_1fr_1fr] gap-3 border-b border-ink/10 bg-chalk px-4 py-3 text-xs font-black uppercase tracking-widest text-ink/70 sm:grid">
-          <span>Rank</span>
-          <span>User</span>
+      {/* Podium — top 3 */}
+      {!isLoading && top3.length > 0 && (
+        <section aria-label="Top 3 traders">
+          <div className="flex items-end justify-center gap-3 pb-2">
+            {/* 2nd */}
+            {top3[1] && <PodiumCard entry={top3[1]} rank={2} currentUserId={session?.id} />}
+            {/* 1st */}
+            {top3[0] && <PodiumCard entry={top3[0]} rank={1} currentUserId={session?.id} elevated />}
+            {/* 3rd */}
+            {top3[2] && <PodiumCard entry={top3[2]} rank={3} currentUserId={session?.id} />}
+          </div>
+        </section>
+      )}
+
+      {/* Full table */}
+      <section className="rounded-xl border border-rim bg-panel overflow-hidden">
+        {/* Desktop header */}
+        <div className="hidden grid-cols-[3rem_1fr_1fr_1fr_1fr] gap-3 border-b border-rim bg-panel2 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted sm:grid">
+          <span>#</span>
+          <span>Trader</span>
           <span>Weekly P&L</span>
           <span>Total P&L</span>
+          <span>Balance</span>
         </div>
 
-        {isLoading ? <StatePanel text="Loading leaderboard..." /> : null}
-        {error ? <StatePanel text={error} tone="error" actionLabel="Retry" onAction={loadLeaderboard} /> : null}
-        {!isLoading && !error && entries.length === 0 ? <StatePanel text="No leaderboard entries yet." /> : null}
+        {isLoading && (
+          <div className="space-y-0">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="animate-shimmer h-16 border-b border-rim" />
+            ))}
+          </div>
+        )}
 
-        {!isLoading && !error
-          ? entries.map((row, index) => (
-              <div className="grid gap-3 border-b border-ink/10 p-4 last:border-b-0 sm:grid-cols-[4rem_1fr_1fr_1fr] sm:items-center" key={row.id}>
-                <div className="flex items-center gap-3 sm:block">
-                  <div className="grid h-10 w-10 place-items-center rounded bg-chalk font-black">
-                    {index === 0 ? <Trophy className="h-5 w-5 text-gold" /> : row.rank ?? index + 1}
-                  </div>
-                  <p className="font-black sm:hidden">{row.name} {row.userId === session?.id ? <span className="text-xs text-field">YOU</span> : null}</p>
-                </div>
-                <div className="hidden sm:block">
-                  <p className="font-black">{row.name} {row.userId === session?.id ? <span className="text-xs text-field">YOU</span> : null}</p>
-                  <p className="text-sm font-semibold text-ink/70">{credits(row.balance)} balance</p>
-                </div>
-                <Pnl label="Weekly P&L" value={row.weeklyPnl} />
-                <Pnl label="Total P&L" value={row.totalPnl} />
+        {!isLoading && !error && entries.length === 0 && (
+          <div className="py-12 text-center text-sm font-semibold text-muted">
+            No entries yet. Start trading to appear here.
+          </div>
+        )}
+
+        {!isLoading && entries.map((row, i) => {
+          const isMe = row.userId === session?.id;
+          const isTop3 = i < 3;
+          return (
+            <div
+              key={row.id}
+              className={`grid grid-cols-[3rem_1fr_1fr_1fr] sm:grid-cols-[3rem_1fr_1fr_1fr_1fr] items-center gap-3 border-b border-rim/60 px-4 py-3 last:border-b-0 transition-colors ${
+                isMe ? "bg-neon/5 border-neon/20" : "hover:bg-panel2"
+              }`}
+            >
+              {/* Rank */}
+              <div className="flex items-center justify-center">
+                {i === 0 ? <Crown className="h-5 w-5 text-gold" aria-label="1st place" /> :
+                 i === 1 ? <Medal className="h-5 w-5 text-muted" aria-label="2nd place" /> :
+                 i === 2 ? <Medal className="h-5 w-5 text-amber/60" aria-label="3rd place" /> : (
+                  <span className={`text-sm font-black ${isTop3 ? "text-frost" : "text-muted"}`}>
+                    {row.rank ?? i + 1}
+                  </span>
+                )}
               </div>
-            ))
-          : null}
-      </section>
-    </>
-  );
-}
 
-function Pnl({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <p className="text-xs font-black uppercase tracking-widest text-ink/70 sm:hidden">{label}</p>
-      <p className={value >= 0 ? "font-black text-field" : "font-black text-rush"}>{value >= 0 ? "+" : ""}{credits(value)}</p>
+              {/* Name */}
+              <div>
+                <p className={`text-sm font-black ${isMe ? "text-neon" : "text-frost"}`}>
+                  {row.name}
+                  {isMe && <span className="ml-1.5 text-[10px] font-black text-neon/70">YOU</span>}
+                </p>
+                <p className="text-[10px] font-semibold text-muted sm:hidden">
+                  {credits(row.balance)} · {row.weeklyPnl >= 0 ? "+" : ""}{credits(row.weeklyPnl)} wk
+                </p>
+              </div>
+
+              {/* Weekly P&L */}
+              <PnlCell value={row.weeklyPnl} label="Week" />
+
+              {/* Total P&L */}
+              <PnlCell value={row.totalPnl} label="Total" />
+
+              {/* Balance */}
+              <div className="hidden sm:block text-right">
+                <p className="text-sm font-bold text-frost">{credits(row.balance)}</p>
+              </div>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* My rank callout if not in view */}
+      {session && entries.length > 0 && !entries.slice(0, 10).some((e) => e.userId === session.id) && (
+        <div className="rounded-xl border border-neon/20 bg-neon/5 px-4 py-3 flex items-center justify-between">
+          <p className="text-sm font-semibold text-muted">You&apos;re not yet ranked. Trade more to climb!</p>
+          <Link href="/markets" className="text-sm font-black text-neon hover:underline">Trade →</Link>
+        </div>
+      )}
     </div>
   );
 }
 
-function StatePanel({ text, tone = "default", actionLabel, onAction }: { text: string; tone?: "default" | "error"; actionLabel?: string; onAction?: () => void }) {
+function PodiumCard({ entry, rank, currentUserId, elevated }: {
+  entry: LeaderboardResponse["entries"][0];
+  rank: number;
+  currentUserId?: string | null;
+  elevated?: boolean;
+}) {
+  const isMe = entry.userId === currentUserId;
+  const RANK_COLORS: Record<number, string> = { 1: "text-gold border-gold/40 bg-gold/10", 2: "text-muted border-rim bg-panel", 3: "text-amber/70 border-amber/20 bg-amber/5" };
+  const initials = entry.name.split(" ").slice(0, 2).map((s) => s[0]).join("").toUpperCase();
+
   return (
-    <div className={tone === "error" ? "p-6 text-sm font-bold text-rush" : "p-6 text-sm font-semibold text-ink/70"}>
-      <p>{text}</p>
-      {actionLabel && onAction ? (
-        <button className="mt-3 rounded bg-ink px-4 py-2 text-xs font-black text-white hover:bg-field" onClick={onAction} type="button">
-          {actionLabel}
-        </button>
-      ) : null}
+    <div className={`flex flex-col items-center gap-2 ${elevated ? "mb-0 pb-0" : "mt-6"}`}>
+      <div className={`h-12 w-12 rounded-full border-2 flex items-center justify-center font-black text-sm ${RANK_COLORS[rank]} ${elevated ? "h-16 w-16 text-base" : ""}`}>
+        {initials}
+      </div>
+      <div className="text-center">
+        <p className={`text-xs font-black ${isMe ? "text-neon" : "text-frost"} max-w-[80px] truncate`}>{entry.name}</p>
+        <p className={`text-xs font-bold ${entry.totalPnl >= 0 ? "text-neon" : "text-crimson"}`}>
+          {entry.totalPnl >= 0 ? "+" : ""}{credits(entry.totalPnl)}
+        </p>
+      </div>
+      <div className={`w-12 rounded-t-sm flex items-center justify-center py-1 ${RANK_COLORS[rank]} ${elevated ? "h-16 w-14" : rank === 2 ? "h-10" : "h-6"}`}>
+        {rank === 1 ? <Crown className="h-4 w-4 text-gold" aria-hidden /> : <span className="text-xs font-black">{rank}</span>}
+      </div>
+    </div>
+  );
+}
+
+function PnlCell({ value, label }: { value: number; label: string }) {
+  const pos = value >= 0;
+  return (
+    <div>
+      <p className="text-xs font-black uppercase tracking-wider text-muted sm:hidden">{label}</p>
+      <p className={`text-sm font-black flex items-center gap-1 ${pos ? "text-neon" : "text-crimson"}`}>
+        {pos ? <TrendingUp className="h-3 w-3" aria-hidden /> : <TrendingDown className="h-3 w-3" aria-hidden />}
+        {pos ? "+" : ""}{credits(value)}
+      </p>
     </div>
   );
 }

@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowLeft, Activity, Clock, Lock, CheckCircle, XCircle, User } from "lucide-react";
+import { ArrowLeft, Activity, Clock, Lock, CheckCircle, XCircle, TrendingUp, TrendingDown } from "lucide-react";
 import { MarketTimeline } from "@/components/market-timeline";
 import { TradePanel } from "@/components/trade-panel";
 import { MarketHistoryCharts } from "@/components/analytics-charts";
+import { PlayerAvatar } from "@/components/ui/player-avatar";
+import { ErrorState } from "@/components/ui/empty-state";
 import { apiGet } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
+import { getPositionColor } from "@/lib/team-colors";
 import type { MarketDetailResponse, PortfolioResponse } from "@/lib/client-api";
 
 export default function MarketDetailPage({ params }: { params: Promise<{ marketId: string }> }) {
@@ -19,119 +22,139 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void params.then((p) => setMarketId(p.marketId));
-  }, [params]);
+  useEffect(() => { void params.then((p) => setMarketId(p.marketId)); }, [params]);
 
   const load = useCallback(async (id: string) => {
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true); setError(null);
     try {
-      const [detailData, portfolioData] = await Promise.all([
+      const [d, p] = await Promise.all([
         apiGet<MarketDetailResponse>(`/api/markets/${id}`),
         apiGet<PortfolioResponse>("/api/portfolio")
       ]);
-      setDetail(detailData);
-      setBalance(portfolioData.user.mockBalance);
-      setMarketPosition(portfolioData.positions.find((position) => position.marketId === id) ?? null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load market");
-    } finally {
-      setIsLoading(false);
-    }
+      setDetail(d); setBalance(p.user.mockBalance);
+      setMarketPosition(p.positions.find((pos) => pos.marketId === id) ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load market");
+    } finally { setIsLoading(false); }
   }, []);
 
-  useEffect(() => {
-    if (marketId) void load(marketId);
-  }, [marketId, load]);
+  useEffect(() => { if (marketId) void load(marketId); }, [marketId, load]);
 
-  if (isLoading) {
-    return <LoadingState />;
-  }
+  if (isLoading) return (
+    <div className="space-y-4">
+      <BackLink />
+      <div className="h-40 animate-shimmer rounded-2xl" />
+    </div>
+  );
 
-  if (error || !detail || !detail.player) {
-    return (
-      <div>
-        <BackLink />
-        <div className="mt-6 rounded border border-rush/20 bg-rush/10 p-5 text-sm font-bold text-rush">
-          {error ?? "Market not found."}
-        </div>
-      </div>
-    );
-  }
+  if (error || !detail?.player) return (
+    <div className="space-y-4">
+      <BackLink />
+      <ErrorState message={error ?? "Market not found."} onRetry={marketId ? () => void load(marketId) : undefined} />
+    </div>
+  );
 
   const { market, player, events } = detail;
+  const posColor = getPositionColor(player.position);
+  const isOpen = market.status === "OPEN";
+  const priceMove = market.yesPrice - market.openingPrice;
 
   return (
-    <div>
+    <div className="space-y-4 pb-6">
       <BackLink />
 
-      <div className="mt-4 rounded border border-ink/10 bg-white p-5 shadow-soft">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded bg-field/10 px-2 py-1 text-xs font-black text-field">{player.position}</span>
-              <span className="text-xs font-bold text-ink/70">{player.team}</span>
-              <span className="text-xs font-bold text-ink/50">vs {player.opponent}</span>
-              <StatusBadge status={market.status} result={market.result} />
+      {/* Player hero card */}
+      <div className="rounded-2xl border border-rim bg-panel overflow-hidden">
+        <div className="h-1 w-full" style={{ background: posColor.text }} />
+        <div className="p-5">
+          <div className="flex items-start gap-4">
+            <PlayerAvatar name={player.name} team={player.team} position={player.position} size="xl" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <span className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: posColor.bg, color: posColor.text }}>{player.position}</span>
+                <span className="text-xs font-bold text-muted">{player.team}</span>
+                {player.opponent && <span className="text-xs text-muted/60">vs {player.opponent}</span>}
+                <StatusBadge status={market.status} result={market.result} />
+              </div>
+              <Link href={`/players/${player.id}` as Route} className="block">
+                <h1 className="text-2xl font-black text-frost hover:text-neon transition-colors leading-tight">{player.name}</h1>
+              </Link>
+              <p className="text-sm font-semibold text-muted mt-1">
+                {thresholdLabel(market.threshold)} threshold · Week {market.week}
+              </p>
             </div>
-            <Link
-              href={`/players/${player.id}` as Route}
-              className="mt-2 inline-flex items-center gap-2 text-3xl font-black hover:text-field"
-              aria-label={`View ${player.name} player page`}
-            >
-              {player.name}
-              <User className="h-5 w-5 text-ink/30" aria-hidden />
-            </Link>
-            <p className="mt-1 text-base font-semibold text-ink/70">
-              Will {player.name} finish {thresholdLabel(market.threshold)} at {player.position}?
-            </p>
           </div>
-          <div className="text-right">
-            <p className="text-xs font-bold text-ink/60">Week {market.week}</p>
-            <p className="text-2xl font-black">{thresholdLabel(market.threshold)}</p>
-            <p className="flex items-center justify-end gap-1 text-xs font-semibold text-ink/60">
-              <Clock className="h-3.5 w-3.5" aria-hidden />
-              {new Date(market.kickoffTime).toLocaleString()}
-            </p>
+
+          {/* YES/NO prices — mobile-prominent */}
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-neon/25 bg-neon/8 p-4 text-center">
+              <p className="text-[10px] font-black text-neon/70 uppercase tracking-wider">YES</p>
+              <p className="text-3xl font-black text-neon mt-1">{pct(market.yesPrice)}</p>
+              <div className={`flex items-center justify-center gap-1 mt-1 text-xs font-bold ${priceMove >= 0 ? "text-neon/70" : "text-crimson/70"}`}>
+                {priceMove >= 0 ? <TrendingUp className="h-3 w-3" aria-hidden /> : <TrendingDown className="h-3 w-3" aria-hidden />}
+                {priceMove >= 0 ? "+" : ""}{pct(priceMove)}
+              </div>
+            </div>
+            <div className="rounded-xl border border-crimson/25 bg-crimson/8 p-4 text-center">
+              <p className="text-[10px] font-black text-crimson/70 uppercase tracking-wider">NO</p>
+              <p className="text-3xl font-black text-crimson mt-1">{pct(market.noPrice)}</p>
+              <p className="text-xs font-bold text-muted mt-1">
+                {credits(market.liquidity)} pool
+              </p>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <MiniStat label="Volume" value={credits(market.volume)} />
+            <MiniStat label="Open Interest" value={`${Number(market.openInterest).toFixed(1)} sh`} />
+            <MiniStat label="Kickoff" value={new Date(market.kickoffTime).toLocaleDateString(undefined, { month: "short", day: "numeric" })} />
+          </div>
+
+          {/* Kickoff */}
+          <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-muted">
+            <Clock className="h-3.5 w-3.5" aria-hidden />
+            <span>{new Date(market.kickoffTime).toLocaleString()}</span>
+            {!isOpen && <Lock className="h-3.5 w-3.5 text-amber" aria-hidden />}
           </div>
         </div>
-
-        <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Stat label="YES price" value={pct(market.yesPrice)} accent />
-          <Stat label="NO price" value={pct(market.noPrice)} />
-          <Stat label="Liquidity" value={credits(market.liquidity)} />
-          <Stat label="Volume" value={credits(market.volume)} />
-          <Stat label="Open interest" value={(market.openInterest).toFixed(2)} />
-          <Stat label="Opening YES" value={pct(market.openingPrice)} />
-        </dl>
       </div>
 
-      <section className="mt-5 rounded border border-ink/10 bg-white p-5 shadow-soft" aria-label="Market sentiment">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-black uppercase tracking-widest text-ink/70">Market Sentiment</h2>
-            <p className="mt-1 text-sm font-semibold text-ink/60">
-              {detail.sentiment.label} read from price, flow, open interest, and recent movement.
-            </p>
-          </div>
-          <span className="rounded bg-field/10 px-3 py-1 text-xs font-black text-field">
-            Confidence {detail.sentiment.confidenceScore}
-          </span>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <SentimentMeter label="Bullish score" value={detail.sentiment.bullishScore} tone="field" />
-          <SentimentMeter label="Bearish score" value={detail.sentiment.bearishScore} tone="rush" />
-          <SentimentMeter label="Confidence" value={detail.sentiment.confidenceScore} tone="ink" />
-          <Stat label="YES move" value={`${detail.sentiment.recentPriceChange >= 0 ? "+" : ""}${pct(detail.sentiment.recentPriceChange)}`} accent={detail.sentiment.recentPriceChange >= 0} />
-        </div>
-      </section>
+      {/* Market question */}
+      <div className="rounded-xl border border-rim bg-panel px-4 py-3">
+        <p className="text-sm font-semibold text-muted">
+          Will <span className="font-black text-frost">{player.name}</span> finish{" "}
+          <span className="font-black text-neon">{thresholdLabel(market.threshold)}</span>{" "}
+          at {player.position} this week in half-PPR scoring?
+        </p>
+      </div>
 
-      <section className="mt-5" aria-label="Market charts">
+      {/* Charts */}
+      <section aria-label="Market price history">
         <MarketHistoryCharts history={detail.history} />
       </section>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_2fr]">
+      {/* Sentiment */}
+      <section className="rounded-xl border border-rim bg-panel p-4" aria-label="Market sentiment">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-black text-frost">Market Sentiment</h2>
+          <span className="text-xs font-bold text-muted">{detail.sentiment.label}</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <SentimentBar label="Bullish" value={detail.sentiment.bullishScore} color="neon" />
+          <SentimentBar label="Bearish" value={detail.sentiment.bearishScore} color="crimson" />
+          <SentimentBar label="Confidence" value={detail.sentiment.confidenceScore} color="charge" />
+          <div className="flex flex-col justify-center">
+            <p className="text-[10px] font-black uppercase tracking-wider text-muted">Price Move</p>
+            <p className={`text-base font-black ${detail.sentiment.recentPriceChange >= 0 ? "text-neon" : "text-crimson"}`}>
+              {detail.sentiment.recentPriceChange >= 0 ? "+" : ""}{pct(detail.sentiment.recentPriceChange)}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Trade panel + Timeline */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
         <div>
           <TradePanel
             market={market}
@@ -141,30 +164,37 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
             onTradeComplete={() => void load(marketId!)}
           />
         </div>
-
-        <div>
+        <section aria-label="Market timeline">
           <div className="mb-3 flex items-center gap-2">
-            <Activity className="h-4 w-4 text-ink/60" aria-hidden />
-            <h2 className="text-sm font-black uppercase tracking-widest text-ink/70">
-              Market Timeline
-            </h2>
-            <span className="ml-auto text-xs font-semibold text-ink/50">{events.length} event{events.length !== 1 ? "s" : ""}</span>
+            <Activity className="h-4 w-4 text-muted" aria-hidden />
+            <h2 className="text-sm font-black text-frost">Timeline</h2>
+            <span className="ml-auto text-xs font-semibold text-muted">{events.length} events</span>
           </div>
           <MarketTimeline events={events} />
-        </div>
+        </section>
       </div>
     </div>
   );
 }
 
-function SentimentMeter({ label, value, tone }: { label: string; value: number; tone: "field" | "rush" | "ink" }) {
-  const barClass = tone === "field" ? "bg-field" : tone === "rush" ? "bg-rush" : "bg-ink";
+function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded border border-ink/10 bg-chalk p-3">
-      <p className="text-xs font-black uppercase tracking-widest text-ink/60">{label}</p>
-      <p className="mt-1 text-lg font-black">{value}</p>
-      <div className="mt-2 h-2 overflow-hidden rounded bg-white">
-        <div className={`h-full ${barClass}`} style={{ width: `${Math.max(4, Math.min(100, value))}%` }} />
+    <div className="rounded-lg bg-panel2 px-3 py-2 text-center">
+      <p className="text-[10px] font-black uppercase tracking-wider text-muted">{label}</p>
+      <p className="text-sm font-black text-frost mt-0.5">{value}</p>
+    </div>
+  );
+}
+
+function SentimentBar({ label, value, color }: { label: string; value: number; color: "neon" | "crimson" | "charge" }) {
+  const barColor = color === "neon" ? "bg-neon" : color === "crimson" ? "bg-crimson" : "bg-charge";
+  const textColor = color === "neon" ? "text-neon" : color === "crimson" ? "text-crimson" : "text-charge";
+  return (
+    <div className="rounded-lg bg-panel2 p-3">
+      <p className="text-[10px] font-black uppercase tracking-wider text-muted">{label}</p>
+      <p className={`text-lg font-black mt-1 ${textColor}`}>{value}</p>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-rim">
+        <div className={`h-full ${barColor} transition-all`} style={{ width: `${Math.max(4, Math.min(100, value))}%` }} />
       </div>
     </div>
   );
@@ -172,60 +202,19 @@ function SentimentMeter({ label, value, tone }: { label: string; value: number; 
 
 function BackLink() {
   return (
-    <Link
-      href="/markets"
-      className="inline-flex min-h-11 items-center gap-2 rounded px-1 text-sm font-bold text-ink/70 hover:text-ink"
-      aria-label="Back to markets"
-    >
-      <ArrowLeft className="h-4 w-4" aria-hidden />
-      Markets
+    <Link href="/markets" className="inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-frost transition-colors" aria-label="Back to markets">
+      <ArrowLeft className="h-4 w-4" aria-hidden /> Markets
     </Link>
-  );
-}
-
-function LoadingState() {
-  return (
-    <div>
-      <BackLink />
-      <div className="mt-6 rounded border border-ink/10 bg-white p-8 text-center text-sm font-bold text-ink/60 shadow-soft">
-        Loading market…
-      </div>
-    </div>
   );
 }
 
 function StatusBadge({ status, result }: { status: string; result: string | null }) {
   if (status === "SETTLED") {
-    return (
-      <span className="flex items-center gap-1 rounded bg-field/10 px-2 py-1 text-xs font-black text-field">
-        <CheckCircle className="h-3.5 w-3.5" aria-hidden /> Settled {result ?? ""}
-      </span>
-    );
+    return result === "YES"
+      ? <span className="flex items-center gap-1 rounded-full bg-neon/15 px-2 py-0.5 text-[10px] font-black text-neon"><CheckCircle className="h-3 w-3" aria-hidden />YES</span>
+      : <span className="flex items-center gap-1 rounded-full bg-crimson/15 px-2 py-0.5 text-[10px] font-black text-crimson"><XCircle className="h-3 w-3" aria-hidden />NO</span>;
   }
-  if (status === "VOID") {
-    return (
-      <span className="flex items-center gap-1 rounded bg-rush/10 px-2 py-1 text-xs font-black text-rush">
-        <XCircle className="h-3.5 w-3.5" aria-hidden /> Void
-      </span>
-    );
-  }
-  if (status === "LOCKED") {
-    return (
-      <span className="flex items-center gap-1 rounded bg-gold/10 px-2 py-1 text-xs font-black text-gold">
-        <Lock className="h-3.5 w-3.5" aria-hidden /> Locked
-      </span>
-    );
-  }
-  return (
-    <span className="rounded bg-ink/10 px-2 py-1 text-xs font-black text-ink/70">Open</span>
-  );
-}
-
-function Stat({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="rounded border border-ink/10 bg-chalk p-3">
-      <dt className="text-xs font-black uppercase tracking-widest text-ink/60">{label}</dt>
-      <dd className={`mt-1 text-lg font-black ${accent ? "text-field" : ""}`}>{value}</dd>
-    </div>
-  );
+  if (status === "LOCKED") return <span className="flex items-center gap-1 rounded-full bg-amber/15 px-2 py-0.5 text-[10px] font-black text-amber"><Lock className="h-3 w-3" aria-hidden />LOCKED</span>;
+  if (status === "VOID")   return <span className="rounded-full bg-rim px-2 py-0.5 text-[10px] font-black text-muted">VOID</span>;
+  return <span className="rounded-full bg-neon/15 px-2 py-0.5 text-[10px] font-black text-neon">LIVE</span>;
 }

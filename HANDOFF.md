@@ -4,6 +4,8 @@
 
 FantasyX is a database-backed, free-play NFL fantasy prediction market MVP. Users trade mock-credit YES/NO shares on whether players finish Top 3, Top 5, or Top 10 at their weekly half-PPR positional rank.
 
+FX-012 added automated weekly operations. An admin can now import CSV fantasy scores, preview settlement outcomes before committing, approve batch settlement with one click, and lock markets past kickoff — all from dedicated admin pages at `/admin/scoring` and `/admin/data`.
+
 Warning: no real-money wagering, deposits, withdrawals, custody, mainnet Solana, or production smart contracts are implemented. Solana is a future direction only.
 
 ## Current State
@@ -24,6 +26,11 @@ Warning: no real-money wagering, deposits, withdrawals, custody, mainnet Solana,
 - FX-006 NFL Data Engine is complete: provider abstraction (`INflDataProvider`), `DemoNflDataProvider`, `FutureSportsDataProvider` placeholder, idempotent `syncNflData` service, `POST /api/admin/nfl/sync-demo`, `GET /api/admin/nfl/stats`, admin NFL Data panel, schema fields for `Player.status` and `externalProviderId` on Player and Game, Prisma migration, 27 new tests.
 - FX-007 Market Intelligence & Analytics is complete: market price history snapshots, Recharts market and portfolio charts, market sentiment scores, home dashboard analytics, trending markets, biggest movers, portfolio analytics summary, additive migration, and 6 new tests.
 - FX009 Real User Accounts & Platform Identity is complete: signup/login, password hashing, server-side sessions, account/settings pages, admin env seed, demo login removal, and auth tests.
+- FX-010 Sell Positions, Trade Integrity & CSRF is complete: sell execution, TradeAction enum, idempotency keys, TRADE_PROCEEDS ledger rows, serializable transactions with row locks, CSRF validation.
+- FX-011 Market Creation Engine & Weekly Slate Builder is complete: DRAFT/SCHEDULED market statuses, 8 position-based market templates, weekly slate generator with duplicate prevention, week CRUD, bulk market actions (Open All/Lock All/Void All/Archive), /admin/markets dashboard, /admin/weeks page, 8 new AdminAuditAction values.
+- FX-012 Live NFL Data, Automated Scoring & Settlement is complete: ScoreImport/PlayerScore models, Half-PPR calculator, CSV import with player resolution, settlement preview, batch settlement approval, kickoff-based market lock, /admin/data and /admin/scoring pages, operations dashboard on /admin. 203 tests passing.
+- FX-013 Real NFL Provider Integration & Scheduled Jobs is complete: env-based provider factory (demo/sleeper/sportsdataio), SleeperNflDataProvider (free, no key), SportsDataIoProvider shell (paid), OperationLog DB model and service, InMemoryRateLimitAdapter, Vercel cron endpoints for market locking (every 15 min) and NFL sync (every 6 hours), /api/admin/provider-status, /api/admin/nfl/sync, /admin/data enhanced with provider status and op log, provider architecture tests. 230 tests passing.
+- FX-014 Public Beta Mobile UX & Visual Identity is complete: dark sports-trading design system (tailwind tokens surface/panel/frost/neon/crimson/charge), PlayerAvatar component with headshotUrl hook for future licensed images, team-color mapping for all 32 NFL teams, bottom-tab mobile navigation (5 tabs), redesigned Home/Markets/Market Detail/Portfolio/Leaderboard/Login/Signup pages, WatchMarket backend (DB model + API routes + optimistic UI watchlist star), 5-step onboarding flow with team picker, Prisma migration for favoriteTeam + onboardingDone. 230 tests passing.
 - Accessibility hardening and axe tests are in place.
 
 ## Features Completed

@@ -245,6 +245,68 @@ export type NflStatsResponse = {
   };
 };
 
+export type AdminMarketsResponse = {
+  markets: Array<{
+    id: string;
+    weekId: string;
+    season: number;
+    week: number;
+    playerId: string;
+    playerName: string;
+    playerTeam: string;
+    playerStatus: string;
+    position: "QB" | "RB" | "WR" | "TE";
+    thresholdType: "TOP_3" | "TOP_5" | "TOP_10";
+    status: string;
+    result: "YES" | "NO" | null;
+    yesPrice: number;
+    noPrice: number;
+    openingPrice: number;
+    volume: number;
+    openInterest: number;
+    kickoffTime: string;
+    tradeCount: number;
+    positionCount: number;
+    game: { homeTeam: string; awayTeam: string; kickoffTime: string } | null;
+  }>;
+};
+
+export type AdminWeeksResponse = {
+  weeks: Array<{
+    id: string;
+    season: number;
+    week: number;
+    startsAt: Date;
+    endsAt: Date;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+    marketCount: number;
+    playerCount: number;
+    openMarkets: number;
+    lockedMarkets: number;
+    settledMarkets: number;
+    draftMarkets: number;
+  }>;
+};
+
+export type GenerateMarketsResponse = {
+  result: {
+    playersProcessed: number;
+    marketsCreated: number;
+    marketsSkipped: number;
+    errors: Array<{ playerId: string; playerName: string; error: string }>;
+  };
+};
+
+export type BulkActionResponse = {
+  result: {
+    affected: number;
+    skipped: number;
+    action: "OPEN" | "LOCK" | "VOID" | "ARCHIVE";
+  };
+};
+
 export type LeaderboardResponse = {
   weekId: string;
   entries: Array<{

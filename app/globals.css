@@ -3,34 +3,37 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
-  background: #f6f7f2;
+  color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-  background:
-    radial-gradient(circle at top left, rgba(215, 169, 75, 0.18), transparent 32rem),
-    linear-gradient(180deg, #f6f7f2 0%, #edf2ec 100%);
-  color: #101820;
-  font-family: Arial, Helvetica, sans-serif;
+html {
+  background: #0D1117;
 }
 
-button,
-input,
-select {
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #0D1117;
+  color: #E2E8F0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, select, textarea {
   font: inherit;
 }
 
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 3px solid #d7a94b !important;
-  outline-offset: 3px;
+  outline: 2px solid #00D46A !important;
+  outline-offset: 2px;
 }
 
+/* Skip link */
 .skip-link {
   position: fixed;
   left: 1rem;
@@ -38,9 +41,9 @@ select {
   z-index: 100;
   min-height: 44px;
   transform: translateY(-150%);
-  border-radius: 4px;
-  background: #101820;
-  color: #ffffff;
+  border-radius: 6px;
+  background: #00D46A;
+  color: #0D1117;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
@@ -50,4 +53,68 @@ select {
 
 .skip-link:focus {
   transform: translateY(0);
+}
+
+/* Mobile bottom nav safe area */
+.pb-safe {
+  padding-bottom: max(5rem, env(safe-area-inset-bottom, 5rem));
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track { background: #0D1117; }
+::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+/* Chart text override for dark bg */
+.recharts-text { fill: #64748B !important; }
+.recharts-cartesian-axis-tick-value { fill: #64748B !important; }
+
+/* Admin pages keep light panels */
+.admin-panel {
+  background: #ffffff;
+  color: #101820;
+}
+
+/* Gradient text utility */
+.text-gradient-neon {
+  background: linear-gradient(135deg, #00D46A, #3B82F6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.text-gradient-gold {
+  background: linear-gradient(135deg, #F59E0B, #D7A94B);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Shimmer animation for skeletons */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, #1E2A3A 25%, #2A3A4A 50%, #1E2A3A 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Market card hover glow */
+.market-card-hover:hover {
+  box-shadow: 0 0 0 1px rgba(0, 212, 106, 0.3), 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Trade button pulse on success */
+@keyframes tradeSuccess {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+.trade-success {
+  animation: tradeSuccess 0.3s ease-out;
 }

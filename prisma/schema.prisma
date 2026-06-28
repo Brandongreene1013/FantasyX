@@ -21,6 +21,8 @@ enum ThresholdType {
 }
 
 enum MarketStatus {
+  DRAFT
+  SCHEDULED
   OPEN
   LOCKED
   SETTLED
@@ -68,6 +70,24 @@ enum AdminAuditAction {
   LOCK
   UNLOCK
   MARKET_EDIT
+  MARKET_CREATE
+  BULK_OPEN
+  BULK_LOCK
+  BULK_VOID
+  WEEK_CREATE
+  WEEK_ACTIVATE
+  WEEK_DEACTIVATE
+  WEEK_ARCHIVE
+  SCORE_IMPORT
+  SETTLEMENT_BATCH
+  KICKOFF_LOCK
+}
+
+enum ImportStatus {
+  PENDING
+  VALIDATED
+  IMPORTED
+  FAILED
 }
 
 enum UserRole {
@@ -86,19 +106,23 @@ model User {
   role            UserRole           @default(TRADER)
   walletAddress   String?            @unique @map("wallet_address")
   isAdmin         Boolean            @default(false) @map("is_admin")
-  mockBalance     Decimal            @default(1000) @map("mock_balance") @db.Decimal(14, 2)
-  startingBalance Decimal            @default(1000) @map("starting_balance") @db.Decimal(14, 2)
-  createdAt       DateTime           @default(now()) @map("created_at")
-  updatedAt       DateTime           @updatedAt @map("updated_at")
-  trades          Trade[]
-  positions       Position[]
-  settlements     Settlement[]
-  leaderboard     LeaderboardEntry[]
-  ledgerEntries   AccountLedgerEntry[]
+  mockBalance      Decimal            @default(1000) @map("mock_balance") @db.Decimal(14, 2)
+  startingBalance  Decimal            @default(1000) @map("starting_balance") @db.Decimal(14, 2)
+  favoriteTeam     String?            @map("favorite_team")
+  onboardingDone   Boolean            @default(false) @map("onboarding_done")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  trades           Trade[]
+  positions        Position[]
+  settlements      Settlement[]
+  leaderboard      LeaderboardEntry[]
+  ledgerEntries    AccountLedgerEntry[]
   administeredLedgerEntries AccountLedgerEntry[] @relation("LedgerAdmin")
-  adminAudits     AdminAuditLog[]
-  marketEvents    MarketEvent[]
-  sessions        Session[]
+  adminAudits      AdminAuditLog[]
+  marketEvents     MarketEvent[]
+  sessions         Session[]
+  scoreImports     ScoreImport[]
+  watchedMarkets   WatchMarket[]
 
   @@map("users")
 }
@@ -127,22 +151,25 @@ model Player {
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
   markets            Market[]
+  playerScores       PlayerScore[]
 
   @@map("players")
 }
 
 model NflWeek {
-  id        String             @id
-  season    Int
-  week      Int
-  startsAt  DateTime           @map("starts_at")
-  endsAt    DateTime           @map("ends_at")
-  status    String             @default("SCHEDULED")
-  createdAt DateTime           @default(now()) @map("created_at")
-  updatedAt DateTime           @updatedAt @map("updated_at")
-  games     Game[]
-  markets   Market[]
-  entries   LeaderboardEntry[]
+  id           String             @id
+  season       Int
+  week         Int
+  startsAt     DateTime           @map("starts_at")
+  endsAt       DateTime           @map("ends_at")
+  status       String             @default("SCHEDULED")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  games        Game[]
+  markets      Market[]
+  entries      LeaderboardEntry[]
+  scoreImports ScoreImport[]
+  playerScores PlayerScore[]
 
   @@unique([season, week])
   @@map("nfl_weeks")
@@ -194,6 +221,7 @@ model Market {
   events        MarketEvent[]
   priceHistory  MarketPriceHistory[]
   auditLogs     AdminAuditLog[]
+  watchedBy     WatchMarket[]
 
   @@unique([playerId, weekId, thresholdType])
   @@index([weekId, position])
@@ -363,4 +391,82 @@ model LeaderboardEntry {
   @@unique([userId, weekId])
   @@index([weekId, rank])
   @@map("leaderboard_entries")
+}
+
+model ScoreImport {
+  id         String        @id @default(cuid())
+  weekId     String        @map("week_id")
+  week       NflWeek       @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  adminId    String        @map("admin_id")
+  admin      User          @relation(fields: [adminId], references: [id])
+  filename   String
+  status     ImportStatus  @default(PENDING)
+  rowCount   Int           @default(0) @map("row_count")
+  errorCount Int           @default(0) @map("error_count")
+  errors     Json?
+  createdAt  DateTime      @default(now()) @map("created_at")
+  scores     PlayerScore[]
+
+  @@index([weekId])
+  @@index([adminId])
+  @@map("score_imports")
+}
+
+model OperationLog {
+  id         String    @id @default(cuid())
+  type       String
+  status     String    @default("RUNNING")
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  durationMs Int?      @map("duration_ms")
+  summary    Json?
+  error      String?
+  actorId    String?   @map("actor_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([type, createdAt])
+  @@index([status, createdAt])
+  @@map("operation_logs")
+}
+
+model PlayerScore {
+  id             String      @id @default(cuid())
+  importId       String      @map("import_id")
+  import         ScoreImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  playerId       String      @map("player_id")
+  player         Player      @relation(fields: [playerId], references: [id])
+  weekId         String      @map("week_id")
+  week           NflWeek     @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  fantasyPoints  Decimal     @default(0) @map("fantasy_points") @db.Decimal(8, 2)
+  positionalRank Int         @default(0) @map("positional_rank")
+  overallRank    Int?        @map("overall_rank")
+  passYards      Int         @default(0) @map("pass_yards")
+  passTDs        Int         @default(0) @map("pass_tds")
+  interceptions  Int         @default(0)
+  rushYards      Int         @default(0) @map("rush_yards")
+  rushTDs        Int         @default(0) @map("rush_tds")
+  receptions     Int         @default(0)
+  recYards       Int         @default(0) @map("rec_yards")
+  recTDs         Int         @default(0) @map("rec_tds")
+  fumbles        Int         @default(0)
+  twoPointConv   Int         @default(0) @map("two_point_conv")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  @@index([weekId])
+  @@index([playerId])
+  @@index([importId])
+  @@map("player_scores")
+}
+
+model WatchMarket {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  marketId  String   @map("market_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market    Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, marketId])
+  @@index([userId])
+  @@map("watch_markets")
 }

@@ -1,6 +1,6 @@
 export type Position = "QB" | "RB" | "WR" | "TE";
 export type Threshold = "TOP_3" | "TOP_5" | "TOP_10";
-export type MarketStatus = "OPEN" | "LOCKED" | "SETTLED" | "VOID";
+export type MarketStatus = "DRAFT" | "SCHEDULED" | "OPEN" | "LOCKED" | "SETTLED" | "VOID";
 export type SettlementResult = "YES" | "NO" | null;
 export type Side = "YES" | "NO";
 

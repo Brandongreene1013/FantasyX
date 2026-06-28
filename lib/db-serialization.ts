@@ -13,7 +13,7 @@ type DbMarket = {
   noPool: unknown;
   volume?: unknown;
   openInterest?: unknown;
-  status: "OPEN" | "LOCKED" | "SETTLED" | "VOID";
+  status: "DRAFT" | "SCHEDULED" | "OPEN" | "LOCKED" | "SETTLED" | "VOID";
   result: "YES" | "NO" | null;
   kickoffTime: Date;
   player?: {

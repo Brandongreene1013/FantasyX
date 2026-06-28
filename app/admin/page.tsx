@@ -24,6 +24,13 @@ export default function AdminPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<NflSyncResponse["result"] | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [operations, setOperations] = useState<null | {
+    week: { id: string; season: number; week: number; status: string };
+    markets: { total: number; open: number; locked: number; settled: number; void: number; pastKickoffOpen: number };
+    players: { total: number; withScores: number; awaitingScores: number };
+    settlement: { progress: number; settled: number; remaining: number };
+    lastImport: { at: string; status: string; rowCount: number } | null;
+  }>(null);
 
   const loadSlate = useCallback(async () => {
     setIsLoading(true);
@@ -46,11 +53,21 @@ export default function AdminPage() {
     }
   }, []);
 
+  const loadOperations = useCallback(async () => {
+    try {
+      const data = await apiGet<{ operations: typeof operations }>(`/api/admin/operations?weekId=${weekId}`);
+      setOperations(data.operations);
+    } catch {
+      // non-critical
+    }
+  }, [weekId]);
+
   useEffect(() => {
     apiGet<SessionResponse>("/api/session").then((data) => setSession(data.user)).catch(() => setSession(null));
     void loadSlate();
     void loadNflStats();
-  }, [loadSlate, loadNflStats]);
+    void loadOperations();
+  }, [loadSlate, loadNflStats, loadOperations]);
 
   async function syncDemoData() {
     setIsSyncing(true);
@@ -151,6 +168,68 @@ export default function AdminPage() {
         </label>
         </div>
       </section>
+
+      {/* ── Quick Nav ─────────────────────────────────────────────────────── */}
+      <section className="mb-4 flex flex-wrap gap-2">
+        <a href="/admin/data" className="inline-flex items-center gap-1 rounded border border-ink/15 bg-white px-3 py-1.5 text-xs font-black hover:bg-ink/5 shadow-soft">
+          <Database className="h-3 w-3" aria-hidden />Data Sync
+        </a>
+        <a href="/admin/weeks" className="inline-flex items-center gap-1 rounded border border-ink/15 bg-white px-3 py-1.5 text-xs font-black hover:bg-ink/5 shadow-soft">
+          📅 Weeks
+        </a>
+        <a href="/admin/markets" className="inline-flex items-center gap-1 rounded border border-ink/15 bg-white px-3 py-1.5 text-xs font-black hover:bg-ink/5 shadow-soft">
+          📊 Markets
+        </a>
+        <a href="/admin/scoring" className="inline-flex items-center gap-1 rounded border border-ink/15 bg-white px-3 py-1.5 text-xs font-black hover:bg-ink/5 shadow-soft">
+          <CheckCircle2 className="h-3 w-3" aria-hidden />Scoring &amp; Settlement
+        </a>
+      </section>
+
+      {/* ── Operations Dashboard ──────────────────────────────────────────── */}
+      {operations && (
+        <section className="mb-5 rounded border border-ink/10 bg-white p-4 shadow-soft" aria-labelledby="ops-heading">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 id="ops-heading" className="text-sm font-black uppercase tracking-widest">Week {operations.week.season} W{operations.week.week} — {operations.week.status}</h2>
+            <button onClick={() => void loadOperations()} className="text-xs text-field hover:underline">Refresh</button>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatBox label="Open Markets"  value={operations.markets.open} />
+            <StatBox label="Locked"        value={operations.markets.locked} />
+            <StatBox label="Settled"       value={operations.markets.settled} />
+            <StatBox label="Total"         value={operations.markets.total} />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatBox label="Players"        value={operations.players.total} />
+            <StatBox label="Scored"         value={operations.players.withScores} />
+            <StatBox label="Awaiting Score" value={operations.players.awaitingScores} />
+            <StatBox label="Past Kickoff (Open)" value={operations.markets.pastKickoffOpen} />
+          </div>
+          {/* Settlement progress bar */}
+          <div className="mt-4">
+            <div className="mb-1 flex justify-between text-xs font-bold text-ink/70">
+              <span>Settlement Progress</span>
+              <span>{operations.settlement.settled}/{operations.markets.total} markets ({operations.settlement.progress}%)</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-ink/10">
+              <div
+                className="h-2 rounded-full bg-field transition-all"
+                style={{ width: `${operations.settlement.progress}%` }}
+              />
+            </div>
+          </div>
+          {operations.lastImport && (
+            <p className="mt-3 text-xs font-semibold text-ink/60">
+              Last import: {new Date(operations.lastImport.at).toLocaleString()} — {operations.lastImport.rowCount} rows ({operations.lastImport.status})
+            </p>
+          )}
+          {operations.markets.pastKickoffOpen > 0 && (
+            <p className="mt-2 text-xs font-bold text-amber-600">
+              ⚠ {operations.markets.pastKickoffOpen} market(s) are past kickoff but still Open. Go to{" "}
+              <a href="/admin/scoring" className="underline">Scoring &amp; Settlement</a> to lock them.
+            </p>
+          )}
+        </section>
+      )}
 
       {/* ── NFL Data Section ─────────────────────────────────────────────── */}
       <section className="mb-5 rounded border border-ink/10 bg-white p-4 shadow-soft" aria-labelledby="nfl-data-heading">

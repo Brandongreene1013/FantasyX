@@ -3,49 +3,34 @@
 import { useEffect, useState } from "react";
 import type { Route } from "next";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { BarChart2, Home, TrendingUp, Trophy, UserRound, Settings, ShieldCheck, LogOut } from "lucide-react";
 import { apiGet, apiPost, type SessionResponse } from "@/lib/client-api";
+import { BottomNav } from "@/components/bottom-nav";
 
-const loggedInLinks: Array<{ href: Route; label: string }> = [
-  { href: "/markets" as Route, label: "Markets" },
-  { href: "/portfolio" as Route, label: "Portfolio" },
-  { href: "/leaderboard" as Route, label: "Leaderboard" },
-  { href: "/account" as Route, label: "Account" },
-  { href: "/settings" as Route, label: "Settings" }
-];
-
-const loggedOutLinks: Array<{ href: Route; label: string }> = [
-  { href: "/login" as Route, label: "Login" },
-  { href: "/signup" as Route, label: "Sign Up" }
+const NAV_LINKS: Array<{ href: Route; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
+  { href: "/" as Route,            label: "Home",        Icon: Home },
+  { href: "/markets" as Route,     label: "Markets",     Icon: TrendingUp },
+  { href: "/portfolio" as Route,   label: "Portfolio",   Icon: BarChart2 },
+  { href: "/leaderboard" as Route, label: "Leaderboard", Icon: Trophy },
+  { href: "/account" as Route,     label: "Account",     Icon: UserRound }
 ];
 
 export function SiteNav() {
   const [session, setSession] = useState<SessionResponse["user"] | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     let active = true;
     function loadSession() {
       apiGet<SessionResponse>("/api/session")
-        .then((data) => {
-          if (active) {
-            setSession(data.user);
-            setHasLoaded(true);
-          }
-        })
-        .catch(() => {
-          if (active) {
-            setSession(null);
-            setHasLoaded(true);
-          }
-        });
+        .then((data) => { if (active) { setSession(data.user); setHasLoaded(true); } })
+        .catch(() => { if (active) { setSession(null); setHasLoaded(true); } });
     }
-
     loadSession();
     window.addEventListener("fantasyx:data-changed", loadSession);
-    return () => {
-      active = false;
-      window.removeEventListener("fantasyx:data-changed", loadSession);
-    };
+    return () => { active = false; window.removeEventListener("fantasyx:data-changed", loadSession); };
   }, []);
 
   async function logout() {
@@ -54,24 +39,75 @@ export function SiteNav() {
     window.location.href = "/login";
   }
 
-  const links = hasLoaded && session ? loggedInLinks : loggedOutLinks;
-  const visibleLinks = session?.isAdmin ? [...links, { href: "/admin" as Route, label: "Admin" }] : links;
-
   return (
     <>
-      <nav className="hidden items-center gap-1 text-sm font-semibold text-ink/70 sm:flex" aria-label="Primary navigation">
-        {visibleLinks.map((link) => (
-          <Link className="inline-flex min-h-11 items-center rounded px-3 py-2 hover:bg-ink/5" href={link.href} key={link.href}>{link.label}</Link>
-        ))}
-        {session ? (
-          <button className="inline-flex min-h-11 items-center rounded px-3 py-2 font-semibold text-ink/70 hover:bg-ink/5" onClick={logout} type="button">Logout</button>
+      {/* Desktop nav */}
+      <nav className="hidden items-center gap-1 sm:flex" aria-label="Primary navigation">
+        {hasLoaded && session ? (
+          <>
+            {NAV_LINKS.map(({ href, label, Icon }) => {
+              const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors ${
+                    isActive ? "bg-neon/10 text-neon" : "text-muted hover:bg-panel2 hover:text-frost"
+                  }`}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <Icon className="h-4 w-4" aria-hidden />
+                  {label}
+                </Link>
+              );
+            })}
+            {session.isAdmin && (
+              <Link
+                href={"/admin" as Route}
+                className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors ${
+                  pathname.startsWith("/admin") ? "bg-amber/10 text-amber" : "text-muted hover:bg-panel2 hover:text-frost"
+                }`}
+              >
+                <ShieldCheck className="h-4 w-4" aria-hidden />
+                Admin
+              </Link>
+            )}
+            <Link
+              href={"/settings" as Route}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-muted hover:bg-panel2 hover:text-frost transition-colors"
+            >
+              <Settings className="h-4 w-4" aria-hidden />
+            </Link>
+            <button
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-muted hover:bg-panel2 hover:text-frost transition-colors"
+              onClick={logout}
+              type="button"
+            >
+              <LogOut className="h-4 w-4" aria-hidden />
+            </button>
+          </>
+        ) : hasLoaded ? (
+          <>
+            <Link href={"/login" as Route} className="inline-flex min-h-10 items-center rounded-lg px-4 text-sm font-semibold text-muted hover:text-frost transition-colors">
+              Log in
+            </Link>
+            <Link href={"/signup" as Route} className="inline-flex min-h-10 items-center rounded-lg bg-neon px-4 text-sm font-black text-surface hover:bg-neon/90 transition-colors">
+              Sign up
+            </Link>
+          </>
         ) : null}
       </nav>
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-ink/10 bg-chalk/95 text-center text-xs font-bold text-ink/70 backdrop-blur sm:hidden" aria-label="Mobile navigation">
-        {(session ? visibleLinks.slice(0, 4) : loggedOutLinks).map((link) => (
-          <Link className="inline-flex min-h-11 items-center justify-center py-3" href={link.href} key={link.href}>{link.label}</Link>
-        ))}
-      </nav>
+
+      {/* Mobile: auth links when logged out */}
+      {hasLoaded && !session && (
+        <div className="flex items-center gap-2 sm:hidden">
+          <Link href={"/login" as Route} className="text-sm font-semibold text-muted">Log in</Link>
+          <Link href={"/signup" as Route} className="rounded-lg bg-neon px-3 py-1.5 text-xs font-black text-surface">Sign up</Link>
+        </div>
+      )}
+
+      {/* Mobile bottom nav */}
+      <BottomNav isLoggedIn={hasLoaded && Boolean(session)} />
     </>
   );
 }

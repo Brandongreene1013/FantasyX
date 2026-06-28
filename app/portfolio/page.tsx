@@ -2,250 +2,240 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { TrendingUp, TrendingDown, BarChart2, Wallet, Lock, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 import { apiGet, apiPost, type PortfolioResponse } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
-import { PageHeading } from "@/components/page-heading";
 import { EquityCurveChart } from "@/components/analytics-charts";
+import { PlayerAvatar } from "@/components/ui/player-avatar";
+import { LoadingFeed } from "@/components/ui/loading-skeleton";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+
+function signedCredits(v: number) {
+  return `${v >= 0 ? "+" : ""}${credits(v)}`;
+}
 
 export default function PortfolioPage() {
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [liveMsg, setLiveMsg] = useState("");
+  const [tab, setTab] = useState<"open" | "closed">("open");
 
-  const loadPortfolio = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      setPortfolio(await apiGet<PortfolioResponse>("/api/portfolio"));
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load portfolio");
-    } finally {
-      setIsLoading(false);
-    }
+  const load = useCallback(async () => {
+    setIsLoading(true); setError(null);
+    try { setPortfolio(await apiGet<PortfolioResponse>("/api/portfolio")); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not load portfolio"); }
+    finally { setIsLoading(false); }
   }, []);
 
-  useEffect(() => {
-    void loadPortfolio();
-  }, [loadPortfolio]);
+  useEffect(() => { void load(); }, [load]);
 
-  const openPositions = (portfolio?.positions ?? []).filter((position) => position.status === "OPEN" || position.status === "LOCKED");
-  const closedPositions = (portfolio?.positions ?? []).filter((position) => position.status === "SETTLED" || position.status === "VOID");
-  const openValue = openPositions.reduce((total, position) => total + position.value, 0);
-  const unrealizedPnl = openPositions.reduce((total, position) => total + position.pnl, 0);
-  const realizedPnl = closedPositions.reduce((total, position) => total + position.pnl, 0);
+  const openPositions   = (portfolio?.positions ?? []).filter((p) => p.status === "OPEN" || p.status === "LOCKED");
+  const closedPositions = (portfolio?.positions ?? []).filter((p) => p.status === "SETTLED" || p.status === "VOID");
+  const openValue       = openPositions.reduce((s, p) => s + p.value, 0);
 
-  return (
-    <>
-      <PageHeading title="Portfolio" kicker="Open positions">
-        <span>
-          Cash {portfolio ? credits(portfolio.user.mockBalance) : "Loading"} - Marked value {credits(openValue)}
-        </span>
-      </PageHeading>
-
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <SummaryCard label="Current value" value={portfolio ? credits(portfolio.analytics.currentPortfolioValue) : credits(openValue)} />
-        <SummaryCard label="Weekly P&L" value={portfolio ? signedCredits(portfolio.analytics.weeklyPnl) : signedCredits(unrealizedPnl)} tone={(portfolio?.analytics.weeklyPnl ?? unrealizedPnl) >= 0 ? "positive" : "negative"} />
-        <SummaryCard label="All-time P&L" value={portfolio ? signedCredits(portfolio.analytics.allTimePnl) : signedCredits(realizedPnl)} tone={(portfolio?.analytics.allTimePnl ?? realizedPnl) >= 0 ? "positive" : "negative"} />
-      </div>
-
-      {portfolio ? (
-        <section className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Portfolio analytics">
-          <SummaryCard label="Unrealized G/L" value={signedCredits(portfolio.analytics.unrealizedGainLoss)} tone={portfolio.analytics.unrealizedGainLoss >= 0 ? "positive" : "negative"} />
-          <SummaryCard label="Realized G/L" value={signedCredits(portfolio.analytics.realizedGainLoss)} tone={portfolio.analytics.realizedGainLoss >= 0 ? "positive" : "negative"} />
-          <SummaryCard label="Win rate" value={pct(portfolio.analytics.winRate)} />
-          <SummaryCard label="Average entry" value={pct(portfolio.analytics.averageEntry)} />
-          <SummaryCard label="Largest position" value={portfolio.analytics.largestPosition ? `${portfolio.analytics.largestPosition.playerName} - ${credits(portfolio.analytics.largestPosition.costBasis)}` : "None"} />
-          <SummaryCard label="Best trade" value={portfolio.analytics.bestTrade ? portfolio.analytics.bestTrade.playerName : "None"} tone="positive" />
-          <SummaryCard label="Worst trade" value={portfolio.analytics.worstTrade ? portfolio.analytics.worstTrade.playerName : "None"} tone={portfolio.analytics.worstTrade ? "negative" : "default"} />
-          <SummaryCard label="Open value" value={credits(openValue)} />
-        </section>
-      ) : null}
-
-      <section className="mb-5 rounded border border-ink/10 bg-white p-4 shadow-soft">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-black uppercase tracking-widest text-ink/70">Equity Curve</h2>
-            <p className="mt-1 text-sm font-semibold text-ink/70">Ledger-based portfolio value history.</p>
-          </div>
-          <span className="rounded bg-field/10 px-2 py-1 text-xs font-black text-field">{portfolio?.equityCurve.length ?? 0} points</span>
-        </div>
-        <div className="mt-4">
-          <EquityCurveChart points={portfolio?.equityCurve ?? []} />
-        </div>
-      </section>
-
-      {!isLoading && !error ? (
-        <>
-          <PositionSection
-            title="Open Positions"
-            emptyText="No open positions yet."
-            positions={openPositions}
-            emptyAction
-            onSold={loadPortfolio}
-          />
-
-          <PositionSection
-            title="Closed Positions"
-            emptyText="No closed positions yet."
-            positions={closedPositions}
-          />
-        </>
-      ) : null}
-
-      <section className="mt-5 overflow-hidden rounded border border-ink/10 bg-white shadow-soft">
-        <div className="border-b border-ink/10 bg-chalk px-4 py-3">
-          <h2 className="text-sm font-black uppercase tracking-widest text-ink/70">Portfolio State</h2>
-        </div>
-
-        {isLoading ? <StatePanel text="Loading portfolio..." /> : null}
-        {error ? <StatePanel text={error} tone="error" actionLabel="Retry" onAction={loadPortfolio} /> : null}
-      </section>
-    </>
-  );
-}
-
-function signedCredits(value: number) {
-  return `${value >= 0 ? "+" : ""}${credits(value)}`;
-}
-
-type PortfolioPosition = PortfolioResponse["positions"][number];
-
-function PositionSection({ title, positions, emptyText, emptyAction = false, onSold }: { title: string; positions: PortfolioPosition[]; emptyText: string; emptyAction?: boolean; onSold?: () => void }) {
-  return (
-    <section className="mb-5 overflow-hidden rounded border border-ink/10 bg-white shadow-soft">
-      <div className="hidden grid-cols-[1.25fr_0.65fr_0.65fr_0.6fr_0.65fr_0.65fr_1fr] gap-3 border-b border-ink/10 bg-chalk px-4 py-3 text-xs font-black uppercase tracking-widest text-ink/70 md:grid">
-        <span>{title}</span>
-        <span>Average entry</span>
-        <span>Current value</span>
-        <span>Shares</span>
-        <span>P&L</span>
-        <span>Return</span>
-        <span>Sell</span>
-      </div>
-      <div className="border-b border-ink/10 bg-chalk px-4 py-3 md:hidden">
-        <h2 className="text-sm font-black uppercase tracking-widest text-ink/70">{title}</h2>
-      </div>
-      {positions.length === 0 ? (
-        <div className="p-6">
-          <p className="text-sm font-semibold text-ink/70">{emptyText}</p>
-          {emptyAction ? (
-            <Link className="mt-4 inline-flex h-10 items-center rounded bg-ink px-4 text-sm font-black text-white hover:bg-field" href="/markets">
-              Start Trading Week 1
-            </Link>
-          ) : null}
-        </div>
-      ) : (
-        <div className="divide-y divide-ink/10">
-          {positions.map((position) => {
-            const totalShares = position.yesShares + position.noShares;
-            const sideLabel = position.yesShares > 0 && position.noShares > 0 ? "YES / NO" : position.yesShares > 0 ? "YES" : "NO";
-            return (
-              <article className="grid gap-3 p-4 md:grid-cols-[1.25fr_0.65fr_0.65fr_0.6fr_0.65fr_0.65fr_1fr]" key={position.id}>
-                <div>
-                  <p className="font-black">{position.playerName}</p>
-                  <p className="text-sm font-semibold text-ink/70">{position.position} - {thresholdLabel(position.thresholdType)} - {sideLabel} - {position.status}</p>
-                </div>
-                <Metric label="Average entry" value={pct(position.averageEntry)} />
-                <Metric label="Current value" value={credits(position.currentValue)} />
-                <Metric label="Shares" value={totalShares.toFixed(2)} />
-                <PnlMetric label="P&L" value={position.pnl} />
-                <PnlMetric label="Return" value={position.returnPct} percent />
-                {onSold && (position.status === "OPEN" || position.status === "LOCKED") ? <SellPositionControl position={position} onSold={onSold} /> : <Metric label="Sell" value="-" />}
-              </article>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function SellPositionControl({ position, onSold }: { position: PortfolioPosition; onSold: () => void }) {
-  const defaultSide: "YES" | "NO" = position.yesShares > 0 ? "YES" : "NO";
-  const [side, setSide] = useState<"YES" | "NO">(defaultSide);
-  const [shares, setShares] = useState(Math.max(0, defaultSide === "YES" ? position.yesShares : position.noShares));
-  const [isSelling, setIsSelling] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const ownedShares = side === "YES" ? position.yesShares : position.noShares;
-  const canSell = position.status === "OPEN" && shares > 0 && shares <= ownedShares && !isSelling;
-
-  async function sell() {
-    if (!canSell) return;
-    setIsSelling(true);
-    setError(null);
-    setMessage(null);
+  async function sell(positionId: string) {
     try {
-      await apiPost("/api/trades", { action: "SELL", marketId: position.marketId, side, shares, idempotencyKey: crypto.randomUUID() });
-      setMessage("Sold.");
-      onSold();
-    } catch (sellError) {
-      setError(sellError instanceof Error ? sellError.message : "Sell failed");
-    } finally {
-      setIsSelling(false);
+      await apiPost("/api/trade/sell", { positionId });
+      setLiveMsg("Position sold.");
+      void load();
+      window.dispatchEvent(new Event("fantasyx:data-changed"));
+    } catch (e) {
+      setLiveMsg(e instanceof Error ? e.message : "Sell failed");
     }
   }
 
+  if (isLoading) return <LoadingFeed count={4} />;
+  if (error) return <ErrorState message={error} onRetry={load} />;
+
+  const user = portfolio?.user;
+  const analytics = portfolio?.analytics;
+  const pnlPos = (analytics?.allTimePnl ?? 0) >= 0;
+
   return (
-    <div>
-      <p className="text-xs font-black uppercase tracking-widest text-ink/70 md:hidden">Sell</p>
-      <div className="grid gap-2">
-        <div className="grid grid-cols-2 gap-1">
-          <button type="button" disabled={position.yesShares <= 0} aria-pressed={side === "YES"} onClick={() => { setSide("YES"); setShares(position.yesShares); }} className={`rounded border px-2 py-1 text-xs font-black disabled:opacity-40 ${side === "YES" ? "border-field bg-field/10" : "border-ink/10"}`}>YES</button>
-          <button type="button" disabled={position.noShares <= 0} aria-pressed={side === "NO"} onClick={() => { setSide("NO"); setShares(position.noShares); }} className={`rounded border px-2 py-1 text-xs font-black disabled:opacity-40 ${side === "NO" ? "border-field bg-field/10" : "border-ink/10"}`}>NO</button>
+    <div className="space-y-5">
+      {/* Header stats */}
+      <div className="rounded-2xl border border-rim bg-hero-gradient p-5 space-y-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-muted">Portfolio Value</p>
+            <p className="text-3xl font-black text-frost mt-1">{credits(analytics?.currentPortfolioValue ?? openValue)}</p>
+          </div>
+          <div className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 border ${pnlPos ? "bg-neon/10 border-neon/20 text-neon" : "bg-crimson/10 border-crimson/20 text-crimson"}`}>
+            {pnlPos ? <TrendingUp className="h-4 w-4" aria-hidden /> : <TrendingDown className="h-4 w-4" aria-hidden />}
+            <span className="text-sm font-black">{signedCredits(analytics?.allTimePnl ?? 0)}</span>
+          </div>
         </div>
-        <input className="h-9 rounded border border-ink/15 px-2 text-sm font-bold" type="number" min={0.000001} step={0.000001} max={ownedShares} value={shares} onChange={(event) => setShares(Number(event.target.value))} aria-label={`Shares of ${side} to sell`} />
-        <div className="flex gap-1">
-          <button className="flex-1 rounded border border-ink/10 px-2 py-1 text-xs font-black hover:bg-ink/5" type="button" disabled={ownedShares <= 0} onClick={() => setShares(ownedShares)}>All</button>
-          <button className="flex-1 rounded bg-ink px-2 py-1 text-xs font-black text-white hover:bg-field disabled:opacity-40" type="button" disabled={!canSell} onClick={sell}>{isSelling ? "Selling" : "Sell"}</button>
+
+        <div className="grid grid-cols-3 gap-3">
+          <MiniStat label="Cash" value={credits(user?.mockBalance ?? 0)} />
+          <MiniStat label="Open Value" value={credits(openValue)} />
+          <MiniStat label="Win Rate" value={pct(analytics?.winRate ?? 0)} tone={analytics?.winRate && analytics.winRate > 0.5 ? "positive" : "neutral"} />
         </div>
-        {position.status !== "OPEN" ? <p className="text-xs font-bold text-ink/60">Market is {position.status.toLowerCase()}.</p> : null}
-        {error ? <p className="text-xs font-bold text-rush" role="alert">{error}</p> : null}
-        {message ? <p className="text-xs font-bold text-field" role="status">{message}</p> : null}
       </div>
+
+      {/* Secondary analytics */}
+      {analytics && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <AnalyticsCard label="Weekly P&L" value={signedCredits(analytics.weeklyPnl)} tone={analytics.weeklyPnl >= 0 ? "positive" : "negative"} />
+          <AnalyticsCard label="Unrealized" value={signedCredits(analytics.unrealizedGainLoss)} tone={analytics.unrealizedGainLoss >= 0 ? "positive" : "negative"} />
+          <AnalyticsCard label="Realized" value={signedCredits(analytics.realizedGainLoss)} tone={analytics.realizedGainLoss >= 0 ? "positive" : "negative"} />
+          <AnalyticsCard label="Avg Entry" value={pct(analytics.averageEntry)} />
+        </div>
+      )}
+
+      {/* Equity chart */}
+      {(portfolio?.equityCurve.length ?? 0) > 1 && (
+        <section className="rounded-xl border border-rim bg-panel p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart2 className="h-4 w-4 text-charge" aria-hidden />
+            <h2 className="text-sm font-black text-frost">Equity Curve</h2>
+            <span className="text-xs text-muted">{portfolio!.equityCurve.length} points</span>
+          </div>
+          <EquityCurveChart points={portfolio!.equityCurve} />
+          <p className="mt-2 text-xs text-muted font-semibold">Ledger-based portfolio value history</p>
+        </section>
+      )}
+
+      {/* Position tabs */}
+      <div className="flex gap-2">
+        {(["open", "closed"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`rounded-xl px-4 py-2 text-sm font-black transition-colors ${tab === t ? "bg-neon/10 border border-neon/30 text-neon" : "bg-panel border border-rim text-muted hover:text-frost"}`}
+            type="button"
+          >
+            {t === "open" ? `Open (${openPositions.length})` : `Closed (${closedPositions.length})`}
+          </button>
+        ))}
+      </div>
+
+      {/* Positions */}
+      {tab === "open" && (
+        <section className="space-y-2">
+          {openPositions.length === 0 ? (
+            <EmptyState
+              icon={<Wallet className="h-6 w-6" />}
+              title="No open positions"
+              description="Trade a market to build your portfolio."
+              action={
+                <Link href="/markets" className="rounded-xl bg-neon/10 border border-neon/20 px-4 py-2 text-sm font-black text-neon hover:bg-neon/20 transition">
+                  Browse Markets
+                </Link>
+              }
+            />
+          ) : openPositions.map((pos) => (
+            <PositionCard
+              key={pos.id}
+              position={pos}
+              onSell={pos.status === "OPEN" ? () => sell(pos.id) : undefined}
+            />
+          ))}
+        </section>
+      )}
+
+      {tab === "closed" && (
+        <section className="space-y-2">
+          {closedPositions.length === 0 ? (
+            <EmptyState icon={<CheckCircle2 className="h-6 w-6" />} title="No closed positions" compact />
+          ) : closedPositions.map((pos) => (
+            <PositionCard key={pos.id} position={pos} />
+          ))}
+        </section>
+      )}
+
+      <p className="sr-only" aria-live="polite" aria-atomic>{liveMsg}</p>
     </div>
   );
 }
 
-function SummaryCard({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "positive" | "negative" }) {
-  const color = tone === "positive" ? "text-field" : tone === "negative" ? "text-rush" : "text-ink";
+function MiniStat({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" | "neutral" }) {
+  const color = tone === "positive" ? "text-neon" : tone === "negative" ? "text-crimson" : "text-frost";
   return (
-    <div className="rounded border border-ink/10 bg-white p-4 shadow-soft">
-      <p className="text-xs font-black uppercase tracking-widest text-ink/70">{label}</p>
-      <p className={`mt-1 text-2xl font-black ${color}`}>{value}</p>
+    <div className="text-center">
+      <p className={`text-base font-black ${color}`}>{value}</p>
+      <p className="text-[10px] font-semibold text-muted mt-0.5">{label}</p>
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function AnalyticsCard({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" }) {
+  const color = tone === "positive" ? "text-neon" : tone === "negative" ? "text-crimson" : "text-frost";
   return (
-    <div>
-      <p className="text-xs font-black uppercase tracking-widest text-ink/70 md:hidden">{label}</p>
-      <p className="font-bold">{value}</p>
+    <div className="rounded-xl border border-rim bg-panel p-3">
+      <p className="text-[10px] font-black uppercase tracking-wider text-muted">{label}</p>
+      <p className={`text-base font-black mt-1 ${color}`}>{value}</p>
     </div>
   );
 }
 
-function PnlMetric({ label, value, percent = false }: { label: string; value: number; percent?: boolean }) {
-  return (
-    <div>
-      <p className="text-xs font-black uppercase tracking-widest text-ink/70 md:hidden">{label}</p>
-      <p className={value >= 0 ? "font-black text-field" : "font-black text-rush"}>
-        {value >= 0 ? "+" : ""}{percent ? pct(value) : credits(value)}
-      </p>
-    </div>
-  );
-}
+function PositionCard({ position: pos, onSell }: {
+  position: PortfolioResponse["positions"][0];
+  onSell?: () => void;
+}) {
+  const side  = pos.yesShares > 0 ? "YES" : "NO";
+  const shares = side === "YES" ? pos.yesShares : pos.noShares;
+  const pnlPos = pos.pnl >= 0;
 
-function StatePanel({ text, tone = "default", actionLabel, onAction }: { text: string; tone?: "default" | "error"; actionLabel?: string; onAction?: () => void }) {
+  const StatusIcon = pos.status === "SETTLED"
+    ? (pos.result === "YES" ? CheckCircle2 : XCircle)
+    : pos.status === "LOCKED" ? Lock : null;
+
   return (
-    <div className={tone === "error" ? "p-6 text-sm font-bold text-rush" : "p-6 text-sm font-semibold text-ink/70"}>
-      <p>{text}</p>
-      {actionLabel && onAction ? (
-        <button className="mt-3 rounded bg-ink px-4 py-2 text-xs font-black text-white hover:bg-field" onClick={onAction} type="button">
-          {actionLabel}
-        </button>
-      ) : null}
+    <div className="rounded-xl border border-rim bg-panel p-4">
+      <div className="flex items-start gap-3">
+        <PlayerAvatar name={pos.playerName} team={pos.team} position={pos.position} size="sm" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-black text-frost truncate">{pos.playerName}</span>
+            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${side === "YES" ? "bg-neon/10 text-neon" : "bg-crimson/10 text-crimson"}`}>
+              {side}
+            </span>
+            {StatusIcon && (
+              <StatusIcon
+                className={`h-3.5 w-3.5 ${pos.status === "SETTLED" && pos.result === "YES" ? "text-neon" : pos.status === "SETTLED" ? "text-crimson" : "text-muted"}`}
+                aria-hidden
+              />
+            )}
+          </div>
+          <p className="text-[10px] font-semibold text-muted mt-0.5">
+            {thresholdLabel(pos.thresholdType)} · {pos.position} · {shares.toFixed(2)} shares
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className={`text-sm font-black ${pnlPos ? "text-neon" : "text-crimson"}`}>
+            {pnlPos ? "+" : ""}{credits(pos.pnl)}
+          </p>
+          <p className="text-[10px] font-semibold text-muted">{credits(pos.value)} val</p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="flex gap-3 text-[10px] font-semibold text-muted">
+          <span>Entry {pct(pos.entryPrice)}</span>
+          <span>Now {pct(pos.currentPrice)}</span>
+          <span>Cost {credits(pos.costBasis)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {onSell && (
+            <button
+              onClick={onSell}
+              className="rounded-lg bg-panel2 border border-rim px-3 py-1 text-xs font-black text-frost hover:border-crimson/40 hover:text-crimson transition-colors"
+              type="button"
+            >
+              Sell
+            </button>
+          )}
+          <Link
+            href={`/markets/${pos.marketId}`}
+            className="text-xs font-bold text-field hover:text-neon transition-colors"
+            aria-label={`View market for ${pos.playerName}`}
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

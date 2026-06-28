@@ -27,6 +27,9 @@ Application Services
   |-- Settlement Service
   |-- Leaderboard Service
   |-- Admin Audit Service
+  |-- Market Template Service
+  |-- Market Generation Service
+  |-- Week Management Service
   |
   v
 Database / Ledger / Read Models

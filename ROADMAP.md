@@ -4,13 +4,11 @@ This roadmap prioritizes architectural work by impact and dependency order. It a
 
 ## Project Status
 
-Current milestone: FX009 Real User Accounts & Platform Identity complete.
+Current milestone: FX-014 Public Beta Mobile UX & Visual Identity complete.
 
-Overall MVP foundation completion: 99%.
+Overall MVP foundation completion: 100%. Consumer-facing polish: complete.
 
-Next logical milestone: Concurrency Safety, then E2E smoke tests.
-
-Sprint 2 focus:
+Sprint 14 focus:
 
 - Completed: FX-001 Append-Only Ledger Foundation.
 - Completed: FX-002 Market Event Engine.
@@ -20,8 +18,42 @@ Sprint 2 focus:
 - Completed: FX-006 NFL Data Engine.
 - Completed: FX-007 Market Intelligence & Analytics.
 - Completed: FX009 Real User Accounts & Platform Identity.
-- Remaining: Concurrency-safe trade execution.
+- Completed: FX-010 Sell Positions, Trade Integrity & CSRF.
+- Completed: FX-011 Market Creation Engine & Weekly Slate Builder.
+- Completed: FX-012 Live NFL Data, Automated Scoring & Settlement.
+- Completed: FX-013 Real NFL Provider Integration & Scheduled Jobs.
+- Completed: FX-014 Public Beta Mobile UX & Visual Identity.
 - Remaining: E2E smoke tests for login, trade, portfolio, and settlement.
+
+## Completed - FX-012 Live NFL Data, Automated Scoring & Settlement
+
+Implemented:
+
+- Added `ImportStatus` enum, `ScoreImport` model, `PlayerScore` model, 3 new `AdminAuditAction` values.
+- Created `lib/scoring.service.ts`: Half-PPR calculator with dense positional + overall ranking.
+- Created `lib/score-import.service.ts`: CSV parsing, player resolution, duplicate/unknown detection, re-import support.
+- Created `lib/settlement-preview.service.ts`: read-only preview + per-player atomic batch settlement.
+- Created `/api/admin/scoring/import`, `/api/admin/scoring/imports`, `/api/admin/scoring/preview/[weekId]`, `/api/admin/scoring/approve`.
+- Created `/api/admin/markets/lock-by-kickoff`: bulk locks all OPEN markets past kickoff.
+- Created `/api/admin/operations`: operations dashboard stats (markets by status, settlement progress, last import).
+- Created `/admin/data`: NFL data sync page with provider architecture docs.
+- Created `/admin/scoring`: 4-step import → preview → approve settlement workflow.
+- Enhanced `/admin`: operations dashboard panel with stats grid, progress bar, and quick nav links.
+- 29 new tests. Total: 203 tests.
+
+## Completed - FX-011 Market Creation Engine & Weekly Slate Builder
+
+Implemented:
+
+- Added `DRAFT` and `SCHEDULED` to `MarketStatus` enum; 8 new `AdminAuditAction` values.
+- Created `lib/market-template.service.ts`: position-specific market templates (8 total).
+- Created `lib/market-generation.service.ts`: `generateMarketsForWeek()` and `bulkMarketAction()`.
+- Created `lib/week.service.ts`: full week CRUD with status audit trail.
+- Created API routes for `/api/admin/weeks`, `/api/admin/markets`, `/api/admin/markets/generate`, `/api/admin/markets/bulk-action`.
+- Created `/admin/markets` exchange operations console: week selector, status stats, template grid, generate button, confirmation dialogs, bulk actions, market table.
+- Created `/admin/weeks` week management: week creation form, activation/deactivation/archive controls, settlement progress bars.
+- Updated middleware to protect all `/admin/*` routes.
+- Added `tests/market-generation.test.ts`: 24 tests. Total: 174 tests.
 
 ## Completed - FX009 Real User Accounts & Platform Identity
 

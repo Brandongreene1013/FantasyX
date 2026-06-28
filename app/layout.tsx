@@ -5,29 +5,36 @@ import { SiteNav } from "@/components/site-nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FantasyX",
-  description: "Weekly NFL fantasy football prediction market MVP"
+  title: "FantasyX — NFL Fantasy Prediction Markets",
+  description: "Trade mock-credit YES/NO shares on whether NFL players finish Top 3, 5, or 10 in weekly fantasy scoring. Free-play. No deposits.",
+  themeColor: "#0D1117"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body>
         <a className="skip-link" href="#main-content">Skip to content</a>
-        <div className="min-h-screen">
-          <header className="sticky top-0 z-20 border-b border-ink/10 bg-chalk/90 backdrop-blur">
+        <div className="flex min-h-screen flex-col">
+          {/* Sticky header */}
+          <header className="sticky top-0 z-20 border-b border-rim/60 bg-surface/90 backdrop-blur-xl">
             <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-              <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded px-1" aria-label="FantasyX home">
-                <span className="grid h-9 w-9 place-items-center rounded bg-field text-sm font-black text-white">FX</span>
-                <span className="text-lg font-black tracking-normal">FantasyX</span>
+              <Link href="/" className="inline-flex min-h-10 items-center gap-2.5 rounded-lg px-1" aria-label="FantasyX home">
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-neon text-xs font-black text-surface">FX</span>
+                <span className="text-lg font-black tracking-tight text-frost">FantasyX</span>
               </Link>
               <SiteNav />
             </div>
             <AccountBar />
           </header>
-          <main id="main-content" className="mx-auto max-w-6xl px-4 py-5 sm:py-8" tabIndex={-1}>{children}</main>
-          <footer className="mx-auto hidden max-w-6xl px-4 pb-8 text-xs font-semibold text-ink/70 sm:block">
-            FantasyX is a free-play mock-credit MVP. No real-money wagering or crypto settlement.
+
+          {/* Main content — bottom padding for mobile nav */}
+          <main id="main-content" className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 pb-24 sm:py-8 sm:pb-8" tabIndex={-1}>
+            {children}
+          </main>
+
+          <footer className="mx-auto hidden max-w-6xl px-4 pb-8 text-xs font-semibold text-muted sm:block">
+            FantasyX is a free-play mock-credit platform. No real-money wagering. No crypto. No deposits or withdrawals.
           </footer>
         </div>
       </body>
