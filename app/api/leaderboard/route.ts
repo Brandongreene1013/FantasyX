@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       entries: entries.map((entry) => ({
         id: entry.id,
         userId: entry.userId,
-        name: entry.user.name,
+        name: entry.user.displayName || entry.user.name,
         weeklyPnl: toNumber(entry.pnl),
         totalPnl: toNumber(entry.user.mockBalance) - toNumber(entry.user.startingBalance),
         balance: toNumber(entry.user.mockBalance),

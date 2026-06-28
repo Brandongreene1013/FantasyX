@@ -28,16 +28,16 @@ export async function POST(request: Request) {
         idempotencyKey: `admin_adjustment:${admin.id}:${body.userId}:${Date.now()}`,
         reason: body.reason,
         metadata: {
-          adjustedBy: admin.name,
+          adjustedBy: admin.displayName || admin.name,
           adjustedUserId: body.userId,
-          adjustedUserName: targetUser.name,
+          adjustedUserName: targetUser.displayName || targetUser.name,
         },
       });
 
       await createAdminAuditLog(tx, {
         actorId: admin.id,
         action: "MARKET_EDIT",
-        reason: `Admin adjustment: ${body.amount > 0 ? "+" : ""}${body.amount} credits for ${targetUser.name}. ${body.reason}`,
+        reason: `Admin adjustment: ${body.amount > 0 ? "+" : ""}${body.amount} credits for ${targetUser.displayName || targetUser.name}. ${body.reason}`,
         previousState: `balance:${targetUser.mockBalance}`,
         nextState: `balance:${ledgerEntry.balanceAfter}`,
       });

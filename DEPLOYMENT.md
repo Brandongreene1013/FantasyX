@@ -6,7 +6,7 @@ Production URL: https://fantasy-x.vercel.app
 
 - Vercel project: `fantasy-x`
 - Database: Neon PostgreSQL via Vercel integration
-- Required env var: `DATABASE_URL`
+- Required env vars: `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME`
 
 ## Local Development
 
@@ -14,12 +14,16 @@ Production URL: https://fantasy-x.vercel.app
 npm install
 docker compose up -d
 npm run prisma:generate
-npm run prisma:push
+npx prisma migrate deploy
 npm run prisma:seed
 npm run dev
 ```
 
-Open `http://localhost:3000/login`.
+Open `http://localhost:3000/signup`.
+
+`npm run prisma:seed` creates the admin account from the `ADMIN_*` variables and seeded NFL market data. It also creates non-public development trader rows used only to populate analytics and leaderboard history.
+
+If an older production database already has the admin email but a stale or empty password hash, logging in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` upgrades that account to the admin role and refreshes its password hash.
 
 ## Local Verification
 
@@ -56,15 +60,17 @@ For a fresh production database:
 
 1. Attach Neon/Postgres to the Vercel project.
 2. Confirm `DATABASE_URL` exists for Production and Preview.
-3. Deploy to Vercel.
-4. Vercel runs `prisma migrate deploy` automatically.
-5. Seed manually only when intentionally resetting demo data:
+3. Add `SESSION_SECRET` with at least 32 random characters.
+4. Add `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, and `ADMIN_LAST_NAME`.
+5. Deploy to Vercel.
+6. Vercel runs `prisma migrate deploy` automatically.
+7. Seed manually only when intentionally resetting market/account seed data:
 
 ```powershell
 npx vercel env run --environment=production -- npm run prisma:seed
 ```
 
-Do not run seed casually in production: it resets demo state.
+Do not run seed casually in production: it resets seeded market, trade, account, and analytics state.
 
 ## Current One-Time Migration Note
 
@@ -81,16 +87,15 @@ npx vercel deploy --prod --yes
 Check:
 
 - `GET https://fantasy-x.vercel.app/login`
-- `GET https://fantasy-x.vercel.app/api/auth/demo-users`
 - `GET https://fantasy-x.vercel.app/api/analytics/dashboard?weekId=nfl_2026_w1`
 
 Then manually verify:
 
-1. Select a demo account.
+1. Create a new account from `/signup`.
 2. Open Markets.
 3. Buy YES on an open market.
 4. Buy NO on an open market.
 5. Open Portfolio and confirm balance/positions update.
 6. Open Leaderboard.
-7. Login as `Demo Coach`.
+7. Login as the admin account from `ADMIN_EMAIL`.
 8. Open Admin and lock/open/settle or void a market.

@@ -10,8 +10,9 @@ Warning: no real-money wagering, deposits, withdrawals, custody, mainnet Solana,
 
 - Next.js App Router UI with mobile-first pages.
 - Prisma/Postgres persistence through Docker Compose.
-- Mock demo-account auth using a secure httpOnly cookie named `fantasyx_user_id`.
-- `/login` lets users select seeded demo accounts.
+- Real email/password auth using a signed httpOnly cookie named `fantasyx_session`.
+- `/signup` creates accounts, grants 10,000 mock credits, and logs users in.
+- `/login` accepts email/password credentials. Demo account selection is removed.
 - Trades, portfolio, and admin settlement use the authenticated session user.
 - Trades do not trust `userId` from client payloads.
 - Admin settlement route requires `user.isAdmin`.
@@ -22,11 +23,12 @@ Warning: no real-money wagering, deposits, withdrawals, custody, mainnet Solana,
 - FX-005 Player Intelligence is complete: player detail pages at `/players/[playerId]` with intelligence panel, market sentiment, historical performance (placeholder), navigation from market cards and detail pages, 23 new tests.
 - FX-006 NFL Data Engine is complete: provider abstraction (`INflDataProvider`), `DemoNflDataProvider`, `FutureSportsDataProvider` placeholder, idempotent `syncNflData` service, `POST /api/admin/nfl/sync-demo`, `GET /api/admin/nfl/stats`, admin NFL Data panel, schema fields for `Player.status` and `externalProviderId` on Player and Game, Prisma migration, 27 new tests.
 - FX-007 Market Intelligence & Analytics is complete: market price history snapshots, Recharts market and portfolio charts, market sentiment scores, home dashboard analytics, trending markets, biggest movers, portfolio analytics summary, additive migration, and 6 new tests.
+- FX009 Real User Accounts & Platform Identity is complete: signup/login, password hashing, server-side sessions, account/settings pages, admin env seed, demo login removal, and auth tests.
 - Accessibility hardening and axe tests are in place.
 
 ## Features Completed
 
-- Mock account login with httpOnly cookie session.
+- Real account signup/login with signed httpOnly cookie session.
 - Protected `/markets`, `/markets/[marketId]`, `/players/[playerId]`, `/portfolio`, `/history`, and `/admin` routes.
 - Market detail pages at `/markets/[marketId]` with player info, market stats, inline trade panel, and full event timeline.
 - Player detail pages at `/players/[playerId]` with intelligence panel, sentiment, historical performance, and per-player market cards with inline trade.
@@ -75,7 +77,7 @@ npm run prisma:seed
 npm run dev
 ```
 
-Open `http://localhost:3000/login`.
+Open `http://localhost:3000/signup`.
 
 ## Environment
 
@@ -108,6 +110,7 @@ Main models:
 - `MarketEvent`
 - `AdminAuditLog`
 - `MarketPriceHistory`
+- `Session`
 
 Recent schema changes:
 
@@ -125,12 +128,14 @@ Recent schema changes:
 - FX-006: Added `Game.externalProviderId` (String?, unique) for provider mapping.
 - FX-006: Added `@default(cuid())` to `Game.id` to allow auto-generated IDs from sync service.
 - FX-007: Added `MarketPriceHistory` as an additive analytics read model with YES price, NO price, liquidity, volume, open interest, source, and timestamp.
+- FX009: Added `UserRole`, user identity/password fields, and `Session` rows for real account auth.
 
 Migrations:
 
 - `prisma/migrations/20260628121000_fx001_append_only_ledger/migration.sql`
 - `prisma/migrations/20260628200000_fx006_nfl_data_engine/migration.sql`
 - `prisma/migrations/20260628220000_fx007_market_intelligence/migration.sql`
+- `prisma/migrations/20260628233000_fx009_real_accounts/migration.sql`
 - `prisma/migrations/migration_lock.toml`
 
 The migration includes indexes and append-only trigger protection for ledger update/delete attempts.
@@ -148,7 +153,10 @@ Ledger behavior:
 ## Main Routes
 
 - `/` - home and product explanation
-- `/login` - demo account selection
+- `/signup` - account creation
+- `/login` - email/password login
+- `/account` - authenticated account summary
+- `/settings` - authenticated profile settings
 - `/markets` - protected market slate and trading
 - `/portfolio` - protected authenticated-user portfolio
 - `/history` - protected trade history and market timeline
@@ -158,10 +166,12 @@ Ledger behavior:
 
 ## API Routes
 
-- `GET /api/auth/demo-users`
+- `POST /api/auth/signup`
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
 - `GET /api/session`
+- `GET /api/account`
+- `PATCH /api/settings`
 - `GET /api/slate`
 - `POST /api/trades`
 - `GET /api/portfolio`
@@ -193,6 +203,8 @@ New API routes from FX-002:
 
 - `lib/auth.ts` - session and admin helpers
 - `lib/session.ts` - cookie name constant safe for middleware/tests
+- `lib/session-store.ts` - signed cookie and server-side session helpers
+- `lib/password.ts` - scrypt password hashing helpers
 - `lib/db-amm.ts` - backward-compatible re-export barrel (calls services; do not add logic here)
 - `lib/trade.service.ts` - AMM trade execution, balance deduction, position update, ledger and event emit
 - `components/trade-panel.tsx` - inline trade panel (side selector, quote display, confirm) used on market detail page
@@ -246,16 +258,19 @@ New API routes from FX-002:
 
 ## Environment Variables
 
-No new environment variables were added.
-
 Required:
 
 - `DATABASE_URL`
+- `SESSION_SECRET`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `ADMIN_FIRST_NAME`
+- `ADMIN_LAST_NAME`
 
 ## Breaking Changes
 
-- Database schema changed. Existing local databases must run `npm run prisma:push` before running the app.
-- A committed migration now exists. Fresh shared environments should move toward `prisma migrate deploy`; local legacy DBs may still need `npm run prisma:push` until migration workflow is fully normalized.
+- Database schema changed. Existing local databases should run `npx prisma migrate deploy` before running the app.
+- Local databases created by older `prisma db push` workflows may need one-time migration baselining.
 - Seed now clears and recreates ledger, market event, and admin audit records.
 - `/history` is a new protected route and requires login.
 
@@ -267,7 +282,7 @@ Business logic:
 npm run test
 ```
 
-Covers AMM price movement, ledger math, seed grant ledger rows, trade spend ledger rows, spend/balance behavior, position shares, locked/settled/void trade rejection, insufficient balance, settlement payout ledger rows, double-pay ledger prevention, void refund ledger rows, double-refund ledger prevention, forged `userId` rejection, ledger reconciliation, reconciliation mismatch details, ledger idempotency, correction metadata/admin attribution, trade history, portfolio calculations, market history, admin audit records, and market event ordering.
+Covers AMM price movement, ledger math, seed grant ledger rows, trade spend ledger rows, spend/balance behavior, position shares, locked/settled/void trade rejection, insufficient balance, settlement payout ledger rows, double-pay ledger prevention, void refund ledger rows, double-refund prevention, forged `userId` rejection, real signup/login/logout sessions, user isolation, admin permissions, ledger reconciliation, trade history, portfolio calculations, market history, admin audit records, and market event ordering.
 
 Accessibility:
 
@@ -360,10 +375,10 @@ Covers home, markets, portfolio, leaderboard, admin, and trade modal with axe.
 ## Last Verified Results
 
 - `npm run prisma:generate` - passed
-- `npm run prisma:push` - passed
+- `npx prisma migrate deploy` - passed after local baseline of older `db push` schema
 - `npm run lint` - passed on 2026-06-28
 - `npm run typecheck` - passed on 2026-06-28
-- `npm test` - passed on 2026-06-28, 127 tests (121 existing + 6 new FX-007)
+- `npm test` - passed on 2026-06-28, 137 tests
 - `npm run build` - passed on 2026-06-28
 - `npm run prisma:seed` - passed
 - `npm run test:a11y` - passed, 6 tests
@@ -374,7 +389,7 @@ Known non-blocking warning: Playwright dev server may show a future Next.js `all
 
 - A migration exists, but docs/scripts still need to fully switch from `prisma db push` to migrate-first workflows.
 - In-memory rate limiting is only a placeholder.
-- Demo auth has no passwords and is not production auth.
+- CSRF protection is still needed for cookie-authenticated POST routes before broader public release.
 - `/markets` is route-protected so users choose an account before trading.
 - Trade execution still lacks explicit concurrency controls/row-level locking.
 - `ADMIN_ADJUSTMENT` API workflow exists (`POST /api/admin/adjustments`) but has no admin UI page yet.

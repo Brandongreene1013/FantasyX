@@ -1,5 +1,16 @@
 # TODO
 
+## Completed - FX009 Real User Accounts & Platform Identity
+
+1. Added real email/password signup and login.
+2. Added scrypt password hashing and generic login failure messaging.
+3. Added signed httpOnly `fantasyx_session` cookie backed by server-side `Session` rows.
+4. Added `UserRole`, account identity fields, and FX009 Prisma migration.
+5. Added `/signup`, `/account`, and `/settings`; removed the demo account picker.
+6. Signup grants 10,000 mock credits through a ledger `SEED_GRANT`.
+7. Seed creates the admin from `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, and `ADMIN_LAST_NAME`.
+8. Added `tests/auth-accounts.test.ts`. Total: 137 tests.
+
 ## Completed - FX-007 Market Intelligence & Analytics
 
 1. Added `MarketPriceHistory` model and migration for additive market price history snapshots.
@@ -89,7 +100,7 @@ Remaining backlog:
 2. The append-only trigger is committed in migration; local `prisma db push` databases do not automatically receive trigger behavior.
 3. Seed resets all exchange history; this is fine for local demo but not for persistent environments.
 4. In-memory rate limiting is not durable across instances.
-5. Demo auth uses mock accounts and is not production authentication.
+5. CSRF protection is still needed for cookie-authenticated POST routes before broader public release.
 6. Legacy `lib/store.tsx` can confuse future work if accidentally imported.
 7. Trade request idempotency keys are not implemented yet; only ledger mutations have idempotency coverage.
 

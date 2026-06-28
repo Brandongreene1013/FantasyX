@@ -6,6 +6,11 @@ export type SessionResponse = {
   user: {
     id: string;
     name: string;
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    email: string | null;
+    role: "TRADER" | "ADMIN";
     isAdmin: boolean;
     mockBalance: number;
     startingBalance: number;
@@ -22,6 +27,11 @@ export type PortfolioResponse = {
   user: {
     id: string;
     name: string;
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    email: string | null;
+    role: "TRADER" | "ADMIN";
     mockBalance: number;
     startingBalance: number;
     isAdmin: boolean;
@@ -253,6 +263,16 @@ export async function apiGet<T>(url: string): Promise<T> {
 export async function apiPost<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify(body)
+  });
+  return parseResponse<T>(response);
+}
+
+export async function apiPatch<T>(url: string, body: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: "PATCH",
     headers: { "content-type": "application/json" },
     credentials: "same-origin",
     body: JSON.stringify(body)

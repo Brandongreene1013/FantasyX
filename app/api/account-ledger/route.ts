@@ -31,7 +31,7 @@ export async function GET(request: Request) {
         settlementId: entry.settlementId,
         marketId: entry.marketId,
         adminId: entry.adminId,
-        adminName: entry.admin?.name ?? null,
+        adminName: entry.admin?.displayName || entry.admin?.name || null,
         playerName: entry.market?.player.name ?? null,
         metadata: entry.metadata,
         createdAt: entry.createdAt.toISOString()

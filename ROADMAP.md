@@ -4,7 +4,7 @@ This roadmap prioritizes architectural work by impact and dependency order. It a
 
 ## Project Status
 
-Current milestone: Sprint 2, FX-007 Market Intelligence & Analytics complete.
+Current milestone: FX009 Real User Accounts & Platform Identity complete.
 
 Overall MVP foundation completion: 99%.
 
@@ -19,8 +19,22 @@ Sprint 2 focus:
 - Completed: FX-005 Player Intelligence.
 - Completed: FX-006 NFL Data Engine.
 - Completed: FX-007 Market Intelligence & Analytics.
+- Completed: FX009 Real User Accounts & Platform Identity.
 - Remaining: Concurrency-safe trade execution.
 - Remaining: E2E smoke tests for login, trade, portfolio, and settlement.
+
+## Completed - FX009 Real User Accounts & Platform Identity
+
+Implemented:
+
+- Added real email/password signup and login.
+- Added user account fields, `UserRole`, password hashes, and server-side `Session` rows.
+- Replaced the raw user-id cookie with a signed httpOnly `fantasyx_session` cookie.
+- Added `/signup`, `/account`, and `/settings`; rewrote `/login`.
+- Removed the public demo account selector flow.
+- Signup grants 10,000 mock credits through the ledger.
+- Seed creates an administrator from `ADMIN_*` environment variables.
+- Added `tests/auth-accounts.test.ts`. All 137 tests pass.
 
 ## Completed - FX-007 Market Intelligence & Analytics
 

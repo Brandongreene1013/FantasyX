@@ -2,17 +2,10 @@
 
 import { Suspense, useEffect, useState } from "react";
 import type { Route } from "next";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeading } from "@/components/page-heading";
-import { apiGet, apiPost } from "@/lib/client-api";
-import { credits } from "@/lib/format";
-
-type DemoUser = {
-  id: string;
-  name: string;
-  isAdmin: boolean;
-  mockBalance: number;
-};
+import { apiGet, apiPost, type SessionResponse } from "@/lib/client-api";
 
 export default function LoginPage() {
   return (
@@ -25,13 +18,9 @@ export default function LoginPage() {
 function LoginLoading() {
   return (
     <>
-      <PageHeading title="Select Demo Account" kicker="Mock auth">
-        <span>Choose a free-play account. No passwords, wallets, or real funds.</span>
+      <PageHeading title="Log In" kicker="FantasyX account">
+        <span>Use your FantasyX account to access mock-credit markets.</span>
       </PageHeading>
-      <section className="rounded border border-ink/10 bg-white p-4 shadow-soft" aria-labelledby="demo-account-loading-heading">
-        <h2 id="demo-account-loading-heading" className="text-lg font-black">Demo accounts</h2>
-        <p className="mt-4 text-sm font-bold text-ink/70">Loading accounts...</p>
-      </section>
     </>
   );
 }
@@ -40,73 +29,67 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/markets";
-  const [users, setUsers] = useState<DemoUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    apiGet<{ users: DemoUser[] }>("/api/auth/demo-users")
+    apiGet<SessionResponse>("/api/session")
       .then((data) => {
-        if (active) {
-          setUsers(data.users);
+        if (active && data.user) {
+          router.replace(next as Route);
         }
       })
-      .catch((loadError) => {
-        if (active) {
-          setError(loadError instanceof Error ? loadError.message : "Could not load demo accounts");
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setIsLoading(false);
-        }
-      });
+      .catch(() => undefined);
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [next, router]);
 
-  async function selectAccount(userId: string) {
+  async function submitLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError(null);
+    setIsSubmitting(true);
     try {
-      await apiPost("/api/auth/login", { userId });
+      await apiPost("/api/auth/login", { email, password });
       window.dispatchEvent(new Event("fantasyx:data-changed"));
       router.push(next as Route);
       router.refresh();
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : "Login failed");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
     <>
-      <PageHeading title="Select Demo Account" kicker="Mock auth">
-        <span>Choose a free-play account. No passwords, wallets, or real funds.</span>
+      <PageHeading title="Log In" kicker="FantasyX account">
+        <span>Trade NFL fantasy markets with your own mock-credit portfolio.</span>
       </PageHeading>
 
-      <section className="rounded border border-ink/10 bg-white p-4 shadow-soft" aria-labelledby="demo-account-heading">
-        <h2 id="demo-account-heading" className="text-lg font-black">Demo accounts</h2>
-        <p className="mt-1 text-sm font-semibold text-ink/70">Your selection is stored in an httpOnly session cookie.</p>
-
-        {isLoading ? <p className="mt-4 text-sm font-bold text-ink/70">Loading accounts...</p> : null}
-        {error ? <p className="mt-4 rounded bg-rush/10 px-3 py-2 text-sm font-bold text-rush" role="alert">{error}</p> : null}
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {users.map((user) => (
-            <button
-              className="rounded border border-ink/10 bg-chalk p-4 text-left transition hover:border-field hover:bg-white"
-              key={user.id}
-              onClick={() => selectAccount(user.id)}
-              type="button"
-            >
-              <span className="block text-lg font-black">{user.name}</span>
-              <span className="mt-1 block text-sm font-semibold text-ink/70">{credits(user.mockBalance)} mock balance</span>
-              {user.isAdmin ? <span className="mt-3 inline-block rounded bg-gold/20 px-2 py-1 text-xs font-black text-ink">Admin</span> : null}
-            </button>
-          ))}
-        </div>
+      <section className="mx-auto max-w-xl rounded border border-ink/10 bg-white p-5 shadow-soft" aria-labelledby="login-heading">
+        <h2 id="login-heading" className="text-lg font-black">Welcome back</h2>
+        <form className="mt-4 grid gap-4" onSubmit={submitLogin}>
+          <div>
+            <label className="text-sm font-black" htmlFor="email">Email</label>
+            <input className="mt-1 w-full rounded border border-ink/15 px-3 py-2 font-semibold" id="email" name="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+          </div>
+          <div>
+            <label className="text-sm font-black" htmlFor="password">Password</label>
+            <input className="mt-1 w-full rounded border border-ink/15 px-3 py-2 font-semibold" id="password" name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+          </div>
+          {error ? <p className="rounded bg-rush/10 px-3 py-2 text-sm font-bold text-rush" role="alert">{error}</p> : null}
+          <button className="rounded bg-field px-4 py-3 font-black text-white hover:bg-ink disabled:cursor-not-allowed disabled:opacity-60" disabled={isSubmitting} type="submit">
+            {isSubmitting ? "Logging in..." : "Log in"}
+          </button>
+        </form>
+        <p className="mt-4 text-sm font-semibold text-ink/70">
+          New to FantasyX? <Link className="font-black text-field underline" href={"/signup" as Route}>Create an account</Link>
+        </p>
       </section>
     </>
   );

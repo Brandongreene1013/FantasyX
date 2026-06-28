@@ -64,10 +64,20 @@ enum AdminAuditAction {
   MARKET_EDIT
 }
 
+enum UserRole {
+  TRADER
+  ADMIN
+}
+
 model User {
   id              String             @id @default(cuid())
   name            String
   email           String?            @unique
+  firstName       String             @default("") @map("first_name")
+  lastName        String             @default("") @map("last_name")
+  displayName     String             @default("") @map("display_name")
+  passwordHash    String             @default("") @map("password_hash")
+  role            UserRole           @default(TRADER)
   walletAddress   String?            @unique @map("wallet_address")
   isAdmin         Boolean            @default(false) @map("is_admin")
   mockBalance     Decimal            @default(1000) @map("mock_balance") @db.Decimal(14, 2)
@@ -82,8 +92,23 @@ model User {
   administeredLedgerEntries AccountLedgerEntry[] @relation("LedgerAdmin")
   adminAudits     AdminAuditLog[]
   marketEvents    MarketEvent[]
+  sessions        Session[]
 
   @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
 
 model Player {

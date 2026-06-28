@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import type { Route } from "next";
 import Link from "next/link";
 import { AccountBar } from "@/components/account-bar";
+import { SiteNav } from "@/components/site-nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,14 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <span className="grid h-9 w-9 place-items-center rounded bg-field text-sm font-black text-white">FX</span>
                 <span className="text-lg font-black tracking-normal">FantasyX</span>
               </Link>
-              <nav className="hidden items-center gap-1 text-sm font-semibold text-ink/70 sm:flex" aria-label="Primary navigation">
-                <Link className="inline-flex min-h-11 items-center rounded px-3 py-2 hover:bg-ink/5" href="/markets">Markets</Link>
-                <Link className="inline-flex min-h-11 items-center rounded px-3 py-2 hover:bg-ink/5" href="/portfolio">Portfolio</Link>
-                <Link className="inline-flex min-h-11 items-center rounded px-3 py-2 hover:bg-ink/5" href={"/history" as Route}>History</Link>
-                <Link className="inline-flex min-h-11 items-center rounded px-3 py-2 hover:bg-ink/5" href="/leaderboard">Leaderboard</Link>
-                <Link className="inline-flex min-h-11 items-center rounded px-3 py-2 hover:bg-ink/5" href="/admin">Admin</Link>
-                <Link className="inline-flex min-h-11 items-center rounded px-3 py-2 hover:bg-ink/5" href={"/login" as Route}>Login</Link>
-              </nav>
+              <SiteNav />
             </div>
             <AccountBar />
           </header>
@@ -36,13 +29,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <footer className="mx-auto hidden max-w-6xl px-4 pb-8 text-xs font-semibold text-ink/70 sm:block">
             FantasyX is a free-play mock-credit MVP. No real-money wagering or crypto settlement.
           </footer>
-          <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-ink/10 bg-chalk/95 text-center text-xs font-bold text-ink/70 backdrop-blur sm:hidden" aria-label="Mobile navigation">
-            <Link className="inline-flex min-h-11 items-center justify-center py-3" href="/markets">Markets</Link>
-            <Link className="inline-flex min-h-11 items-center justify-center py-3" href="/portfolio">Portfolio</Link>
-            <Link className="inline-flex min-h-11 items-center justify-center py-3" href={"/history" as Route}>History</Link>
-            <Link className="inline-flex min-h-11 items-center justify-center py-3" href="/leaderboard">Rank</Link>
-            <Link className="inline-flex min-h-11 items-center justify-center py-3" href="/admin">Admin</Link>
-          </nav>
         </div>
       </body>
     </html>

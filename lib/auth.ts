@@ -1,15 +1,15 @@
 import type { User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { sessionCookieName } from "@/lib/session";
+import { getSessionUserIdFromToken, readSessionCookie } from "@/lib/session-store";
 
-export type SessionUser = Pick<User, "id" | "name" | "isAdmin" | "mockBalance" | "startingBalance">;
+export type SessionUser = Pick<User, "id" | "name" | "firstName" | "lastName" | "displayName" | "email" | "role" | "isAdmin" | "mockBalance" | "startingBalance">;
 
-export function getSessionUserId(request: Request) {
-  return parseCookieHeader(request.headers.get("cookie"))[sessionCookieName] ?? null;
+export async function getSessionUserId(request: Request) {
+  return getSessionUserIdFromToken(readSessionCookie(request));
 }
 
 export async function getSessionUser(request: Request): Promise<SessionUser | null> {
-  const userId = getSessionUserId(request);
+  const userId = await getSessionUserId(request);
   if (!userId) {
     return null;
   }
@@ -19,6 +19,11 @@ export async function getSessionUser(request: Request): Promise<SessionUser | nu
     select: {
       id: true,
       name: true,
+      firstName: true,
+      lastName: true,
+      displayName: true,
+      email: true,
+      role: true,
       isAdmin: true,
       mockBalance: true,
       startingBalance: true
@@ -36,7 +41,7 @@ export async function requireSessionUser(request: Request) {
 
 export async function requireAdminUser(request: Request) {
   const user = await requireSessionUser(request);
-  if (!user.isAdmin) {
+  if (user.role !== "ADMIN" && !user.isAdmin) {
     throw new AuthError("Admin access required", 403);
   }
   return user;
@@ -46,20 +51,4 @@ export class AuthError extends Error {
   constructor(message: string, public status: number) {
     super(message);
   }
-}
-
-function parseCookieHeader(header: string | null) {
-  const cookies: Record<string, string> = {};
-  if (!header) {
-    return cookies;
-  }
-
-  for (const part of header.split(";")) {
-    const [name, ...valueParts] = part.trim().split("=");
-    if (!name) {
-      continue;
-    }
-    cookies[name] = decodeURIComponent(valueParts.join("="));
-  }
-  return cookies;
 }

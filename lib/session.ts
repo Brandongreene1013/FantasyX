@@ -1,1 +1,1 @@
-export const sessionCookieName = "fantasyx_user_id";
+export const sessionCookieName = "fantasyx_session";

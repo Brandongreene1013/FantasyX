@@ -8,6 +8,7 @@ import { POST as postTrade } from "@/app/api/trades/route";
 import { GET as getTradeHistory } from "@/app/api/trade-history/route";
 import { GET as getPortfolio } from "@/app/api/portfolio/route";
 import { sessionCookieName } from "@/lib/session";
+import { createSession } from "@/lib/session-store";
 import { applyLedgerBalanceChange, calculateLedgerBalance, reconcileUserLedger } from "@/lib/ledger-service";
 
 const prisma = new PrismaClient();
@@ -16,6 +17,7 @@ const gameId = "test_game_money_market";
 const playerId = "test_player_money_market";
 const userId = "test_user_money_market";
 const otherUserId = "test_other_user_money_market";
+let userSessionCookie = "";
 
 describe("AMM pricing", () => {
   it("buying YES increases YES price", () => {
@@ -225,7 +227,7 @@ describe("database-backed trading and settlement", () => {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        cookie: `${sessionCookieName}=${userId}`
+        cookie: userSessionCookie
       },
       body: JSON.stringify({
         userId: otherUserId,
@@ -494,6 +496,12 @@ async function createBaseData() {
     data: {
       id: userId,
       name: "Test User",
+      firstName: "Test",
+      lastName: "User",
+      displayName: "Test User",
+      email: "money.user@fantasyx.test",
+      passwordHash: "test-password-hash",
+      role: "ADMIN",
       mockBalance: 1000,
       startingBalance: 1000,
       isAdmin: true
@@ -504,6 +512,11 @@ async function createBaseData() {
     data: {
       id: otherUserId,
       name: "Other Test User",
+      firstName: "Other",
+      lastName: "Test User",
+      displayName: "Other Test User",
+      email: "money.other@fantasyx.test",
+      passwordHash: "test-password-hash",
       mockBalance: 1000,
       startingBalance: 1000
     }
@@ -539,6 +552,8 @@ async function createBaseData() {
       makeDbMarket("TOP_10")
     ]
   });
+
+  userSessionCookie = `${sessionCookieName}=${await createSession(userId)}`;
 }
 
 function makeDbMarket(thresholdType: "TOP_3" | "TOP_5" | "TOP_10") {
@@ -594,7 +609,7 @@ function marketId(thresholdType: "TOP_3" | "TOP_5" | "TOP_10") {
 function authenticatedRequest(url: string) {
   return new Request(url, {
     headers: {
-      cookie: `${sessionCookieName}=${userId}`
+      cookie: userSessionCookie
     }
   });
 }

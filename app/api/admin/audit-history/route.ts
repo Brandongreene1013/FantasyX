@@ -18,7 +18,7 @@ export async function GET(request: Request) {
         ...(actorId ? { actorId } : {}),
       },
       include: {
-        actor: { select: { id: true, name: true } },
+        actor: { select: { id: true, name: true, displayName: true } },
         market: {
           select: {
             id: true,
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
       logs: logs.map((log) => ({
         id: log.id,
         actorId: log.actorId,
-        actorName: log.actor.name,
+        actorName: log.actor.displayName || log.actor.name,
         action: log.action,
         marketId: log.marketId,
         playerName: log.market?.player.name ?? null,

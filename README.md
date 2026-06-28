@@ -20,12 +20,12 @@ Users buy mock-credit YES or NO shares on whether NFL players finish Top 3, Top 
 npm install
 docker compose up -d
 npm run prisma:generate
-npm run prisma:push
+npx prisma migrate deploy
 npm run prisma:seed
 npm run dev
 ```
 
-Open `http://localhost:3000/login`, choose a demo account, then trade from `/markets`.
+Open `http://localhost:3000/signup`, create an account, then trade from `/markets`.
 
 ## Environment
 
@@ -33,6 +33,11 @@ Create `.env` from `.env.example`:
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/fantasyx?schema=public"
+SESSION_SECRET="replace-with-at-least-32-random-characters"
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD="replace-with-a-strong-admin-password"
+ADMIN_FIRST_NAME="FantasyX"
+ADMIN_LAST_NAME="Admin"
 ```
 
 Do not commit `.env` files or secrets.
@@ -57,7 +62,10 @@ Use `npm run vercel-build` only for Vercel-style migration/build verification ag
 
 ## Current Features
 
-- Demo account login with secure httpOnly cookie
+- Real email/password signup and login
+- Password hashing with scrypt
+- Server-side session table with signed httpOnly session cookie
+- Account and settings pages
 - Admin and portfolio route protection
 - Database-backed market slate, trades, portfolio, leaderboard, and settlements
 - Mock-credit AMM price movement
@@ -74,4 +82,4 @@ Use `npm run vercel-build` only for Vercel-style migration/build verification ag
 - Do not add real-money flows.
 - Do not add Solana/mainnet settlement yet.
 - API routes must derive the user from the session cookie, not client payloads.
-- Admin APIs must require `user.isAdmin`.
+- Admin APIs must require an authenticated admin role.

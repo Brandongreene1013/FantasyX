@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { executeDbBuy, lockDbMarket, openDbMarket, settleDbMarket, settleDbPlayerMarkets, voidDbMarket } from "@/lib/db-amm";
 import { toNumber } from "@/lib/db-serialization";
 import { sessionCookieName } from "@/lib/session";
+import { createSession } from "@/lib/session-store";
 import { emitAdminNoteEvent, snapshotFromMarket } from "@/lib/market-event.service";
 import { POST as postAdjustment } from "@/app/api/admin/adjustments/route";
 import { POST as postNote } from "@/app/api/admin/notes/route";
@@ -16,6 +17,8 @@ const gameId = "test_game_event_engine";
 const playerId = "test_player_event_engine";
 const adminUserId = "test_admin_event_engine";
 const traderUserId = "test_trader_event_engine";
+let adminSessionCookie = "";
+let traderSessionCookie = "";
 
 describe("FX-002 Market Event Engine", () => {
   beforeEach(async () => {
@@ -397,7 +400,7 @@ describe("FX-002 Market Event Engine", () => {
     it("rejects non-admin from viewing audit history", async () => {
       const response = await getAuditHistory(
         new Request("http://localhost/api/admin/audit-history", {
-          headers: { cookie: `${sessionCookieName}=${traderUserId}` },
+          headers: { cookie: traderSessionCookie },
         })
       );
 
@@ -444,7 +447,7 @@ describe("FX-002 Market Event Engine", () => {
 
       const response = await getAuditHistory(
         new Request("http://localhost/api/admin/audit-history", {
-          headers: { cookie: `${sessionCookieName}=${adminUserId}` },
+          headers: { cookie: adminSessionCookie },
         })
       );
 
@@ -476,7 +479,7 @@ describe("FX-002 Market Event Engine", () => {
       const response = await getAuditHistory(
         new Request(
           `http://localhost/api/admin/audit-history?marketId=${marketId("TOP_3")}`,
-          { headers: { cookie: `${sessionCookieName}=${adminUserId}` } }
+          { headers: { cookie: adminSessionCookie } }
         )
       );
 
@@ -548,6 +551,12 @@ async function createBaseData() {
     data: {
       id: adminUserId,
       name: "Admin Tester",
+      firstName: "Admin",
+      lastName: "Tester",
+      displayName: "Admin Tester",
+      email: "event.admin@fantasyx.test",
+      passwordHash: "test-password-hash",
+      role: "ADMIN",
       mockBalance: 1000,
       startingBalance: 1000,
       isAdmin: true,
@@ -558,6 +567,12 @@ async function createBaseData() {
     data: {
       id: traderUserId,
       name: "Trader Tester",
+      firstName: "Trader",
+      lastName: "Tester",
+      displayName: "Trader Tester",
+      email: "event.trader@fantasyx.test",
+      passwordHash: "test-password-hash",
+      role: "TRADER",
       mockBalance: 1000,
       startingBalance: 1000,
       isAdmin: false,
@@ -590,6 +605,9 @@ async function createBaseData() {
   await prisma.market.createMany({
     data: [makeDbMarket("TOP_3"), makeDbMarket("TOP_5"), makeDbMarket("TOP_10")],
   });
+
+  adminSessionCookie = `${sessionCookieName}=${await createSession(adminUserId)}`;
+  traderSessionCookie = `${sessionCookieName}=${await createSession(traderUserId)}`;
 }
 
 async function resetTestData() {
@@ -657,7 +675,7 @@ function adminRequest(url: string, body: unknown) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      cookie: `${sessionCookieName}=${adminUserId}`,
+      cookie: adminSessionCookie,
     },
     body: JSON.stringify(body),
   });
@@ -668,7 +686,7 @@ function traderRequest(url: string, body: unknown) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      cookie: `${sessionCookieName}=${traderUserId}`,
+      cookie: traderSessionCookie,
     },
     body: JSON.stringify(body),
   });

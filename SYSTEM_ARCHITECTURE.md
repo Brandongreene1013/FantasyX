@@ -158,10 +158,19 @@ Application services should sit between API routes and database repositories.
 
 Responsibilities:
 
-- Demo login.
-- Session creation and validation.
+- Email/password signup and login.
+- Password hashing.
+- Server-side session creation and validation.
 - Logout.
 - Future wallet-linked identity.
+
+Current implementation:
+
+- `User` stores `firstName`, `lastName`, `displayName`, unique email, password hash, and role.
+- `Session` stores hashed opaque session tokens with expiration.
+- The browser receives a signed httpOnly `fantasyx_session` cookie.
+- API routes derive the user from the session and never trust a client-supplied user id.
+- Signup creates a 10,000 mock-credit `SEED_GRANT` ledger entry.
 
 ### Trade Service
 

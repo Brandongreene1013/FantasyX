@@ -163,10 +163,15 @@ Goal:
 
 Keep mock auth but prevent unsafe assumptions and easy tampering.
 
+Status:
+
+- Completed in FX009 for real account creation, password hashing, server-side sessions, role-backed admin authorization, account/settings pages, and demo-login removal.
+- Remaining hardening: CSRF protection and durable rate limiting.
+
 Features:
 
-- Signed session cookie or server-side session table.
-- CSRF protection for state-changing routes.
+- Server-side session table.
+- Signed httpOnly session cookie.
 - Authorization guard helpers.
 - Durable rate-limit adapter interface.
 
@@ -184,9 +189,10 @@ API changes:
 
 UI changes:
 
-- Login remains demo-account based.
+- Login uses email/password.
+- Signup creates a real account with 10,000 mock credits.
+- Account/settings pages expose platform identity.
 - AccountBar remains visually similar.
-- Add clear expired-session handling.
 
 Tests required:
 
@@ -199,8 +205,9 @@ Tests required:
 Definition of Done:
 
 - Raw `userId` cookie is gone.
-- All sensitive POST routes validate session and CSRF.
+- Sensitive routes validate an authenticated server session.
 - Admin access is enforced server-side by role/permission.
+- CSRF protection remains a follow-up before broader public release.
 
 Estimated complexity:
 

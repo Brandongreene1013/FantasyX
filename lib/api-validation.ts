@@ -11,7 +11,25 @@ export const tradeSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  userId: z.string().min(1)
+  email: z.string().trim().email().transform((value) => value.toLowerCase()),
+  password: z.string().min(1)
+});
+
+export const signupSchema = z.object({
+  firstName: z.string().trim().min(1, "First name is required").max(80),
+  lastName: z.string().trim().min(1, "Last name is required").max(80),
+  email: z.string().trim().email().transform((value) => value.toLowerCase()),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128),
+  confirmPassword: z.string().min(1, "Confirm your password")
+}).refine((value) => value.password === value.confirmPassword, {
+  path: ["confirmPassword"],
+  message: "Passwords do not match"
+});
+
+export const settingsSchema = z.object({
+  firstName: z.string().trim().min(1, "First name is required").max(80),
+  lastName: z.string().trim().min(1, "Last name is required").max(80),
+  displayName: z.string().trim().min(2, "Display name is required").max(80)
 });
 
 export const settlementSchema = z.discriminatedUnion("action", [

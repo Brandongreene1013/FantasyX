@@ -11,8 +11,13 @@ export async function GET(request: Request) {
   return NextResponse.json({
     user: {
       id: user.id,
-      name: user.name,
-      isAdmin: user.isAdmin,
+      name: user.displayName || user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      displayName: user.displayName || user.name,
+      email: user.email,
+      role: user.role,
+      isAdmin: user.role === "ADMIN" || user.isAdmin,
       mockBalance: toNumber(user.mockBalance),
       startingBalance: toNumber(user.startingBalance)
     }

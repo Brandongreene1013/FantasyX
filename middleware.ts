@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-request-id", requestId);
 
-  if (request.nextUrl.pathname === "/markets" || request.nextUrl.pathname.startsWith("/markets/") || request.nextUrl.pathname.startsWith("/players/") || request.nextUrl.pathname === "/portfolio" || request.nextUrl.pathname === "/history" || request.nextUrl.pathname === "/admin") {
+  if (request.nextUrl.pathname === "/markets" || request.nextUrl.pathname.startsWith("/markets/") || request.nextUrl.pathname.startsWith("/players/") || request.nextUrl.pathname === "/portfolio" || request.nextUrl.pathname === "/history" || request.nextUrl.pathname === "/admin" || request.nextUrl.pathname === "/account" || request.nextUrl.pathname === "/settings") {
     const hasSession = Boolean(request.cookies.get(sessionCookieName)?.value);
     if (!hasSession) {
       const loginUrl = new URL("/login", request.url);

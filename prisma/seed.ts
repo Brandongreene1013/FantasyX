@@ -1,17 +1,25 @@
 import { PrismaClient } from "@prisma/client";
+import { validateIdentityEnv } from "@/lib/env";
+import { hashPassword } from "@/lib/password";
 import { executeDbBuy } from "@/lib/trade.service";
 import { settleDbMarket } from "@/lib/settlement.service";
 
 const prisma = new PrismaClient();
+validateIdentityEnv();
 
 const season = 2026;
 const weekId = "nfl_2026_w1";
 
-const users = [
-  { id: "user_demo", name: "Demo Coach", mockBalance: 1500, startingBalance: 1500, isAdmin: true },
-  { id: "user_gridiron_quant", name: "GridironQuant", mockBalance: 1500, startingBalance: 1500 },
-  { id: "user_waiver_wired", name: "WaiverWired", mockBalance: 1500, startingBalance: 1500 },
-  { id: "user_half_ppr_hero", name: "HalfPprHero", mockBalance: 1500, startingBalance: 1500 }
+const adminEmail = process.env.ADMIN_EMAIL ?? "admin@fantasyx.test";
+const adminPassword = process.env.ADMIN_PASSWORD ?? "ChangeMeAdminPassword123!";
+const adminFirstName = process.env.ADMIN_FIRST_NAME ?? "FantasyX";
+const adminLastName = process.env.ADMIN_LAST_NAME ?? "Admin";
+
+const userSeeds = [
+  { id: "user_admin", firstName: adminFirstName, lastName: adminLastName, displayName: `${adminFirstName} ${adminLastName}`.trim(), email: adminEmail.toLowerCase(), mockBalance: 10000, startingBalance: 10000, role: "ADMIN" as const, isAdmin: true, password: adminPassword },
+  { id: "user_gridiron_quant", firstName: "Gridiron", lastName: "Quant", displayName: "GridironQuant", email: "gridiron.quant@fantasyx.test", mockBalance: 1500, startingBalance: 1500, role: "TRADER" as const, isAdmin: false, password: "DevTraderPassword123!" },
+  { id: "user_waiver_wired", firstName: "Waiver", lastName: "Wired", displayName: "WaiverWired", email: "waiver.wired@fantasyx.test", mockBalance: 1500, startingBalance: 1500, role: "TRADER" as const, isAdmin: false, password: "DevTraderPassword123!" },
+  { id: "user_half_ppr_hero", firstName: "Half", lastName: "PPR Hero", displayName: "HalfPprHero", email: "half.ppr.hero@fantasyx.test", mockBalance: 1500, startingBalance: 1500, role: "TRADER" as const, isAdmin: false, password: "DevTraderPassword123!" }
 ];
 
 const games = [
@@ -55,9 +63,9 @@ const demoTrades = [
   { userId: "user_half_ppr_hero", marketId: "m_p_justin_jefferson_top_5", side: "YES", spend: 90 },
   { userId: "user_half_ppr_hero", marketId: "m_p_lamar_jackson_top_3", side: "YES", spend: 100 },
   { userId: "user_half_ppr_hero", marketId: "m_p_cee_dee_lamb_top_3", side: "NO", spend: 60 },
-  { userId: "user_demo", marketId: "m_p_jamarr_chase_top_10", side: "YES", spend: 75 },
-  { userId: "user_demo", marketId: "m_p_travis_kelce_top_5", side: "NO", spend: 45 },
-  { userId: "user_demo", marketId: "m_p_josh_allen_top_5", side: "YES", spend: 65 },
+  { userId: "user_admin", marketId: "m_p_jamarr_chase_top_10", side: "YES", spend: 75 },
+  { userId: "user_admin", marketId: "m_p_travis_kelce_top_5", side: "NO", spend: 45 },
+  { userId: "user_admin", marketId: "m_p_josh_allen_top_5", side: "YES", spend: 65 },
   { userId: "user_waiver_wired", marketId: "m_p_josh_allen_top_5", side: "NO", spend: 40 },
   { userId: "user_gridiron_quant", marketId: "m_p_christian_mccaffrey_top_5", side: "YES", spend: 55 }
 ] as const;
@@ -67,6 +75,7 @@ async function main() {
   await prisma.settlement.deleteMany();
   await prisma.trade.deleteMany();
   await prisma.position.deleteMany();
+  await prisma.session.deleteMany();
   await prisma.leaderboardEntry.deleteMany();
   await prisma.market.deleteMany();
   await prisma.player.deleteMany();
@@ -86,6 +95,20 @@ async function main() {
   });
 
   await prisma.$transaction(async (tx) => {
+    const users = await Promise.all(userSeeds.map(async (user) => ({
+      id: user.id,
+      name: user.displayName,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      displayName: user.displayName,
+      email: user.email,
+      passwordHash: await hashPassword(user.password),
+      role: user.role,
+      isAdmin: user.isAdmin,
+      mockBalance: user.mockBalance,
+      startingBalance: user.startingBalance
+    })));
+
     await tx.user.createMany({ data: users });
 
     await tx.accountLedgerEntry.createMany({
@@ -94,7 +117,7 @@ async function main() {
         type: "SEED_GRANT",
         amount: user.mockBalance,
         balanceAfter: user.mockBalance,
-        reason: "Initial demo mock-credit grant",
+        reason: "Initial mock-credit grant",
         idempotencyKey: `seed_grant:${user.id}:${weekId}`,
         metadata: { weekId, source: "seed" }
       }))
@@ -181,7 +204,7 @@ async function main() {
     settleDbMarket(tx, {
       marketId: "m_p_josh_allen_top_5",
       result: "YES",
-      settledById: "user_demo",
+      settledById: "user_admin",
       fantasyPoints: 27.4,
       positionalRank: 2,
       reason: "Demo settlement to populate analytics and realized portfolio history"

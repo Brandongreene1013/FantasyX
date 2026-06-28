@@ -5,6 +5,8 @@ import { syncNflData } from "@/lib/nfl-sync.service";
 import { AuthError } from "@/lib/auth";
 import { GET as statsGET } from "@/app/api/admin/nfl/stats/route";
 import { POST as syncPOST } from "@/app/api/admin/nfl/sync-demo/route";
+import { sessionCookieName } from "@/lib/session";
+import { createSession } from "@/lib/session-store";
 
 const prisma = new PrismaClient();
 
@@ -14,18 +16,20 @@ const TEST_WEEK   = 1;
 const weekId      = `nfl_${TEST_SEASON}_w${TEST_WEEK}`;
 const adminId     = "test_user_nfl_admin";
 const traderId    = "test_user_nfl_trader";
+let adminSessionCookie = "";
+let traderSessionCookie = "";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function makeAdminRequest(path: string): Request {
   return new Request(`http://localhost${path}`, {
-    headers: { cookie: `fantasyx_user_id=${adminId}` },
+    headers: { cookie: adminSessionCookie },
   });
 }
 
 function makeTraderRequest(path: string): Request {
   return new Request(`http://localhost${path}`, {
-    headers: { cookie: `fantasyx_user_id=${traderId}` },
+    headers: { cookie: traderSessionCookie },
   });
 }
 
@@ -95,8 +99,10 @@ class TestNflDataProvider extends DemoNflDataProvider {
 describe("FX-006 NFL Data Engine", () => {
   beforeEach(async () => {
     await resetTestData();
-    await prisma.user.create({ data: { id: adminId, name: "NFL Admin", mockBalance: 1000, startingBalance: 1000, isAdmin: true } });
-    await prisma.user.create({ data: { id: traderId, name: "NFL Trader", mockBalance: 1000, startingBalance: 1000, isAdmin: false } });
+    await prisma.user.create({ data: { id: adminId, name: "NFL Admin", firstName: "NFL", lastName: "Admin", displayName: "NFL Admin", email: "nfl.admin@fantasyx.test", passwordHash: "test-password-hash", role: "ADMIN", mockBalance: 1000, startingBalance: 1000, isAdmin: true } });
+    await prisma.user.create({ data: { id: traderId, name: "NFL Trader", firstName: "NFL", lastName: "Trader", displayName: "NFL Trader", email: "nfl.trader@fantasyx.test", passwordHash: "test-password-hash", role: "TRADER", mockBalance: 1000, startingBalance: 1000, isAdmin: false } });
+    adminSessionCookie = `${sessionCookieName}=${await createSession(adminId)}`;
+    traderSessionCookie = `${sessionCookieName}=${await createSession(traderId)}`;
   });
 
   afterAll(async () => {

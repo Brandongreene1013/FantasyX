@@ -49,7 +49,7 @@ export async function GET(
         position: event.market.position,
         thresholdType: event.market.thresholdType,
         type: event.type,
-        actorName: event.user?.name ?? null,
+        actorName: event.user?.displayName || event.user?.name || null,
         tradeId: event.tradeId,
         settlementId: event.settlementId,
         priceBefore: event.priceBefore === null ? null : toNumber(event.priceBefore),
