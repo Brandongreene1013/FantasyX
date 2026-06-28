@@ -1,0 +1,313 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PlayerPosition {
+  QB
+  RB
+  WR
+  TE
+}
+
+enum ThresholdType {
+  TOP_3
+  TOP_5
+  TOP_10
+}
+
+enum MarketStatus {
+  OPEN
+  LOCKED
+  SETTLED
+  VOID
+}
+
+enum MarketResult {
+  YES
+  NO
+}
+
+enum TradeSide {
+  YES
+  NO
+}
+
+enum LedgerEntryType {
+  SEED_GRANT
+  TRADE_SPEND
+  SETTLEMENT_PAYOUT
+  VOID_REFUND
+  ADMIN_ADJUSTMENT
+  CORRECTION
+}
+
+enum MarketEventType {
+  TRADE
+  PRICE_CHANGE
+  LOCK
+  UNLOCK
+  SETTLE
+  VOID
+  ADMIN_NOTE
+}
+
+enum AdminAuditAction {
+  SETTLEMENT
+  VOID
+  LOCK
+  UNLOCK
+  MARKET_EDIT
+}
+
+model User {
+  id              String             @id @default(cuid())
+  name            String
+  email           String?            @unique
+  walletAddress   String?            @unique @map("wallet_address")
+  isAdmin         Boolean            @default(false) @map("is_admin")
+  mockBalance     Decimal            @default(1000) @map("mock_balance") @db.Decimal(14, 2)
+  startingBalance Decimal            @default(1000) @map("starting_balance") @db.Decimal(14, 2)
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  trades          Trade[]
+  positions       Position[]
+  settlements     Settlement[]
+  leaderboard     LeaderboardEntry[]
+  ledgerEntries   AccountLedgerEntry[]
+  administeredLedgerEntries AccountLedgerEntry[] @relation("LedgerAdmin")
+  adminAudits     AdminAuditLog[]
+  marketEvents    MarketEvent[]
+
+  @@map("users")
+}
+
+model Player {
+  id         String         @id
+  name       String
+  team       String
+  position   PlayerPosition
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  markets    Market[]
+
+  @@map("players")
+}
+
+model NflWeek {
+  id        String             @id
+  season    Int
+  week      Int
+  startsAt  DateTime           @map("starts_at")
+  endsAt    DateTime           @map("ends_at")
+  status    String             @default("SCHEDULED")
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+  games     Game[]
+  markets   Market[]
+  entries   LeaderboardEntry[]
+
+  @@unique([season, week])
+  @@map("nfl_weeks")
+}
+
+model Game {
+  id           String   @id
+  weekId       String   @map("week_id")
+  week         NflWeek  @relation(fields: [weekId], references: [id])
+  homeTeam     String   @map("home_team")
+  awayTeam     String   @map("away_team")
+  kickoffTime  DateTime @map("kickoff_time")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  markets      Market[]
+
+  @@index([weekId])
+  @@index([kickoffTime])
+  @@map("games")
+}
+
+model Market {
+  id            String         @id
+  playerId      String         @map("player_id")
+  player        Player         @relation(fields: [playerId], references: [id])
+  weekId        String         @map("week_id")
+  week          NflWeek        @relation(fields: [weekId], references: [id])
+  gameId        String?        @map("game_id")
+  game          Game?          @relation(fields: [gameId], references: [id])
+  position      PlayerPosition
+  thresholdType ThresholdType  @map("threshold_type")
+  yesPrice      Decimal        @map("yes_price") @db.Decimal(8, 6)
+  noPrice       Decimal        @map("no_price") @db.Decimal(8, 6)
+  openingPrice  Decimal        @default(0) @map("opening_price") @db.Decimal(8, 6)
+  yesPool       Decimal        @map("yes_pool") @db.Decimal(14, 6)
+  noPool        Decimal        @map("no_pool") @db.Decimal(14, 6)
+  volume        Decimal        @default(0) @db.Decimal(14, 2)
+  openInterest  Decimal        @default(0) @map("open_interest") @db.Decimal(14, 6)
+  status        MarketStatus   @default(OPEN)
+  result        MarketResult?
+  kickoffTime   DateTime       @map("kickoff_time")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  trades        Trade[]
+  positions     Position[]
+  settlement    Settlement?
+  ledgerEntries AccountLedgerEntry[]
+  events        MarketEvent[]
+  auditLogs     AdminAuditLog[]
+
+  @@unique([playerId, weekId, thresholdType])
+  @@index([weekId, position])
+  @@index([status, kickoffTime])
+  @@map("markets")
+}
+
+model Trade {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id])
+  marketId    String    @map("market_id")
+  market      Market    @relation(fields: [marketId], references: [id])
+  side        TradeSide
+  spend       Decimal   @db.Decimal(14, 2)
+  shares      Decimal   @db.Decimal(14, 6)
+  priceBefore Decimal   @map("price_before") @db.Decimal(8, 6)
+  priceAfter  Decimal   @map("price_after") @db.Decimal(8, 6)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  ledgerEntries AccountLedgerEntry[]
+  events      MarketEvent[]
+
+  @@index([userId, createdAt])
+  @@index([marketId, createdAt])
+  @@map("trades")
+}
+
+model Position {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  marketId  String   @map("market_id")
+  market    Market   @relation(fields: [marketId], references: [id])
+  yesShares Decimal  @default(0) @map("yes_shares") @db.Decimal(14, 6)
+  noShares  Decimal  @default(0) @map("no_shares") @db.Decimal(14, 6)
+  costBasis Decimal  @default(0) @map("cost_basis") @db.Decimal(14, 2)
+  realizedPayout Decimal @default(0) @map("realized_payout") @db.Decimal(14, 6)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, marketId])
+  @@index([marketId])
+  @@map("positions")
+}
+
+model Settlement {
+  id                  String        @id @default(cuid())
+  marketId            String        @unique @map("market_id")
+  market              Market        @relation(fields: [marketId], references: [id])
+  settledById         String?       @map("settled_by_id")
+  settledBy           User?         @relation(fields: [settledById], references: [id])
+  result              MarketResult
+  fantasyPoints       Decimal?      @map("fantasy_points") @db.Decimal(8, 2)
+  positionalRank      Int?          @map("positional_rank")
+  scoringFormat       String        @default("HALF_PPR") @map("scoring_format")
+  settledAt           DateTime      @default(now()) @map("settled_at")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  ledgerEntries       AccountLedgerEntry[]
+  events              MarketEvent[]
+
+  @@index([settledAt])
+  @@map("settlements")
+}
+
+model AccountLedgerEntry {
+  id             String           @id @default(cuid())
+  userId         String           @map("user_id")
+  user           User             @relation(fields: [userId], references: [id])
+  type           LedgerEntryType
+  amount         Decimal          @db.Decimal(14, 2)
+  balanceAfter   Decimal          @map("balance_after") @db.Decimal(14, 2)
+  tradeId        String?          @map("trade_id")
+  trade          Trade?           @relation(fields: [tradeId], references: [id])
+  settlementId   String?          @map("settlement_id")
+  settlement     Settlement?      @relation(fields: [settlementId], references: [id])
+  marketId       String?          @map("market_id")
+  market         Market?          @relation(fields: [marketId], references: [id])
+  adminId        String?          @map("admin_id")
+  admin          User?            @relation("LedgerAdmin", fields: [adminId], references: [id])
+  reason         String?
+  metadata       Json?
+  idempotencyKey String           @unique @map("idempotency_key")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([marketId, createdAt])
+  @@index([tradeId])
+  @@index([settlementId])
+  @@index([adminId, createdAt])
+  @@index([type, createdAt])
+  @@map("account_ledger_entries")
+}
+
+model AdminAuditLog {
+  id          String           @id @default(cuid())
+  actorId     String           @map("actor_id")
+  actor       User             @relation(fields: [actorId], references: [id])
+  action      AdminAuditAction
+  marketId    String?          @map("market_id")
+  market      Market?          @relation(fields: [marketId], references: [id])
+  weekId      String?          @map("week_id")
+  playerId    String?          @map("player_id")
+  reason      String?
+  previousState String?        @map("previous_state")
+  nextState   String?          @map("next_state")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@index([actorId, createdAt])
+  @@index([marketId, createdAt])
+  @@index([action, createdAt])
+  @@map("admin_audit_logs")
+}
+
+model MarketEvent {
+  id          String          @id @default(cuid())
+  marketId    String          @map("market_id")
+  market      Market          @relation(fields: [marketId], references: [id])
+  type        MarketEventType
+  userId      String?         @map("user_id")
+  user        User?           @relation(fields: [userId], references: [id])
+  tradeId     String?         @map("trade_id")
+  trade       Trade?          @relation(fields: [tradeId], references: [id])
+  settlementId String?        @map("settlement_id")
+  settlement  Settlement?     @relation(fields: [settlementId], references: [id])
+  priceBefore Decimal?        @map("price_before") @db.Decimal(8, 6)
+  priceAfter  Decimal?        @map("price_after") @db.Decimal(8, 6)
+  liquidity   Decimal?        @db.Decimal(14, 6)
+  volume      Decimal?        @db.Decimal(14, 2)
+  openInterest Decimal?       @map("open_interest") @db.Decimal(14, 6)
+  note        String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@index([marketId, createdAt])
+  @@index([type, createdAt])
+  @@map("market_events")
+}
+
+model LeaderboardEntry {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  weekId    String   @map("week_id")
+  week      NflWeek  @relation(fields: [weekId], references: [id])
+  pnl       Decimal  @default(0) @db.Decimal(14, 2)
+  rank      Int?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, weekId])
+  @@index([weekId, rank])
+  @@map("leaderboard_entries")
+}

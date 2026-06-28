@@ -1,0 +1,55 @@
+import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { sessionCookieName } from "@/lib/session";
+
+test.beforeEach(async ({ context }) => {
+  await context.addCookies([
+    {
+      name: sessionCookieName,
+      value: "user_demo",
+      domain: "127.0.0.1",
+      path: "/",
+      httpOnly: true,
+      sameSite: "Lax"
+    }
+  ]);
+});
+
+const pages = [
+  { name: "home page", path: "/" },
+  { name: "markets page", path: "/markets" },
+  { name: "portfolio page", path: "/portfolio" },
+  { name: "leaderboard page", path: "/leaderboard" },
+  { name: "admin page", path: "/admin" }
+];
+
+for (const pageConfig of pages) {
+  test(`${pageConfig.name} has no detectable axe violations`, async ({ page }) => {
+    await page.goto(pageConfig.path);
+    await page.getByRole("main").waitFor();
+
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+      .analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+}
+
+test("trade modal has no detectable axe violations", async ({ page }) => {
+  await page.goto("/markets");
+  const buyButton = page.getByRole("button", { name: /buy yes shares/i }).first();
+  await expect(buyButton).toBeVisible();
+  await buyButton.click();
+
+  const dialog = page.getByRole("dialog", { name: /buy yes/i });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByLabel("Amount")).toBeFocused();
+
+  const results = await new AxeBuilder({ page })
+    .include('[role="dialog"]')
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+
+  expect(results.violations).toEqual([]);
+});
