@@ -1,251 +1,312 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, TrendingUp, Trophy, Zap, BarChart2, Star } from "lucide-react";
-import { apiGet, defaultWeekId, type SlateResponse, type SessionResponse } from "@/lib/client-api";
-import { pct, credits, thresholdLabel } from "@/lib/format";
-import { getYesPrice, getNoPrice } from "@/lib/amm";
-import { PlayerAvatar } from "@/components/ui/player-avatar";
-import { TrendBadge } from "@/components/ui/trend-badge";
-import type { Market, Player } from "@/lib/types";
+import type { Route } from "next";
+import { useEffect, useState } from "react";
+import {
+  Activity, TrendingUp, TrendingDown, Trophy,
+  Clock, BarChart2, ArrowRight, Zap, Radio
+} from "lucide-react";
+import { apiGet, defaultWeekId, type SessionResponse, type PortfolioResponse } from "@/lib/client-api";
+import { useLiveExchange } from "@/hooks/use-live-exchange";
+import { credits, thresholdLabel } from "@/lib/format";
+import { ExchangeFeed } from "@/components/ui/exchange-feed";
+import { LiveBadge } from "@/components/ui/live-badge";
+import { Countdown } from "@/components/ui/countdown";
+import { PriceFlash } from "@/components/ui/price-flash";
+import { TerminalHeader, TerminalPanel, ChangeCell, VolumeCell, PriceCell } from "@/components/ui/terminal-panel";
+import type { Market } from "@/lib/types";
 
-type ExtMarket = Market & { weekId: string; kickoffTime: string; yesPrice: number; noPrice: number; openingPrice: number; volume: number; openInterest: number };
+type ExtMarket = Market & {
+  weekId: string; kickoffTime: string; yesPrice: number; noPrice: number;
+  openingPrice: number; volume: number; openInterest: number;
+};
 
 export default function Home() {
-  const [slate, setSlate] = useState<SlateResponse | null>(null);
-  const [session, setSession] = useState<SessionResponse["user"] | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const live = useLiveExchange(defaultWeekId);
 
-  const load = useCallback(async () => {
-    try {
-      const [s, sess] = await Promise.all([
-        apiGet<SlateResponse>(`/api/slate?weekId=${defaultWeekId}`).catch(() => null),
-        apiGet<SessionResponse>("/api/session").catch(() => null)
-      ]);
-      setSlate(s);
-      setSession(sess?.user ?? null);
-    } finally {
-      setLoaded(true);
-    }
+  const [session,   setSession]   = useState<SessionResponse["user"] | null>(null);
+  const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
+  const [loaded,    setLoaded]    = useState(false);
+
+  useEffect(() => {
+    apiGet<SessionResponse>("/api/session").then((s) => {
+      const user = s.user ?? null;
+      setSession(user);
+      if (user) void apiGet<PortfolioResponse>("/api/portfolio").then(setPortfolio).catch(() => undefined);
+    }).catch(() => undefined).finally(() => setLoaded(true));
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  const markets    = live.markets as ExtMarket[];
+  const playerMap  = new Map(live.players.map((p) => [p.id, p]));
+  const open       = markets.filter((m) => m.status === "OPEN");
+  const ana        = portfolio?.analytics;
+  const pnlPos     = (ana?.allTimePnl ?? 0) >= 0;
+  const openCount  = (portfolio?.positions ?? []).filter((p) => p.status === "OPEN" || p.status === "LOCKED").length;
 
-  const markets = (slate?.markets ?? []) as ExtMarket[];
-  const playerMap = new Map((slate?.players ?? []).map((p) => [p.id, p]));
-
-  const openMarkets = markets.filter((m) => m.status === "OPEN");
-  const trending = [...openMarkets].sort((a, b) => b.volume - a.volume).slice(0, 4);
-  const movingUp = [...openMarkets].filter((m) => m.yesPrice > m.openingPrice).sort((a, b) => (b.yesPrice - b.openingPrice) - (a.yesPrice - a.openingPrice)).slice(0, 4);
-  const lockingSoon = [...openMarkets].filter((m) => {
-    const t = new Date(m.kickoffTime).getTime() - Date.now();
-    return t > 0 && t < 6 * 3600 * 1000;
-  }).slice(0, 3);
+  const topVolume  = [...open].sort((a, b) => b.volume - a.volume).slice(0, 8);
+  const gainers    = [...open]
+    .filter((m) => m.openingPrice > 0 && m.yesPrice > m.openingPrice)
+    .sort((a, b) => (b.yesPrice - b.openingPrice) / b.openingPrice - (a.yesPrice - a.openingPrice) / a.openingPrice)
+    .slice(0, 5);
+  const losers     = [...open]
+    .filter((m) => m.openingPrice > 0 && m.yesPrice < m.openingPrice)
+    .sort((a, b) => (a.yesPrice - a.openingPrice) / a.openingPrice - (b.yesPrice - b.openingPrice) / b.openingPrice)
+    .slice(0, 5);
+  const lockingSoon = [...open]
+    .filter((m) => { const t = new Date(m.kickoffTime).getTime() - Date.now(); return t > 0 && t < 6 * 3600 * 1000; })
+    .slice(0, 4);
+  const topTraders  = live.leaderboard.slice(0, 5);
 
   return (
-    <div className="space-y-10 pb-6">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-2xl bg-hero-gradient border border-rim/40 p-6 sm:p-10">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(0,212,106,0.12),transparent_60%)]" aria-hidden />
-        <div className="relative">
-          <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-neon">
-            Free-play · Week 1 · No deposits
-          </p>
-          <h1 className="max-w-xl text-4xl font-black leading-[1.05] tracking-tight text-frost sm:text-5xl">
-            The Fantasy Football{" "}
-            <span className="text-gradient-neon">Prediction Market</span>
-          </h1>
-          <p className="mt-4 max-w-lg text-sm font-semibold leading-relaxed text-muted sm:text-base">
-            Trade mock-credit YES/NO shares on whether NFL stars finish Top 3, 5, or 10 in weekly half-PPR scoring.
-          </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            {session ? (
-              <Link
-                href="/markets"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-neon px-6 text-sm font-black text-surface transition hover:bg-neon/90 active:scale-[0.97]"
-              >
-                Trade Now
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/signup"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-neon px-6 text-sm font-black text-surface transition hover:bg-neon/90"
-                >
-                  Start Free
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </Link>
-                <Link
-                  href="/markets"
-                  className="inline-flex h-12 items-center justify-center rounded-xl border border-rim px-6 text-sm font-semibold text-frost transition hover:bg-panel2"
-                >
-                  Browse Markets
-                </Link>
-              </>
-            )}
-          </div>
+    <div className="space-y-6 pb-6">
 
-          {/* Quick stats */}
-          <div className="mt-6 flex gap-6">
-            <div>
-              <p className="text-2xl font-black text-frost">{openMarkets.length}</p>
-              <p className="text-xs font-semibold text-muted">Live markets</p>
-            </div>
-            <div>
-              <p className="text-2xl font-black text-frost">3</p>
-              <p className="text-xs font-semibold text-muted">Thresholds</p>
-            </div>
-            <div>
-              <p className="text-2xl font-black text-neon">10K</p>
-              <p className="text-xs font-semibold text-muted">Starting credits</p>
-            </div>
+      {/* ── Terminal status bar ──────────────────────────────── */}
+      <div className="rounded-lg border border-neon/20 bg-panel px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <LiveBadge isLive={live.isConnected} />
+            <span className="font-mono text-xs font-black text-frost">FX EXCHANGE</span>
+            <span className="font-mono text-[10px] text-muted hidden sm:inline">NFL 2026 · WEEK 1</span>
           </div>
+          <span className="h-4 w-px bg-rim hidden sm:block" aria-hidden />
+          <span className="font-mono text-[10px] text-muted hidden sm:inline">{open.length} OPEN MKTS</span>
         </div>
-      </section>
-
-      {/* How it works */}
-      <section>
-        <h2 className="text-sm font-black uppercase tracking-widest text-muted mb-4">How It Works</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[
-            { Icon: Zap, color: "text-neon", bg: "bg-neon/10 border-neon/20", title: "Get 10,000 Credits", desc: "Sign up free and receive mock credits — no real money, no deposits." },
-            { Icon: TrendingUp, color: "text-charge", bg: "bg-charge/10 border-charge/20", title: "Pick YES or NO", desc: "Trade YES or NO shares on whether a player hits their fantasy threshold." },
-            { Icon: Trophy, color: "text-gold", bg: "bg-gold/10 border-gold/20", title: "Win on Rank", desc: "If your prediction is correct at settlement, your shares pay out 1:1." }
-          ].map(({ Icon, color, bg, title, desc }) => (
-            <div key={title} className={`rounded-xl border p-4 ${bg}`}>
-              <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-panel2 ${color}`}>
-                <Icon className="h-5 w-5" aria-hidden />
+        <div className="flex items-center gap-4">
+          {loaded && session ? (
+            <>
+              <div className="hidden sm:flex items-center gap-4">
+                <StatPill label="BALANCE" value={credits(portfolio?.user.mockBalance ?? 0)} />
+                <StatPill label="P&L" value={`${pnlPos ? "+" : ""}${credits(ana?.allTimePnl ?? 0)}`} tone={pnlPos ? "neon" : "crimson"} />
+                <StatPill label="OPEN" value={String(openCount)} />
               </div>
-              <p className="font-black text-frost text-sm">{title}</p>
-              <p className="mt-1 text-xs font-semibold text-muted leading-relaxed">{desc}</p>
-            </div>
-          ))}
+              <Link href="/markets/board" className="inline-flex items-center gap-1.5 rounded border border-neon/30 bg-neon/10 px-3 py-1.5 font-mono text-[10px] font-black text-neon hover:bg-neon/20 transition-colors">
+                <Activity className="h-3 w-3" aria-hidden /> BOARD
+              </Link>
+            </>
+          ) : loaded ? (
+            <Link href="/signup" className="inline-flex items-center gap-1.5 rounded bg-neon px-3 py-1.5 font-mono text-[10px] font-black text-surface hover:bg-neon/90 transition-colors">
+              START FREE <ArrowRight className="h-3 w-3" aria-hidden />
+            </Link>
+          ) : null}
         </div>
-      </section>
+      </div>
 
-      {/* Trending markets */}
-      {loaded && trending.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-muted">
-              <TrendingUp className="h-4 w-4 text-neon" aria-hidden /> Trending Markets
-            </h2>
-            <Link href="/markets" className="text-xs font-bold text-field hover:text-neon transition-colors">
-              See all →
-            </Link>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {trending.map((market) => {
-              const player = playerMap.get(market.playerId);
-              if (!player) return null;
-              return <MiniMarketCard key={market.id} market={market} player={player} />;
-            })}
-          </div>
-        </section>
-      )}
+      {/* ── Main grid: board left / tape+side right ────────── */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
 
-      {/* Biggest movers */}
-      {loaded && movingUp.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-muted">
-              <BarChart2 className="h-4 w-4 text-charge" aria-hidden /> Biggest Movers
-            </h2>
-            <Link href="/markets?sort=yes-desc" className="text-xs font-bold text-field hover:text-neon transition-colors">
-              See all →
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {movingUp.map((market) => {
-              const player = playerMap.get(market.playerId);
-              if (!player) return null;
-              const move = ((market.yesPrice - market.openingPrice) / Math.max(market.openingPrice, 0.01)) * 100;
-              return (
-                <Link
-                  key={market.id}
-                  href={`/markets/${market.id}`}
-                  className="flex items-center gap-3 rounded-xl border border-rim bg-panel px-4 py-3 hover:border-neon/30 hover:bg-panel2 transition-all"
-                >
-                  <PlayerAvatar name={player.name} team={player.team} position={player.position} size="sm" showPosition={false} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-frost truncate">{player.name}</p>
-                    <p className="text-[10px] font-semibold text-muted">{thresholdLabel(market.threshold)} · {player.position}</p>
-                  </div>
-                  <TrendBadge value={move} label={`+${move.toFixed(1)}%`} />
-                  <span className="text-sm font-black text-neon">{pct(market.yesPrice)}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
+        {/* Left: live quote board sections */}
+        <div className="space-y-4">
 
-      {/* Markets locking soon */}
-      {loaded && lockingSoon.length > 0 && (
-        <section>
-          <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-muted mb-4">
-            <Star className="h-4 w-4 text-amber" aria-hidden /> Locking Soon
-          </h2>
-          <div className="space-y-2">
-            {lockingSoon.map((market) => {
-              const player = playerMap.get(market.playerId);
-              if (!player) return null;
-              const kickoff = new Date(market.kickoffTime);
-              const minutesLeft = Math.round((kickoff.getTime() - Date.now()) / 60000);
-              return (
-                <div key={market.id} className="flex items-center gap-3 rounded-xl border border-amber/20 bg-amber/5 px-4 py-3">
-                  <PlayerAvatar name={player.name} team={player.team} position={player.position} size="sm" showPosition={false} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-frost truncate">{player.name}</p>
-                    <p className="text-[10px] font-semibold text-amber">{minutesLeft}m until kickoff</p>
-                  </div>
-                  <Link href={`/markets/${market.id}`} className="text-xs font-black text-amber hover:text-gold transition-colors">
-                    Trade →
-                  </Link>
+          {/* Most active */}
+          <TerminalPanel label="MOST ACTIVE — VOLUME LEADERS">
+            {topVolume.length === 0 ? (
+              <div className="py-8 text-center font-mono text-[10px] text-muted">LOADING MARKETS…</div>
+            ) : (
+              <div>
+                <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 border-b border-rim/40 bg-panel2/50 px-3 py-1.5">
+                  {["INSTRUMENT","YES","NO","Δ%","VOL"].map((h) => (
+                    <span key={h} className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted/60 text-right first:text-left">{h}</span>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+                {topVolume.map((m) => {
+                  const p = playerMap.get(m.playerId);
+                  if (!p) return null;
+                  const change = m.openingPrice > 0 ? (m.yesPrice - m.openingPrice) / m.openingPrice : 0;
+                  return (
+                    <Link key={m.id} href={`/markets/${m.id}` as Route}
+                      className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-center px-3 py-2.5 border-b border-rim/30 last:border-0 hover:bg-panel2 transition-colors group">
+                      <div className="min-w-0">
+                        <p className="font-mono text-xs font-black text-frost group-hover:text-neon transition-colors truncate">{p.name}</p>
+                        <p className="font-mono text-[9px] text-muted">{p.team} · {thresholdLabel(m.threshold)} {m.position}</p>
+                      </div>
+                      <PriceFlash value={m.yesPrice}>
+                        <PriceCell value={m.yesPrice} direction={change > 0 ? "up" : change < 0 ? "down" : "flat"} />
+                      </PriceFlash>
+                      <PriceCell value={m.noPrice} direction={change < 0 ? "up" : change > 0 ? "down" : "flat"} size="xs" />
+                      <div className="hidden sm:block"><ChangeCell change={change} /></div>
+                      <div className="hidden sm:block"><VolumeCell volume={m.volume} /></div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </TerminalPanel>
 
-      {/* CTA for logged-out */}
-      {loaded && !session && (
-        <section className="rounded-2xl border border-neon/20 bg-neon/5 p-6 text-center">
-          <p className="text-xl font-black text-frost">Ready to trade?</p>
-          <p className="mt-2 text-sm font-semibold text-muted">Create your free account and start with 10,000 mock credits.</p>
-          <Link
-            href="/signup"
-            className="mt-5 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-neon px-8 text-sm font-black text-surface hover:bg-neon/90 transition"
-          >
-            Create Free Account
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-        </section>
-      )}
+          {/* Gainers / Losers */}
+          {(gainers.length > 0 || losers.length > 0) && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {gainers.length > 0 && (
+                <TerminalPanel label="TOP GAINERS">
+                  {gainers.map((m) => {
+                    const p = playerMap.get(m.playerId);
+                    if (!p) return null;
+                    const change = (m.yesPrice - m.openingPrice) / m.openingPrice;
+                    return (
+                      <Link key={m.id} href={`/markets/${m.id}` as Route}
+                        className="flex items-center gap-2 px-3 py-2 border-b border-rim/30 last:border-0 hover:bg-panel2 transition-colors group">
+                        <TrendingUp className="h-3 w-3 text-neon shrink-0" aria-hidden />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-mono text-[10px] font-black text-frost group-hover:text-neon truncate">{p.name}</p>
+                          <p className="font-mono text-[9px] text-muted">{thresholdLabel(m.threshold)}</p>
+                        </div>
+                        <ChangeCell change={change} />
+                        <PriceCell value={m.yesPrice} direction="up" size="xs" />
+                      </Link>
+                    );
+                  })}
+                </TerminalPanel>
+              )}
+              {losers.length > 0 && (
+                <TerminalPanel label="TOP LOSERS">
+                  {losers.map((m) => {
+                    const p = playerMap.get(m.playerId);
+                    if (!p) return null;
+                    const change = (m.yesPrice - m.openingPrice) / m.openingPrice;
+                    return (
+                      <Link key={m.id} href={`/markets/${m.id}` as Route}
+                        className="flex items-center gap-2 px-3 py-2 border-b border-rim/30 last:border-0 hover:bg-panel2 transition-colors group">
+                        <TrendingDown className="h-3 w-3 text-crimson shrink-0" aria-hidden />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-mono text-[10px] font-black text-frost group-hover:text-neon truncate">{p.name}</p>
+                          <p className="font-mono text-[9px] text-muted">{thresholdLabel(m.threshold)}</p>
+                        </div>
+                        <ChangeCell change={change} />
+                        <PriceCell value={m.yesPrice} direction="down" size="xs" />
+                      </Link>
+                    );
+                  })}
+                </TerminalPanel>
+              )}
+            </div>
+          )}
+
+          {/* Locking soon */}
+          {lockingSoon.length > 0 && (
+            <TerminalPanel label="LOCKING SOON — FINAL WINDOW">
+              {lockingSoon.map((m) => {
+                const p = playerMap.get(m.playerId);
+                if (!p) return null;
+                return (
+                  <Link key={m.id} href={`/markets/${m.id}` as Route}
+                    className="flex items-center gap-3 px-3 py-2.5 border-b border-rim/30 last:border-0 hover:bg-panel2 transition-colors group">
+                    <Clock className="h-3 w-3 text-amber shrink-0" aria-hidden />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-[10px] font-black text-frost group-hover:text-neon truncate">{p.name}</p>
+                      <p className="font-mono text-[9px] text-muted">{p.team} · {thresholdLabel(m.threshold)}</p>
+                    </div>
+                    <Countdown kickoffTime={m.kickoffTime} status={m.status} className="font-mono text-[10px] font-black" />
+                    <PriceFlash value={m.yesPrice}>
+                      <PriceCell value={m.yesPrice} />
+                    </PriceFlash>
+                  </Link>
+                );
+              })}
+            </TerminalPanel>
+          )}
+        </div>
+
+        {/* Right column: tape + leaderboard + account */}
+        <div className="space-y-4">
+
+          <div>
+            <TerminalHeader label="TAPE — LIVE TRADES" right={<LiveBadge isLive={live.isConnected} />} />
+            <ExchangeFeed events={live.feed} maxItems={12} />
+          </div>
+
+          {topTraders.length > 0 && (
+            <TerminalPanel label="LEADERBOARD" action={
+              <Link href="/leaderboard" className="text-neon hover:underline font-mono text-[9px]">FULL ▶</Link>
+            }>
+              {topTraders.map((entry, i) => {
+                const pos = (entry.totalPnl ?? 0) >= 0;
+                return (
+                  <div key={entry.id} className="flex items-center gap-2 px-3 py-2 border-b border-rim/30 last:border-0">
+                    <span className="font-mono text-[10px] font-black text-muted w-5 text-center">{i + 1}</span>
+                    <p className="font-mono text-[10px] font-black text-frost flex-1 truncate">{entry.name}</p>
+                    <span className={`font-mono text-[10px] font-black tabular-nums ${pos ? "text-neon" : "text-crimson"}`}>
+                      {pos ? "+" : ""}{credits(entry.totalPnl)}
+                    </span>
+                  </div>
+                );
+              })}
+            </TerminalPanel>
+          )}
+
+          {loaded && !session && (
+            <TerminalPanel label="ABOUT FX EXCHANGE">
+              <div className="space-y-0">
+                {[
+                  { icon: Zap,        color: "text-neon",   label: "FREE PLAY",       desc: "10,000 mock credits on signup. Zero real money." },
+                  { icon: TrendingUp, color: "text-charge", label: "PREDICTION MKT",  desc: "Trade YES/NO on NFL weekly rank outcomes." },
+                  { icon: Trophy,     color: "text-gold",   label: "SETTLE AT RANK",  desc: "Markets resolve after Sunday scoring closes." },
+                ].map(({ icon: Icon, color, label, desc }) => (
+                  <div key={label} className="flex items-start gap-3 px-3 py-2.5 border-b border-rim/30 last:border-0">
+                    <Icon className={`h-3 w-3 shrink-0 mt-0.5 ${color}`} aria-hidden />
+                    <div>
+                      <p className={`font-mono text-[9px] font-black ${color}`}>{label}</p>
+                      <p className="font-mono text-[9px] text-muted mt-0.5">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="px-3 pb-3 pt-1">
+                <Link href="/signup" className="flex w-full items-center justify-center gap-2 rounded border border-neon/30 bg-neon/10 py-2.5 font-mono text-[10px] font-black text-neon hover:bg-neon/20 transition-colors">
+                  OPEN ACCOUNT — FREE <ArrowRight className="h-3 w-3" aria-hidden />
+                </Link>
+              </div>
+            </TerminalPanel>
+          )}
+
+          {loaded && session && portfolio && (
+            <TerminalPanel label="YOUR ACCOUNT">
+              <div className="px-3 py-3 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="font-mono text-[9px] text-muted">BALANCE</span>
+                  <span className="font-mono text-xs font-black text-frost tabular-nums">{credits(portfolio.user.mockBalance)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-mono text-[9px] text-muted">ALL-TIME P&L</span>
+                  <span className={`font-mono text-xs font-black tabular-nums ${pnlPos ? "text-neon" : "text-crimson"}`}>
+                    {pnlPos ? "+" : ""}{credits(ana?.allTimePnl ?? 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-mono text-[9px] text-muted">OPEN POSITIONS</span>
+                  <span className="font-mono text-xs font-black text-frost tabular-nums">{openCount}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 px-3 pb-3">
+                <Link href="/portfolio" className="flex-1 text-center rounded border border-rim bg-panel2 py-2 font-mono text-[9px] font-bold text-muted hover:text-frost transition-colors">PORTFOLIO</Link>
+                <Link href="/markets" className="flex-1 text-center rounded border border-neon/30 bg-neon/10 py-2 font-mono text-[9px] font-bold text-neon hover:bg-neon/20 transition-colors">TRADE →</Link>
+              </div>
+            </TerminalPanel>
+          )}
+        </div>
+      </div>
+
+      {/* ── Full board CTA ───────────────────────────────────── */}
+      <div className="flex items-center justify-between rounded-lg border border-rim bg-panel2 px-4 py-3">
+        <div>
+          <p className="font-mono text-xs font-black text-frost">VIEW FULL MARKET BOARD</p>
+          <p className="font-mono text-[10px] text-muted mt-0.5">
+            Sort by volume · gainers · losers · locking · {markets.length} instruments
+          </p>
+        </div>
+        <Link href="/markets/board" className="inline-flex items-center gap-2 rounded border border-neon/30 bg-neon/10 px-4 py-2 font-mono text-[10px] font-black text-neon hover:bg-neon/20 transition-colors">
+          <Activity className="h-3.5 w-3.5" aria-hidden /> OPEN BOARD
+        </Link>
+      </div>
     </div>
   );
 }
 
-function MiniMarketCard({ market, player }: { market: ExtMarket; player: Player }) {
-  const yes = getYesPrice(market);
-  const no  = getNoPrice(market);
+function StatPill({ label, value, tone }: { label: string; value: string; tone?: "neon" | "crimson" }) {
+  const color = tone === "neon" ? "text-neon" : tone === "crimson" ? "text-crimson" : "text-frost";
   return (
-    <Link
-      href={`/markets/${market.id}`}
-      className="flex items-center gap-3 rounded-xl border border-rim bg-panel p-4 hover:border-neon/30 hover:bg-panel2 transition-all group"
-    >
-      <PlayerAvatar name={player.name} team={player.team} position={player.position} size="md" />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-black text-frost truncate group-hover:text-neon transition-colors">{player.name}</p>
-        <p className="text-[10px] font-semibold text-muted">{thresholdLabel(market.threshold)} · {player.team}</p>
-      </div>
-      <div className="flex flex-col items-end gap-1">
-        <span className="text-sm font-black text-neon">{pct(yes)}</span>
-        <span className="text-[10px] font-semibold text-muted">vol {credits(market.volume)}</span>
-      </div>
-    </Link>
+    <div className="text-right">
+      <p className="font-mono text-[8px] text-muted/60 uppercase tracking-wider">{label}</p>
+      <p className={`font-mono text-xs font-black tabular-nums ${color}`}>{value}</p>
+    </div>
   );
 }

@@ -4,11 +4,11 @@ This roadmap prioritizes architectural work by impact and dependency order. It a
 
 ## Project Status
 
-Current milestone: FX-014 Public Beta Mobile UX & Visual Identity complete.
+Current milestone: FX-016.5 Bloomberg Terminal Rebrand complete.
 
-Overall MVP foundation completion: 100%. Consumer-facing polish: complete.
+Overall MVP foundation completion: 100%. Consumer-facing polish: complete. Exchange UX: complete.
 
-Sprint 14 focus:
+Sprint 15 focus:
 
 - Completed: FX-001 Append-Only Ledger Foundation.
 - Completed: FX-002 Market Event Engine.
@@ -23,7 +23,10 @@ Sprint 14 focus:
 - Completed: FX-012 Live NFL Data, Automated Scoring & Settlement.
 - Completed: FX-013 Real NFL Provider Integration & Scheduled Jobs.
 - Completed: FX-014 Public Beta Mobile UX & Visual Identity.
-- Remaining: E2E smoke tests for login, trade, portfolio, and settlement.
+- Completed: FX-015 Exchange Experience.
+- Completed: FX-016 Live Exchange (SSE, price flash, countdown, exchange feed, live leaderboard).
+- Completed: FX-016.5 Bloomberg Terminal Rebrand (market board, terminal components, pixel avatars, opening price model, 105-player universe).
+- Next: FX-017 Concurrency Safety + winRate + E2E smoke tests.
 
 ## Completed - FX-012 Live NFL Data, Automated Scoring & Settlement
 

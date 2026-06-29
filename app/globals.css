@@ -50,10 +50,7 @@ button, input, select, textarea {
   padding: 0.75rem 1rem;
   transition: transform 150ms ease;
 }
-
-.skip-link:focus {
-  transform: translateY(0);
-}
+.skip-link:focus { transform: translateY(0); }
 
 /* Mobile bottom nav safe area */
 .pb-safe {
@@ -61,25 +58,26 @@ button, input, select, textarea {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: #0D1117; }
 ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: #334155; }
 
-/* Chart text override for dark bg */
+/* Hide scrollbar but keep scroll */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Chart text override */
 .recharts-text { fill: #64748B !important; }
 .recharts-cartesian-axis-tick-value { fill: #64748B !important; }
 
 /* Admin pages keep light panels */
-.admin-panel {
-  background: #ffffff;
-  color: #101820;
-}
+.admin-panel { background: #ffffff; color: #101820; }
 
-/* Gradient text utility */
+/* ─── Gradient text ─── */
 .text-gradient-neon {
   background: linear-gradient(135deg, #00D46A, #3B82F6);
   -webkit-background-clip: text;
@@ -92,29 +90,120 @@ button, input, select, textarea {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+.text-gradient-fire {
+  background: linear-gradient(135deg, #F59E0B, #EF4444);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.text-gradient-charge {
+  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 
-/* Shimmer animation for skeletons */
+/* ─── Shimmer skeleton ─── */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
+  0%   { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 .animate-shimmer {
-  background: linear-gradient(90deg, #1E2A3A 25%, #2A3A4A 50%, #1E2A3A 75%);
+  background: linear-gradient(90deg, #1E2A3A 25%, #243447 50%, #1E2A3A 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
-/* Market card hover glow */
-.market-card-hover:hover {
-  box-shadow: 0 0 0 1px rgba(0, 212, 106, 0.3), 0 8px 32px rgba(0, 0, 0, 0.4);
+/* ─── Glow utilities ─── */
+.glow-neon    { box-shadow: 0 0 24px rgba(0, 212, 106, 0.35); }
+.glow-neon-sm { box-shadow: 0 0 12px rgba(0, 212, 106, 0.25); }
+.glow-crimson { box-shadow: 0 0 24px rgba(239, 68, 68, 0.35); }
+.glow-gold    { box-shadow: 0 0 24px rgba(215, 169, 75, 0.35); }
+.glow-ring    { box-shadow: 0 0 0 2px rgba(0, 212, 106, 0.45); }
+
+/* Card depth */
+.card-depth {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.45),
+              inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
-/* Trade button pulse on success */
+/* Market card hover */
+.market-card-hover:hover {
+  box-shadow: 0 0 0 1px rgba(0,212,106,0.3), 0 8px 32px rgba(0,0,0,0.4);
+}
+
+/* ─── Trade success animation ─── */
 @keyframes tradeSuccess {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.03); }
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.04); }
   100% { transform: scale(1); }
 }
-.trade-success {
-  animation: tradeSuccess 0.3s ease-out;
+.trade-success { animation: tradeSuccess 0.35s ease-out; }
+
+/* ─── Confetti pop ─── */
+@keyframes pop {
+  0%   { transform: scale(0.5); opacity: 0; }
+  70%  { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
 }
+.animate-pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
+
+/* ─── Number counter ─── */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-count { animation: countUp 0.4s ease-out both; }
+
+/* ─── Exchange ticker ─── */
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-ticker { animation: ticker 40s linear infinite; }
+.animate-ticker-fast { animation: ticker 20s linear infinite; }
+.animate-ticker:hover { animation-play-state: paused; }
+
+/* ─── Glow pulse (neon border breathing) ─── */
+@keyframes glowBorder {
+  0%, 100% { border-color: rgba(0,212,106,0.2); }
+  50%       { border-color: rgba(0,212,106,0.6); }
+}
+.animate-glow-border { animation: glowBorder 2.5s ease-in-out infinite; }
+
+/* ─── Achievement badge shine ─── */
+@keyframes shine {
+  from { background-position: -200%; }
+  to   { background-position: 200%; }
+}
+.badge-shine {
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
+  background-size: 200%;
+  animation: shine 2.5s linear infinite;
+}
+
+/* ─── Price flash (green / red) ─── */
+@keyframes flashUp {
+  0%   { background-color: rgba(0, 212, 106, 0.35); }
+  100% { background-color: transparent; }
+}
+@keyframes flashDown {
+  0%   { background-color: rgba(220, 38, 38, 0.35); }
+  100% { background-color: transparent; }
+}
+.animate-flash-up   { animation: flashUp   0.8s ease-out; }
+.animate-flash-down { animation: flashDown 0.8s ease-out; }
+
+/* ─── Feed entry slide-in ─── */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeSlideIn 0.35s ease-out both; }
+
+/* ─── Leaderboard rank climb ─── */
+@keyframes climbIn {
+  0%   { opacity: 0; transform: translateX(-8px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.animate-climb { animation: climbIn 0.4s ease-out both; }

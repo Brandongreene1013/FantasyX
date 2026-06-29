@@ -121,9 +121,9 @@ describe("FX-006 NFL Data Engine", () => {
   describe("DemoNflDataProvider", () => {
     const provider = new DemoNflDataProvider();
 
-    it("returns 20 teams", async () => {
+    it("returns 32 teams", async () => {
       const teams = await provider.getTeams();
-      expect(teams.length).toBe(20);
+      expect(teams.length).toBe(32);
     });
 
     it("every team has required fields", async () => {
@@ -137,9 +137,9 @@ describe("FX-006 NFL Data Engine", () => {
       }
     });
 
-    it("returns 13 players for the demo slate", async () => {
+    it("returns 105+ players for the expanded universe", async () => {
       const players = await provider.getPlayers();
-      expect(players.length).toBe(13);
+      expect(players.length).toBeGreaterThanOrEqual(105);
     });
 
     it("every player has a valid position", async () => {
@@ -156,9 +156,9 @@ describe("FX-006 NFL Data Engine", () => {
       }
     });
 
-    it("returns 10 games for demo week", async () => {
+    it("returns 16 games for demo week", async () => {
       const games = await provider.getGames(2026, 1);
-      expect(games.length).toBe(10);
+      expect(games.length).toBe(16);
     });
 
     it("returns 0 games for unknown week", async () => {
@@ -178,9 +178,9 @@ describe("FX-006 NFL Data Engine", () => {
       expect(weeks.length).toBe(0);
     });
 
-    it("returns slate with 13 player entries", async () => {
+    it("returns slate with 105+ player entries", async () => {
       const slate = await provider.getSlate(2026, 1);
-      expect(slate.players.length).toBe(13);
+      expect(slate.players.length).toBeGreaterThanOrEqual(105);
     });
 
     it("every slate entry references a known player externalId", async () => {

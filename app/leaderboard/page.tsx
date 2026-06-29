@@ -1,75 +1,89 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Trophy, Medal, TrendingUp, TrendingDown, Crown } from "lucide-react";
-import { apiGet, defaultWeekId, type LeaderboardResponse, type SessionResponse } from "@/lib/client-api";
-import { credits, pct } from "@/lib/format";
+import { Trophy, Medal, TrendingUp, TrendingDown, Crown, Radio } from "lucide-react";
+import { apiGet, defaultWeekId, type SessionResponse } from "@/lib/client-api";
+import { useLiveExchange } from "@/hooks/use-live-exchange";
+import { credits } from "@/lib/format";
+import { LiveBadge } from "@/components/ui/live-badge";
 import { ErrorState } from "@/components/ui/empty-state";
+import type { LeaderboardResponse } from "@/lib/client-api";
 
 export default function LeaderboardPage() {
-  const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
+  const live = useLiveExchange(defaultWeekId);
   const [session, setSession] = useState<SessionResponse["user"]>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error,   setError]   = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setIsLoading(true); setError(null);
-    try {
-      const [lb, sess] = await Promise.all([
-        apiGet<LeaderboardResponse>(`/api/leaderboard?weekId=${defaultWeekId}`),
-        apiGet<SessionResponse>("/api/session").catch(() => null)
-      ]);
-      setLeaderboard(lb);
-      setSession(sess?.user ?? null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load leaderboard");
-    } finally {
-      setIsLoading(false);
-    }
+  // Track previous ranks to animate climbers
+  const prevRanksRef = useRef<Map<string, number>>(new Map());
+  const [climbers, setClimbers] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    apiGet<SessionResponse>("/api/session")
+      .then((s) => setSession(s.user ?? null))
+      .catch(() => setError("Could not load session"));
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  // Detect rank changes and animate climbers
+  useEffect(() => {
+    const entries = live.leaderboard;
+    if (entries.length === 0) return;
+    const newClimbers = new Set<string>();
+    for (const e of entries) {
+      const prev = prevRanksRef.current.get(e.userId);
+      if (prev !== undefined && e.rank !== null && prev > e.rank) {
+        newClimbers.add(e.userId);
+      }
+    }
+    if (newClimbers.size > 0) {
+      setClimbers(newClimbers);
+      const t = setTimeout(() => setClimbers(new Set()), 1500);
+      // update refs
+      for (const e of entries) if (e.rank !== null) prevRanksRef.current.set(e.userId, e.rank);
+      return () => clearTimeout(t);
+    }
+    for (const e of entries) if (e.rank !== null) prevRanksRef.current.set(e.userId, e.rank);
+  }, [live.leaderboard]);
 
-  const entries = leaderboard?.entries ?? [];
+  const entries = live.leaderboard;
   const top3    = entries.slice(0, 3);
   const rest    = entries.slice(3);
+  const isLoading = entries.length === 0 && !error;
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  if (error) return <ErrorState message={error} />;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-black text-frost flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-gold" aria-hidden /> Leaderboard
-        </h1>
-        <p className="text-xs font-semibold text-muted mt-1">Week 1 standings · ranked by total P&L</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-black text-frost flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-gold" aria-hidden /> Leaderboard
+          </h1>
+          <p className="text-xs font-semibold text-muted mt-1 flex items-center gap-1.5">
+            <Radio className="h-3 w-3 text-neon animate-pulse" aria-hidden />
+            Week 1 standings · ranked by total P&L · live
+          </p>
+        </div>
+        <LiveBadge isLive={live.isConnected} />
       </div>
 
       {/* Podium — top 3 */}
       {!isLoading && top3.length > 0 && (
         <section aria-label="Top 3 traders">
           <div className="flex items-end justify-center gap-3 pb-2">
-            {/* 2nd */}
-            {top3[1] && <PodiumCard entry={top3[1]} rank={2} currentUserId={session?.id} />}
-            {/* 1st */}
-            {top3[0] && <PodiumCard entry={top3[0]} rank={1} currentUserId={session?.id} elevated />}
-            {/* 3rd */}
-            {top3[2] && <PodiumCard entry={top3[2]} rank={3} currentUserId={session?.id} />}
+            {top3[1] && <PodiumCard entry={top3[1]} rank={2} currentUserId={session?.id} isClimbing={climbers.has(top3[1].userId)} />}
+            {top3[0] && <PodiumCard entry={top3[0]} rank={1} currentUserId={session?.id} elevated isClimbing={climbers.has(top3[0].userId)} />}
+            {top3[2] && <PodiumCard entry={top3[2]} rank={3} currentUserId={session?.id} isClimbing={climbers.has(top3[2].userId)} />}
           </div>
         </section>
       )}
 
       {/* Full table */}
       <section className="rounded-xl border border-rim bg-panel overflow-hidden">
-        {/* Desktop header */}
         <div className="hidden grid-cols-[3rem_1fr_1fr_1fr_1fr] gap-3 border-b border-rim bg-panel2 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted sm:grid">
-          <span>#</span>
-          <span>Trader</span>
-          <span>Weekly P&L</span>
-          <span>Total P&L</span>
-          <span>Balance</span>
+          <span>#</span><span>Trader</span><span>Weekly P&L</span><span>Total P&L</span><span>Balance</span>
         </div>
 
         {isLoading && (
@@ -80,7 +94,7 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {!isLoading && !error && entries.length === 0 && (
+        {!isLoading && entries.length === 0 && (
           <div className="py-12 text-center text-sm font-semibold text-muted">
             No entries yet. Start trading to appear here.
           </div>
@@ -89,11 +103,12 @@ export default function LeaderboardPage() {
         {!isLoading && entries.map((row, i) => {
           const isMe = row.userId === session?.id;
           const isTop3 = i < 3;
+          const isClimbing = climbers.has(row.userId);
           return (
             <div
               key={row.id}
-              className={`grid grid-cols-[3rem_1fr_1fr_1fr] sm:grid-cols-[3rem_1fr_1fr_1fr_1fr] items-center gap-3 border-b border-rim/60 px-4 py-3 last:border-b-0 transition-colors ${
-                isMe ? "bg-neon/5 border-neon/20" : "hover:bg-panel2"
+              className={`grid grid-cols-[3rem_1fr_1fr_1fr] sm:grid-cols-[3rem_1fr_1fr_1fr_1fr] items-center gap-3 border-b border-rim/60 px-4 py-3 last:border-b-0 transition-all ${
+                isClimbing ? "bg-neon/8 animate-climb" : isMe ? "bg-neon/5 border-neon/20" : "hover:bg-panel2"
               }`}
             >
               {/* Rank */}
@@ -105,6 +120,7 @@ export default function LeaderboardPage() {
                     {row.rank ?? i + 1}
                   </span>
                 )}
+                {isClimbing && <span className="ml-1 text-[10px] text-neon">↑</span>}
               </div>
 
               {/* Name */}
@@ -118,13 +134,9 @@ export default function LeaderboardPage() {
                 </p>
               </div>
 
-              {/* Weekly P&L */}
               <PnlCell value={row.weeklyPnl} label="Week" />
-
-              {/* Total P&L */}
               <PnlCell value={row.totalPnl} label="Total" />
 
-              {/* Balance */}
               <div className="hidden sm:block text-right">
                 <p className="text-sm font-bold text-frost">{credits(row.balance)}</p>
               </div>
@@ -133,7 +145,6 @@ export default function LeaderboardPage() {
         })}
       </section>
 
-      {/* My rank callout if not in view */}
       {session && entries.length > 0 && !entries.slice(0, 10).some((e) => e.userId === session.id) && (
         <div className="rounded-xl border border-neon/20 bg-neon/5 px-4 py-3 flex items-center justify-between">
           <p className="text-sm font-semibold text-muted">You&apos;re not yet ranked. Trade more to climb!</p>
@@ -144,20 +155,17 @@ export default function LeaderboardPage() {
   );
 }
 
-function PodiumCard({ entry, rank, currentUserId, elevated }: {
-  entry: LeaderboardResponse["entries"][0];
-  rank: number;
-  currentUserId?: string | null;
-  elevated?: boolean;
+function PodiumCard({ entry, rank, currentUserId, elevated, isClimbing }: {
+  entry: LeaderboardResponse["entries"][0]; rank: number; currentUserId?: string | null; elevated?: boolean; isClimbing?: boolean;
 }) {
   const isMe = entry.userId === currentUserId;
   const RANK_COLORS: Record<number, string> = { 1: "text-gold border-gold/40 bg-gold/10", 2: "text-muted border-rim bg-panel", 3: "text-amber/70 border-amber/20 bg-amber/5" };
   const initials = entry.name.split(" ").slice(0, 2).map((s) => s[0]).join("").toUpperCase();
-
   return (
-    <div className={`flex flex-col items-center gap-2 ${elevated ? "mb-0 pb-0" : "mt-6"}`}>
+    <div className={`flex flex-col items-center gap-2 ${elevated ? "mb-0 pb-0" : "mt-6"} ${isClimbing ? "animate-climb" : ""}`}>
       <div className={`h-12 w-12 rounded-full border-2 flex items-center justify-center font-black text-sm ${RANK_COLORS[rank]} ${elevated ? "h-16 w-16 text-base" : ""}`}>
         {initials}
+        {isClimbing && <span className="absolute text-neon text-[10px] ml-8 -mt-4">↑</span>}
       </div>
       <div className="text-center">
         <p className={`text-xs font-black ${isMe ? "text-neon" : "text-frost"} max-w-[80px] truncate`}>{entry.name}</p>

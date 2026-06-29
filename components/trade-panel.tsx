@@ -1,77 +1,59 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
+import { CheckCircle2, Zap } from "lucide-react";
 import { getSidePrice, quoteBuy, quoteSell } from "@/lib/amm";
 import { apiPost } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
 import type { Market, Player, Side } from "@/lib/types";
 
-type TradePosition = {
-  yesShares: number;
-  noShares: number;
-  currentValue: number;
-};
+type TradePosition = { yesShares: number; noShares: number; currentValue: number };
+
+const QUICK_AMOUNTS = [25, 50, 100, 250, 500] as const;
 
 export function TradePanel({
-  market,
-  player,
-  balance,
-  position,
-  onTradeComplete
+  market, player, balance, position, onTradeComplete
 }: {
-  market: Market;
-  player: Player;
-  balance: number;
-  position?: TradePosition | null;
-  onTradeComplete: () => void;
+  market: Market; player: Player; balance: number;
+  position?: TradePosition | null; onTradeComplete: () => void;
 }) {
-  const [mode, setMode] = useState<"BUY" | "SELL">("BUY");
-  const [side, setSide] = useState<Side>("YES");
-  const [amount, setAmount] = useState(25);
+  const [mode, setMode]         = useState<"BUY" | "SELL">("BUY");
+  const [side, setSide]         = useState<Side>("YES");
+  const [amount, setAmount]     = useState(50);
   const [sellShares, setSellShares] = useState(1);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const [success, setSuccess]   = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const amountId = useId();
-  const amountHelpId = useId();
-  const amountErrorId = useId();
-  const liveId = useId();
 
-  const isOpen = market.status === "OPEN";
-  const ownedShares = side === "YES" ? position?.yesShares ?? 0 : position?.noShares ?? 0;
-  const buyQuote = useMemo(() => quoteBuy(market, side, amount), [market, side, amount]);
-  const sellQuote = useMemo(() => quoteSell(market, side, sellShares), [market, side, sellShares]);
-  const estimatedShares = buyQuote.shares;
-  const avgEntry = estimatedShares > 0 ? amount / estimatedShares : 0;
-  const balanceAfterBuy = balance - amount;
-  const balanceAfterSell = balance + sellQuote.proceeds;
+  const amountId  = useId();
+  const liveId    = useId();
+  const errId     = useId();
 
-  const inputError =
-    mode === "SELL"
-      ? sellShares <= 0
-        ? "Sell quantity must be greater than zero."
-        : sellShares > ownedShares
-          ? "Sell quantity exceeds shares owned."
-          : null
-      : amount <= 0
-        ? "Amount must be greater than zero."
-        : amount > balance
-          ? "Amount exceeds available balance."
-          : null;
+  const isOpen       = market.status === "OPEN";
+  const ownedShares  = side === "YES" ? (position?.yesShares ?? 0) : (position?.noShares ?? 0);
+  const buyQuote     = useMemo(() => quoteBuy(market, side, amount),        [market, side, amount]);
+  const sellQuote    = useMemo(() => quoteSell(market, side, sellShares),   [market, side, sellShares]);
+  const estShares    = buyQuote.shares;
+  const avgEntry     = estShares > 0 ? amount / estShares : 0;
+  const balAfterBuy  = balance - amount;
+  const balAfterSell = balance + sellQuote.proceeds;
 
-  const canTrade = isOpen && !isSubmitting && !inputError && (mode === "SELL" ? ownedShares > 0 : amount > 0 && amount <= balance);
+  const inputError = mode === "SELL"
+    ? (sellShares <= 0 ? "Must be > 0" : sellShares > ownedShares ? "Exceeds shares owned" : null)
+    : (amount <= 0 ? "Must be > 0" : amount > balance ? "Insufficient balance" : null);
+
+  const canTrade = isOpen && !isSubmitting && !inputError &&
+    (mode === "SELL" ? ownedShares > 0 : amount > 0 && amount <= balance);
 
   async function submit() {
     if (!canTrade) return;
-    setIsSubmitting(true);
-    setError(null);
-    setSuccess(false);
+    setIsSubmitting(true); setError(null); setSuccess(false);
     try {
       await apiPost("/api/trades", mode === "SELL"
         ? { action: "SELL", marketId: market.id, side, shares: sellShares, idempotencyKey: crypto.randomUUID() }
-        : { action: "BUY", marketId: market.id, side, spend: amount, idempotencyKey: crypto.randomUUID() });
+        : { action: "BUY",  marketId: market.id, side, spend: amount,      idempotencyKey: crypto.randomUUID() });
       setSuccess(true);
-      onTradeComplete();
+      setTimeout(() => { setSuccess(false); onTradeComplete(); }, 1400);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Trade failed");
     } finally {
@@ -79,131 +61,232 @@ export function TradePanel({
     }
   }
 
-  return (
-    <section aria-label="Trade panel" className="rounded border border-ink/10 bg-white p-5 shadow-soft">
-      <h2 className="text-sm font-black uppercase tracking-widest text-ink/70">Trade</h2>
-      <p className="mt-1 text-xs font-semibold text-ink/60">
-        {player.name} - {thresholdLabel(market.threshold)} - {player.position}
-      </p>
+  function changeMode(m: "BUY" | "SELL") { setMode(m); setError(null); setSuccess(false); }
+  function changeSide(s: Side)            { setSide(s); setError(null); setSuccess(false); }
 
-      {!isOpen ? (
-        <div className="mt-4 rounded bg-ink/5 p-4 text-sm font-bold text-ink/70">
-          Market is {market.status.toLowerCase()} and trading is disabled.
-          {market.result ? ` Result: ${market.result}.` : ""}
+  // ── Success overlay ────────────────────────────────────────────
+  if (success) {
+    return (
+      <section aria-live="polite" className="rounded-2xl border border-neon/30 bg-neon/5 p-6 text-center animate-scale-in glow-neon-sm">
+        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-neon/15 border border-neon/30 animate-pop">
+          <CheckCircle2 className="h-7 w-7 text-neon" />
         </div>
-      ) : null}
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <ModeButton active={mode === "BUY"} label="Buy" disabled={!isOpen} onClick={() => changeMode("BUY")} />
-        <ModeButton active={mode === "SELL"} label="Sell" disabled={!isOpen} onClick={() => changeMode("SELL")} />
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <SideButton active={side === "YES"} label="YES" price={getSidePrice(market, "YES")} disabled={!isOpen} onClick={() => changeSide("YES")} />
-        <SideButton active={side === "NO"} label="NO" price={getSidePrice(market, "NO")} disabled={!isOpen} onClick={() => changeSide("NO")} />
-      </div>
-
-      {position && (position.yesShares > 0 || position.noShares > 0) ? (
-        <div className="mt-4 rounded border border-field/20 bg-field/5 p-3 text-xs font-bold text-ink/70">
-          Position: YES {position.yesShares.toFixed(3)} / NO {position.noShares.toFixed(3)} - est. value {credits(position.currentValue)}
-        </div>
-      ) : null}
-
-      <div className="mt-4">
-        <label htmlFor={amountId} className="mb-1 block text-xs font-black uppercase tracking-widest text-ink/70">
-          {mode === "SELL" ? "Shares to sell" : "Amount (mock credits)"}
-        </label>
-        <input
-          id={amountId}
-          type="number"
-          min={mode === "SELL" ? 0.000001 : 1}
-          step={mode === "SELL" ? 0.000001 : 1}
-          max={mode === "SELL" ? ownedShares : balance}
-          value={mode === "SELL" ? sellShares : amount}
-          disabled={!isOpen}
-          onChange={(event) => {
-            const value = Number(event.target.value);
-            if (mode === "SELL") setSellShares(value);
-            else setAmount(value);
-            setError(null);
-            setSuccess(false);
-          }}
-          className="h-12 w-full rounded border border-ink/15 bg-chalk px-3 text-lg font-black outline-none focus:border-field disabled:cursor-not-allowed disabled:opacity-50"
-          aria-describedby={`${amountHelpId}${inputError ? ` ${amountErrorId}` : ""}`}
-          aria-invalid={Boolean(inputError)}
-        />
-        <p id={amountHelpId} className="mt-1 text-xs font-semibold text-ink/60">
-          {mode === "SELL" ? `Owned ${side}: ${ownedShares.toFixed(6)} shares` : `Available: ${credits(balance)}`}
+        <p className="text-lg font-black text-neon">Trade Confirmed</p>
+        <p className="mt-1 text-sm font-semibold text-muted">
+          {mode === "BUY" ? `Bought ${side} · ${estShares.toFixed(2)} shares` : `Sold ${side} · ${credits(sellQuote.proceeds)} received`}
         </p>
-        {mode === "SELL" && ownedShares > 0 ? (
-          <button className="mt-2 rounded border border-ink/10 px-3 py-1.5 text-xs font-black hover:bg-ink/5" type="button" onClick={() => setSellShares(ownedShares)}>
-            Sell all {side}
-          </button>
-        ) : null}
+      </section>
+    );
+  }
+
+  return (
+    <section aria-label="Trade panel" className="rounded-2xl border border-rim bg-panel card-depth">
+      {/* Header */}
+      <div className="px-5 pt-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Zap className="h-4 w-4 text-neon" aria-hidden />
+          <h2 className="text-sm font-black text-frost">Trade</h2>
+        </div>
+        <p className="text-[11px] font-semibold text-muted">
+          {player.name} · {thresholdLabel(market.threshold)} · {player.position}
+        </p>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <Metric label="Current price" value={pct(getSidePrice(market, side))} />
-        <Metric label={mode === "SELL" ? "Est. proceeds" : "Est. shares"} value={mode === "SELL" ? credits(sellQuote.proceeds) : estimatedShares > 0 ? estimatedShares.toFixed(3) : "-"} />
-        <Metric label={mode === "SELL" ? "Owned side" : "Avg entry"} value={mode === "SELL" ? ownedShares.toFixed(3) : avgEntry > 0 ? pct(avgEntry) : "-"} />
-        <Metric label="Balance after" value={credits(mode === "SELL" ? balanceAfterSell : Math.max(0, balanceAfterBuy))} highlight={mode === "BUY" && balanceAfterBuy < 0} />
-      </div>
+      {!isOpen && (
+        <div className="mx-5 mt-4 rounded-xl bg-rim/40 px-4 py-3 text-sm font-semibold text-muted">
+          Market {market.status.toLowerCase()} — trading disabled.{market.result ? ` Result: ${market.result}.` : ""}
+        </div>
+      )}
 
-      {inputError ? <p id={amountErrorId} role="alert" className="mt-3 rounded bg-rush/10 px-3 py-2 text-sm font-bold text-rush">{inputError}</p> : null}
-      {error ? <p role="alert" className="mt-3 rounded bg-rush/10 px-3 py-2 text-sm font-bold text-rush">{error}</p> : null}
-      {success ? <p role="status" className="mt-3 rounded bg-field/10 px-3 py-2 text-sm font-bold text-field">Trade confirmed.</p> : null}
+      <div className="p-5 space-y-4">
+        {/* Buy / Sell toggle */}
+        <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-rim bg-surface p-1">
+          {(["BUY", "SELL"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              disabled={!isOpen}
+              onClick={() => changeMode(m)}
+              aria-pressed={mode === m}
+              className={`h-9 rounded-lg text-xs font-black transition-all ${
+                mode === m
+                  ? m === "BUY"
+                    ? "bg-neon text-surface shadow-glow-sm"
+                    : "bg-crimson text-white"
+                  : "text-muted hover:text-frost"
+              } disabled:opacity-40 disabled:cursor-not-allowed`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+
+        {/* YES / NO toggle */}
+        <div className="grid grid-cols-2 gap-2">
+          {(["YES", "NO"] as const).map((s) => {
+            const price = getSidePrice(market, s);
+            const isYes = s === "YES";
+            const active = side === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                disabled={!isOpen}
+                onClick={() => changeSide(s)}
+                aria-pressed={active}
+                className={`rounded-xl border p-3 text-left transition-all ${
+                  active
+                    ? isYes
+                      ? "border-neon/50 bg-neon/10 glow-neon-sm"
+                      : "border-crimson/50 bg-crimson/10 glow-crimson"
+                    : "border-rim bg-panel2 hover:border-rim/80"
+                } disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                <p className={`text-[10px] font-black uppercase tracking-wider ${active ? (isYes ? "text-neon" : "text-crimson") : "text-muted"}`}>{s}</p>
+                <p className={`mt-1 text-xl font-black ${active ? (isYes ? "text-neon" : "text-crimson") : "text-frost"}`}>{pct(price)}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Position hint */}
+        {position && (position.yesShares > 0 || position.noShares > 0) && (
+          <div className="rounded-xl bg-panel2 px-3 py-2 text-[10px] font-semibold text-muted">
+            Position: YES {position.yesShares.toFixed(2)} sh · NO {position.noShares.toFixed(2)} sh · val {credits(position.currentValue)}
+          </div>
+        )}
+
+        {/* Amount input */}
+        {mode === "BUY" ? (
+          <div>
+            {/* Quick amounts */}
+            <div className="flex gap-1.5 mb-2">
+              {QUICK_AMOUNTS.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => { setAmount(q); setError(null); setSuccess(false); }}
+                  className={`flex-1 rounded-lg border py-1.5 text-[10px] font-black transition-all ${
+                    amount === q
+                      ? "border-neon/40 bg-neon/10 text-neon"
+                      : "border-rim bg-panel2 text-muted hover:text-frost hover:border-rim/80"
+                  }`}
+                >
+                  {q}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => { setAmount(Math.floor(balance)); setError(null); setSuccess(false); }}
+                className={`flex-1 rounded-lg border py-1.5 text-[10px] font-black transition-all ${
+                  amount === Math.floor(balance)
+                    ? "border-amber/40 bg-amber/10 text-amber"
+                    : "border-rim bg-panel2 text-muted hover:text-frost hover:border-rim/80"
+                }`}
+              >
+                MAX
+              </button>
+            </div>
+            <label htmlFor={amountId} className="sr-only">Amount in mock credits</label>
+            <input
+              id={amountId}
+              type="number"
+              min={1}
+              max={balance}
+              value={amount}
+              disabled={!isOpen}
+              onChange={(e) => { setAmount(Number(e.target.value)); setError(null); setSuccess(false); }}
+              className="h-12 w-full rounded-xl border border-rim bg-panel2 px-4 text-lg font-black text-frost outline-none focus:border-neon/50 transition-colors disabled:opacity-50"
+              aria-describedby={errId}
+              aria-invalid={Boolean(inputError)}
+            />
+            <p className="mt-1 text-[10px] font-semibold text-muted">Available: {credits(balance)}</p>
+          </div>
+        ) : (
+          <div>
+            <label htmlFor={amountId} className="block mb-1 text-[10px] font-black uppercase tracking-wider text-muted">Shares to sell</label>
+            <div className="flex gap-2">
+              <input
+                id={amountId}
+                type="number"
+                min={0.000001}
+                step={0.000001}
+                max={ownedShares}
+                value={sellShares}
+                disabled={!isOpen}
+                onChange={(e) => { setSellShares(Number(e.target.value)); setError(null); setSuccess(false); }}
+                className="h-12 flex-1 rounded-xl border border-rim bg-panel2 px-4 text-lg font-black text-frost outline-none focus:border-crimson/50 transition-colors disabled:opacity-50"
+              />
+              {ownedShares > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSellShares(ownedShares)}
+                  className="rounded-xl border border-rim bg-panel2 px-3 text-[10px] font-black text-muted hover:text-frost transition-colors"
+                >
+                  All
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-[10px] font-semibold text-muted">Owned {side}: {ownedShares.toFixed(4)} sh</p>
+          </div>
+        )}
+
+        {/* Metrics */}
+        <div className="grid grid-cols-2 gap-2">
+          <Metric label="Price" value={pct(getSidePrice(market, side))} />
+          <Metric label={mode === "SELL" ? "Est. proceeds" : "Est. shares"} value={mode === "SELL" ? credits(sellQuote.proceeds) : (estShares > 0 ? estShares.toFixed(3) : "—")} />
+          <Metric label={mode === "SELL" ? "Shares owned" : "Avg entry"} value={mode === "SELL" ? ownedShares.toFixed(3) : (avgEntry > 0 ? pct(avgEntry) : "—")} />
+          <Metric
+            label="Balance after"
+            value={credits(mode === "SELL" ? balAfterSell : Math.max(0, balAfterBuy))}
+            tone={mode === "BUY" && balAfterBuy < 0 ? "danger" : "default"}
+          />
+        </div>
+
+        {/* Errors */}
+        {(inputError ?? error) && (
+          <p id={errId} role="alert" className="rounded-xl bg-crimson/10 border border-crimson/20 px-4 py-2 text-sm font-bold text-crimson">
+            {inputError ?? error}
+          </p>
+        )}
+
+        {/* Submit */}
+        <button
+          type="button"
+          disabled={!canTrade}
+          onClick={submit}
+          className={`h-13 w-full rounded-xl text-sm font-black transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${
+            !canTrade
+              ? "bg-rim text-muted"
+              : mode === "BUY"
+                ? side === "YES"
+                  ? "bg-neon text-surface hover:bg-neon/90 shadow-glow-sm"
+                  : "bg-crimson text-white hover:bg-crimson/90 shadow-glow-crimson"
+                : "bg-panel2 border border-rim text-frost hover:border-frost/20"
+          }`}
+          aria-describedby={liveId}
+        >
+          {isSubmitting
+            ? "Confirming…"
+            : mode === "BUY"
+              ? `Buy ${side} · ${credits(amount)}`
+              : `Sell ${side} · ${sellShares.toFixed(3)} sh`
+          }
+        </button>
+      </div>
 
       <p id={liveId} className="sr-only" aria-live="polite" aria-atomic="true">
-        {isSubmitting ? "Submitting trade." : success ? "Trade confirmed." : error ? "Trade failed." : ""}
+        {isSubmitting ? "Submitting trade." : error ? "Trade failed." : ""}
       </p>
-
-      <button
-        type="button"
-        disabled={!canTrade}
-        onClick={submit}
-        aria-describedby={liveId}
-        className="mt-5 h-12 w-full rounded bg-ink text-sm font-black text-white transition hover:bg-field disabled:cursor-not-allowed disabled:bg-ink/30"
-      >
-        {isSubmitting ? "Confirming..." : mode === "SELL" ? `Sell ${side} - ${sellShares.toFixed(3)} shares` : `Buy ${side} - ${credits(amount)}`}
-      </button>
     </section>
   );
-
-  function changeMode(nextMode: "BUY" | "SELL") {
-    setMode(nextMode);
-    setError(null);
-    setSuccess(false);
-  }
-
-  function changeSide(nextSide: Side) {
-    setSide(nextSide);
-    setError(null);
-    setSuccess(false);
-  }
 }
 
-function ModeButton({ active, label, disabled, onClick }: { active: boolean; label: string; disabled: boolean; onClick: () => void }) {
+function Metric({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "danger" }) {
   return (
-    <button type="button" disabled={disabled} onClick={onClick} aria-pressed={active} className={`rounded border p-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-field bg-field/10" : "border-ink/10 bg-chalk hover:border-ink/30"}`}>
-      {label}
-    </button>
-  );
-}
-
-function SideButton({ active, label, price, disabled, onClick }: { active: boolean; label: Side; price: number; disabled: boolean; onClick: () => void }) {
-  return (
-    <button type="button" disabled={disabled} onClick={onClick} aria-pressed={active} className={`rounded border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-field bg-field/10" : "border-ink/10 bg-chalk hover:border-ink/30"}`}>
-      <p className="text-xs font-black uppercase tracking-widest text-ink/70">{label}</p>
-      <p className="mt-1 text-xl font-black">{pct(price)}</p>
-    </button>
-  );
-}
-
-function Metric({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="rounded border border-ink/10 bg-chalk p-3">
-      <p className="text-xs font-black uppercase tracking-widest text-ink/70">{label}</p>
-      <p className={`mt-1 text-base font-black ${highlight ? "text-rush" : ""}`}>{value}</p>
+    <div className="rounded-xl bg-panel2 px-3 py-2.5">
+      <p className="text-[9px] font-black uppercase tracking-wider text-muted">{label}</p>
+      <p className={`mt-0.5 text-sm font-black ${tone === "danger" ? "text-crimson" : "text-frost"}`}>{value}</p>
     </div>
   );
 }
