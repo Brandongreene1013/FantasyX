@@ -8,6 +8,7 @@ import { Countdown } from "@/components/ui/countdown";
 import { ExchangeFeed } from "@/components/ui/exchange-feed";
 import { LiveBadge } from "@/components/ui/live-badge";
 import { MarketHeatCell, PriceCell, TerminalPanel } from "@/components/ui/terminal-panel";
+import { MarketScanner } from "@/components/market-scanner";
 import { apiGet, defaultWeekId, type PortfolioResponse } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
 import { useLiveExchange } from "@/hooks/use-live-exchange";
@@ -78,6 +79,18 @@ export default function LivePage() {
             {alertMessage}
           </div>
         ) : null}
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+        <MarketScanner weekId={defaultWeekId} />
+        <TerminalPanel label="INTELLIGENCE TAPE">
+          <div className="grid gap-2 p-3">
+            <Metric label="Connected" value={live.isConnected ? "SSE LIVE" : "POLLING"} icon={<Radio className="h-4 w-4" />} />
+            <Metric label="Markets" value={String(live.markets.length)} />
+            <Metric label="Trades" value={String(live.feed.length)} />
+            <Metric label="Locked" value={String(live.status?.lockedMarkets ?? 0)} />
+          </div>
+        </TerminalPanel>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.1fr_1.5fr]">

@@ -38,7 +38,7 @@ export function PositionCardSkeleton() {
 
 export function LoadingFeed({ count = 6 }: { count?: number }) {
   return (
-    <div className="space-y-3" aria-label="Loading markets" aria-busy="true">
+    <div className="space-y-3" role="status" aria-label="Loading markets" aria-busy="true">
       {Array.from({ length: count }).map((_, i) => (
         <MarketCardSkeleton key={i} />
       ))}

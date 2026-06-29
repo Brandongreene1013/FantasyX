@@ -102,6 +102,10 @@ button, input, select, textarea {
 
 /* Admin pages keep light panels */
 .admin-panel { background: #ffffff; color: #101820; }
+.bg-white,
+.bg-chalk {
+  color: #101820;
+}
 
 /* ─── Gradient text ─── */
 .text-gradient-neon {
@@ -233,3 +237,21 @@ button, input, select, textarea {
   100% { opacity: 1; transform: translateX(0); }
 }
 .animate-climb { animation: climbIn 0.4s ease-out both; }
+
+@keyframes scannerPulse {
+  0%   { box-shadow: inset 2px 0 0 rgba(0, 212, 106, 0.7); background-color: rgba(0, 212, 106, 0.08); }
+  100% { box-shadow: inset 0 0 0 rgba(0, 212, 106, 0); background-color: transparent; }
+}
+.scanner-row { animation: scannerPulse 1.2s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scanner-row,
+  .animate-flash-up,
+  .animate-flash-down,
+  .animate-fade-in,
+  .animate-climb,
+  .animate-ticker,
+  .animate-ticker-fast {
+    animation: none !important;
+  }
+}

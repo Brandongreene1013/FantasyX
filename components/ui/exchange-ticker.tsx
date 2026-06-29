@@ -58,7 +58,7 @@ export function ExchangeTicker() {
               {pct(item.yesPrice)}
             </span>
             {item.move !== 0 && (
-              <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold ${item.move > 0 ? "text-neon/80" : "text-crimson/80"}`}>
+              <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold ${item.move > 0 ? "text-neon" : "text-crimson"}`}>
                 {item.move > 0
                   ? <TrendingUp className="h-2.5 w-2.5" aria-hidden />
                   : <TrendingDown className="h-2.5 w-2.5" aria-hidden />

@@ -168,7 +168,54 @@ export type MarketDetailResponse = {
   player: Player | null;
   history: MarketHistoryPoint[];
   sentiment: MarketSentimentResponse;
+  intelligence: FantasyMarketIntelligence | null;
   events: MarketEventsResponse["events"];
+};
+
+export type FantasyMarketIntelligence = {
+  marketId: string;
+  playerId: string;
+  playerName: string;
+  team: string;
+  opponent: string;
+  position: "QB" | "RB" | "WR" | "TE";
+  threshold: "TOP_3" | "TOP_5" | "TOP_10";
+  status: string;
+  yesPrice: number;
+  noPrice: number;
+  openingPrice: number;
+  volume: number;
+  openInterest: number;
+  liquidity: number;
+  kickoffTime: string;
+  priceChange: number;
+  priceChangePct: number;
+  recentTradeCount: number;
+  watchCount: number;
+  bullCase: string;
+  bearCase: string;
+  confidenceScore: number;
+  trendScore: number;
+  injuryImpact: "LOW" | "MEDIUM" | "HIGH";
+  weatherImpact: "LOW" | "MEDIUM" | "HIGH";
+  vegasLineMovement: "STEAMING_UP" | "STEAMING_DOWN" | "STABLE";
+  matchupRating: number;
+  opportunityRating: number;
+  riskRating: number;
+  sharpMoneyScore: number;
+  publicMoneyScore: number;
+  historicalSimilarGames: Array<{ label: string; outcome: string; hitRate: number }>;
+  signals: string[];
+};
+
+export type MarketScannerResponse = {
+  weekId: string;
+  generatedAt: string;
+  markets: FantasyMarketIntelligence[];
+  scanner: Record<
+    "trending" | "breaking" | "mostActive" | "highestConviction" | "biggestMovers" | "sharpMoney" | "publicMoney" | "watchlistMovers" | "lockingSoon",
+    FantasyMarketIntelligence[]
+  >;
 };
 
 export type MarketHistoryPoint = {

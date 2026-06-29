@@ -5,6 +5,7 @@ import { apiError } from "@/lib/api-response";
 import { requireSessionUser } from "@/lib/auth";
 import { DomainError } from "@/lib/domain-errors";
 import { getMarketAnalytics } from "@/lib/market-analytics.service";
+import { getMarketIntelligence } from "@/lib/fantasy-intelligence.service";
 
 export async function GET(
   request: Request,
@@ -35,13 +36,17 @@ export async function GET(
       take: 50
     });
 
-    const analytics = await getMarketAnalytics(marketId);
+    const [analytics, intelligence] = await Promise.all([
+      getMarketAnalytics(marketId),
+      getMarketIntelligence(marketId)
+    ]);
 
     return NextResponse.json({
       market: serializeMarket(market),
       player: serializePlayerFromMarket(market),
       history: analytics.history,
       sentiment: analytics.sentiment,
+      intelligence,
       events: events.map((event) => ({
         id: event.id,
         marketId: event.marketId,

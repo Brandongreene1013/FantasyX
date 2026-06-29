@@ -13,6 +13,7 @@ import { Countdown } from "@/components/ui/countdown";
 import { PriceFlash } from "@/components/ui/price-flash";
 import { ExchangeFeed } from "@/components/ui/exchange-feed";
 import { LiveBadge } from "@/components/ui/live-badge";
+import { FantasyIntelligencePanel } from "@/components/fantasy-intelligence-panel";
 import { apiGet } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
 import { getPositionColor } from "@/lib/team-colors";
@@ -184,6 +185,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
           </div>
         </div>
       </section>
+
+      <FantasyIntelligencePanel intelligence={detail.intelligence} />
 
       {/* Trade panel + Timeline + Feed */}
       <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">

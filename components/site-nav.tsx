@@ -77,6 +77,7 @@ export function SiteNav() {
             <Link
               href={"/settings" as Route}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-muted hover:bg-panel2 hover:text-frost transition-colors"
+              aria-label="Settings"
             >
               <Settings className="h-4 w-4" aria-hidden />
             </Link>
@@ -84,6 +85,7 @@ export function SiteNav() {
               className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-muted hover:bg-panel2 hover:text-frost transition-colors"
               onClick={logout}
               type="button"
+              aria-label="Log out"
             >
               <LogOut className="h-4 w-4" aria-hidden />
             </button>

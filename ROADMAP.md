@@ -4,9 +4,9 @@ This roadmap prioritizes architectural work by impact and dependency order. It a
 
 ## Project Status
 
-Current milestone: FX-017 FantasyX OS complete.
+Current milestone: FX-019 Fantasy Intelligence Terminal complete.
 
-Overall MVP foundation completion: 100%. Consumer-facing polish: complete. Exchange UX: complete. Installable Live Sunday OS: complete.
+Overall MVP foundation completion: 100%. Consumer-facing polish: complete. Exchange UX: complete. Installable Live Sunday OS: complete. Fantasy intelligence terminal layer: complete.
 
 Sprint 15 focus:
 
@@ -27,7 +27,22 @@ Sprint 15 focus:
 - Completed: FX-016 Live Exchange (SSE, price flash, countdown, exchange feed, live leaderboard).
 - Completed: FX-016.5 Bloomberg Terminal Rebrand (market board, terminal components, pixel avatars, opening price model, 105-player universe).
 - Completed: FX-017 FantasyX OS (installable PWA, offline shell, Live Sunday command center, notification preferences).
-- Next: production load testing, true push notifications, real live game-state provider, winRate API, and E2E smoke tests.
+- Completed: FX-019 Fantasy Intelligence Terminal (Fantasy Intelligence Engine, Market Scanner, live command center intelligence, market detail bull/bear cases).
+- Next: provider-backed live intelligence, production load testing, true push notifications, real live game-state provider, winRate API, and E2E smoke tests.
+
+## Completed - FX-019 Fantasy Intelligence Terminal
+
+Implemented:
+
+- Added `lib/fantasy-intelligence.service.ts` as a read-only intelligence layer following existing service/domain patterns.
+- Added protected `GET /api/intelligence` for week-level scanner sections and market intelligence.
+- Extended `GET /api/markets/[marketId]` with single-market intelligence.
+- Created Market Scanner sections for Trending, Breaking, Most Active, Highest Conviction, Biggest Movers, Sharp Money, Public Money, Watchlist Movers, and Locking Soon.
+- Created market-level intelligence with Bull Case, Bear Case, Confidence Score, Trend Score, Historical Similar Games, Injury Impact, Weather Impact, Vegas Line Movement proxy, Matchup Rating, Opportunity Rating, and Risk Rating.
+- Added `components/market-scanner.tsx` and integrated it into `/live` and `/markets/board`.
+- Added `components/fantasy-intelligence-panel.tsx` and integrated it into market detail pages.
+- Added scanner pulse motion with reduced-motion support.
+- Added `tests/fantasy-intelligence.test.ts` coverage for scoring, scanner ranking, API authentication, and API response shape.
 
 ## Completed - FX-017 FantasyX OS
 

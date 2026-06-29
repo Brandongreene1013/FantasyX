@@ -1,18 +1,47 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { PrismaClient } from "@prisma/client";
 import { sessionCookieName } from "@/lib/session";
+import { createSession } from "@/lib/session-store";
+
+const prisma = new PrismaClient();
+const a11yUserId = "a11y_admin_user";
 
 test.beforeEach(async ({ context }) => {
+  await prisma.user.upsert({
+    where: { id: a11yUserId },
+    update: {},
+    create: {
+      id: a11yUserId,
+      name: "A11y Admin",
+      firstName: "A11y",
+      lastName: "Admin",
+      displayName: "A11y Admin",
+      email: "a11y.admin@fantasyx.test",
+      passwordHash: "test-hash",
+      mockBalance: 10000,
+      startingBalance: 10000,
+      role: "ADMIN",
+      isAdmin: true
+    }
+  });
+
+  const token = await createSession(a11yUserId);
   await context.addCookies([
     {
       name: sessionCookieName,
-      value: "user_demo",
+      value: token,
       domain: "127.0.0.1",
       path: "/",
       httpOnly: true,
       sameSite: "Lax"
     }
   ]);
+});
+
+test.afterAll(async () => {
+  await prisma.session.deleteMany({ where: { userId: a11yUserId } });
+  await prisma.$disconnect();
 });
 
 const pages = [
@@ -56,7 +85,7 @@ for (const pageConfig of marketDetailPages) {
 
 test("trade modal has no detectable axe violations", async ({ page }) => {
   await page.goto("/markets");
-  const buyButton = page.getByRole("button", { name: /buy yes shares/i }).first();
+  const buyButton = page.getByRole("button", { name: /buy yes/i }).first();
   await expect(buyButton).toBeVisible();
   await buyButton.click();
 

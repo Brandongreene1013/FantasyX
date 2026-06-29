@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { Activity, BarChart2, Clock, Filter, TrendingDown, TrendingUp, Zap } from "lucide-react";
 import { LiveBadge } from "@/components/ui/live-badge";
 import { Countdown } from "@/components/ui/countdown";
+import { MarketScanner } from "@/components/market-scanner";
 import { useLiveExchange } from "@/hooks/use-live-exchange";
 import { defaultWeekId } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
@@ -196,6 +197,8 @@ export default function MarketBoardPage() {
           </FilterGroup>
         </div>
       </div>
+
+      <MarketScanner weekId={defaultWeekId} compact />
 
       <div className="overflow-hidden rounded-lg border border-rim bg-panel">
         <div className="hidden grid-cols-[minmax(220px,1.4fr)_76px_76px_86px_96px_96px_120px_120px_96px] gap-3 border-b border-rim/60 bg-panel2 px-3 py-2 xl:grid">

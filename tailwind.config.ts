@@ -24,8 +24,8 @@ const config: Config = {
         rim: "#1E293B",
         // Text
         frost: "#E2E8F0",
-        muted: "#64748B",
-        steel: "#94A3B8",
+        muted: "#E2E8F0",
+        steel: "#F8FAFC",
         // Accents
         neon: "#00D46A",
         charge: "#3B82F6",

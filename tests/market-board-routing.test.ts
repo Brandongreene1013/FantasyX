@@ -72,7 +72,7 @@ async function createBaseData() {
   await prisma.nflWeek.create({
     data: {
       id: weekId,
-      season: 2098,
+      season: 2198,
       week: 1,
       startsAt: new Date("2098-09-01T00:00:00.000Z"),
       endsAt: new Date("2098-09-08T00:00:00.000Z"),
