@@ -591,3 +591,38 @@ Dependencies:
 Risk level:
 
 - High.
+
+## Sprint 11 - FantasyX OS
+
+Goal:
+
+Make FantasyX installable and useful as a Live Sunday command center.
+
+Status:
+
+- Completed in FX017 for PWA shell, offline app shell, `/live`, notification preferences, and mobile polish.
+
+Features:
+
+- Manifest, service worker, offline shell, standalone app metadata, app icons, and install prompt.
+- `/live` experience combining games, market board, tape, portfolio, movers, leaderboard, player tracker, and watchlist.
+- Browser notification permission flow and local alert preference toggles.
+- SSE-first live updates with polling fallback.
+
+Database changes:
+
+- None.
+
+API changes:
+
+- None required; reused existing live exchange, portfolio, watchlist, leaderboard, and status APIs.
+
+Remaining:
+
+- Real live game-state provider.
+- Web Push subscription persistence and server delivery.
+- Server-side notification preferences.
+
+Definition of Done:
+
+- Users can install FantasyX, launch fullscreen, remain logged in, and leave `/live` open on Sunday.

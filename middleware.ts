@@ -12,7 +12,7 @@ export function middleware(request: NextRequest) {
   requestHeaders.set("x-request-id", requestId);
   const hasSession = Boolean(request.cookies.get(sessionCookieName)?.value);
 
-  if (request.nextUrl.pathname === "/markets" || request.nextUrl.pathname.startsWith("/markets/") || request.nextUrl.pathname.startsWith("/players/") || request.nextUrl.pathname === "/portfolio" || request.nextUrl.pathname === "/history" || request.nextUrl.pathname === "/admin" || request.nextUrl.pathname.startsWith("/admin/") || request.nextUrl.pathname === "/account" || request.nextUrl.pathname === "/settings") {
+  if (request.nextUrl.pathname === "/live" || request.nextUrl.pathname === "/markets" || request.nextUrl.pathname.startsWith("/markets/") || request.nextUrl.pathname.startsWith("/players/") || request.nextUrl.pathname === "/portfolio" || request.nextUrl.pathname === "/history" || request.nextUrl.pathname === "/admin" || request.nextUrl.pathname.startsWith("/admin/") || request.nextUrl.pathname === "/account" || request.nextUrl.pathname === "/settings") {
     if (!hasSession) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("next", safeInternalPath(`${request.nextUrl.pathname}${request.nextUrl.search}`));
@@ -64,5 +64,5 @@ function withRateHeaders(response: NextResponse, remaining: number, resetAt: num
 }
 
 export const config = {
-  matcher: ["/api/:path*", "/markets", "/markets/:path*", "/players/:path*", "/portfolio", "/history", "/admin", "/admin/:path*", "/account", "/settings", "/login", "/signup"]
+  matcher: ["/api/:path*", "/live", "/markets", "/markets/:path*", "/players/:path*", "/portfolio", "/history", "/admin", "/admin/:path*", "/account", "/settings", "/login", "/signup"]
 };

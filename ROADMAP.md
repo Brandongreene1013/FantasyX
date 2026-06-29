@@ -4,9 +4,9 @@ This roadmap prioritizes architectural work by impact and dependency order. It a
 
 ## Project Status
 
-Current milestone: FX-016.5 Bloomberg Terminal Rebrand complete.
+Current milestone: FX-017 FantasyX OS complete.
 
-Overall MVP foundation completion: 100%. Consumer-facing polish: complete. Exchange UX: complete.
+Overall MVP foundation completion: 100%. Consumer-facing polish: complete. Exchange UX: complete. Installable Live Sunday OS: complete.
 
 Sprint 15 focus:
 
@@ -26,7 +26,20 @@ Sprint 15 focus:
 - Completed: FX-015 Exchange Experience.
 - Completed: FX-016 Live Exchange (SSE, price flash, countdown, exchange feed, live leaderboard).
 - Completed: FX-016.5 Bloomberg Terminal Rebrand (market board, terminal components, pixel avatars, opening price model, 105-player universe).
-- Next: FX-017 Concurrency Safety + winRate + E2E smoke tests.
+- Completed: FX-017 FantasyX OS (installable PWA, offline shell, Live Sunday command center, notification preferences).
+- Next: production load testing, true push notifications, real live game-state provider, winRate API, and E2E smoke tests.
+
+## Completed - FX-017 FantasyX OS
+
+Implemented:
+
+- Added PWA manifest, service worker, offline shell, app icons, maskable icon, favicon, standalone theme metadata, and install prompt.
+- Created `/live` Live Sunday command center with live games, market board, trading tape, portfolio, top gainers, top losers, leaderboard, player tracker, and Watchlist 2.0.
+- Reused SSE plus polling fallback for automatic live updates.
+- Added browser notification permission flow and Settings alert preferences.
+- Added `/live` to desktop/mobile navigation and protected it through middleware.
+- Added PWA/mobile polish for safe areas, standalone mode, scroll behavior, and offline connection banner.
+- Added `tests/pwa-live.test.ts` coverage.
 
 ## Completed - FX-012 Live NFL Data, Automated Scoring & Settlement
 

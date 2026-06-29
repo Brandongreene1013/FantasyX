@@ -4,15 +4,29 @@ import { AccountBar } from "@/components/account-bar";
 import { SiteNav } from "@/components/site-nav";
 import { ExchangeTicker } from "@/components/ui/exchange-ticker";
 import { ExchangeStatusBar } from "@/components/ui/exchange-status";
+import { PwaShell } from "@/components/pwa-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FantasyX — NFL Fantasy Prediction Markets",
-  description: "Trade mock-credit YES/NO shares on whether NFL players finish Top 3, 5, or 10 in weekly fantasy scoring. Free-play. No deposits."
+  title: "FantasyX OS - NFL Fantasy Prediction Markets",
+  description: "Installable free-play NFL fantasy prediction market command center. No deposits, withdrawals, crypto, or real-money wagering.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/icons/icon.svg"
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "FantasyX"
+  }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0D1117"
+  themeColor: "#00D46A",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -20,9 +34,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className="dark">
       <body>
         <a className="skip-link" href="#main-content">Skip to content</a>
+        <PwaShell />
         <div className="flex min-h-screen flex-col">
-
-          {/* Sticky shell: header + ticker */}
           <div className="sticky top-0 z-20">
             <header className="border-b border-rim/60 bg-surface/95 backdrop-blur-xl">
               <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">

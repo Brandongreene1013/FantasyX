@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, TrendingUp, BarChart2, Trophy, UserRound } from "lucide-react";
+import { Home, TrendingUp, BarChart2, Trophy, Radio } from "lucide-react";
 import type { Route } from "next";
 
 const TABS = [
   { href: "/" as Route,            label: "Home",        Icon: Home },
+  { href: "/live" as Route,        label: "Live",        Icon: Radio },
   { href: "/markets" as Route,     label: "Markets",     Icon: TrendingUp },
   { href: "/portfolio" as Route,   label: "Portfolio",   Icon: BarChart2 },
-  { href: "/leaderboard" as Route, label: "Leaders",     Icon: Trophy },
-  { href: "/account" as Route,     label: "Account",     Icon: UserRound }
+  { href: "/leaderboard" as Route, label: "Leaders",     Icon: Trophy }
 ];
 
 export function BottomNav({ isLoggedIn }: { isLoggedIn: boolean }) {

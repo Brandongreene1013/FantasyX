@@ -49,6 +49,46 @@ External Providers
   |-- Future Oracle Provider
 ```
 
+## PWA / FantasyX OS
+
+FX017 adds an installable PWA shell on top of the existing Next.js application.
+
+Responsibilities:
+
+- Provide `public/manifest.json` with standalone launch configuration.
+- Register `public/sw.js` from `components/pwa-shell.tsx`.
+- Cache core app-shell routes and static app assets.
+- Show `public/offline.html` when navigation fails offline.
+- Keep browser sessions/cookies as the authenticated state.
+- Launch into `/live` as the mobile command center.
+
+Non-responsibilities:
+
+- The service worker does not queue trades or admin mutations offline.
+- The PWA does not add native custody, crypto, Solana, deposits, or real-money behavior.
+
+## Live Sunday Mode
+
+`/live` is the FantasyX OS command center.
+
+Data sources:
+
+- `useLiveExchange(defaultWeekId)` for slate, market prices, exchange feed, leaderboard, and exchange status.
+- `/api/portfolio` for authenticated portfolio state.
+- `/api/watchlist` for pinned markets.
+
+Live strategy:
+
+- Prefer SSE.
+- Fall back to polling automatically.
+- Keep rendering dense, mobile-friendly, and scan-first.
+
+Notification strategy:
+
+- Browser notification permission is requested in the PWA shell and Settings.
+- Local preferences live in browser storage for now.
+- Future Web Push should add persisted subscriptions and a server delivery service.
+
 ## Client
 
 Responsibilities:

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FantasyX">
+  <rect width="512" height="512" fill="#00D46A"/>
+  <circle cx="256" cy="256" r="214" fill="#0D1117"/>
+  <path d="M116 338V142h144v50h-88v35h75v47h-75v64h-56Z" fill="#E2E8F0"/>
+  <path d="M266 338l71-98-66-98h66l35 56 38-56h62l-66 97 72 99h-67l-41-61-41 61h-63Z" fill="#00D46A"/>
+</svg>

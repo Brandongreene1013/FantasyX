@@ -78,6 +78,15 @@ Use `npm run vercel-build` only for Vercel-style migration/build verification ag
 - WCAG-oriented accessibility pass with axe tests
 - Production-safe API errors with request IDs
 - Vercel deployment support with Prisma migrations
+- Installable PWA shell with manifest, service worker, offline fallback, app icons, and standalone launch
+- `/live` Live Sunday command center with games, market board, tape, portfolio, movers, leaderboard, player tracker, and watchlist dashboard
+- Browser notification permission prompt and local alert preferences
+
+## FantasyX OS / PWA
+
+FantasyX can be installed from supported mobile and desktop browsers. The PWA launches at `/live`, keeps the authenticated browser session, caches the app shell for offline fallback, and reconnects to live market data through SSE with polling fallback.
+
+Offline mode displays the cached shell and a connection banner. Mutating actions still require network connectivity.
 
 ## Important Constraints
 

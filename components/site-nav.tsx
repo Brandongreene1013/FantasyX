@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, Home, TrendingUp, Trophy, UserRound, Settings, ShieldCheck, LogOut, Activity } from "lucide-react";
+import { BarChart2, Home, TrendingUp, Trophy, UserRound, Settings, ShieldCheck, LogOut, Activity, Radio } from "lucide-react";
 import { apiGet, apiPost, type SessionResponse } from "@/lib/client-api";
 import { BottomNav } from "@/components/bottom-nav";
 
 const NAV_LINKS: Array<{ href: Route; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
   { href: "/" as Route,                label: "Home",        Icon: Home },
+  { href: "/live" as Route,            label: "Live",        Icon: Radio },
   { href: "/markets" as Route,         label: "Markets",     Icon: TrendingUp },
   { href: "/markets/board" as Route,   label: "Board",       Icon: Activity },
   { href: "/portfolio" as Route,       label: "Portfolio",   Icon: BarChart2 },

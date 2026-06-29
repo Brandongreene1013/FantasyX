@@ -1,0 +1,47 @@
+{
+  "name": "FantasyX OS",
+  "short_name": "FantasyX",
+  "description": "Free-play NFL fantasy prediction market command center.",
+  "start_url": "/live",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#0D1117",
+  "theme_color": "#00D46A",
+  "categories": ["sports", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Live Sunday",
+      "short_name": "Live",
+      "url": "/live",
+      "description": "Open the Sunday command center."
+    },
+    {
+      "name": "Market Board",
+      "short_name": "Board",
+      "url": "/markets/board",
+      "description": "Open the Bloomberg-style market board."
+    },
+    {
+      "name": "Portfolio",
+      "short_name": "Portfolio",
+      "url": "/portfolio",
+      "description": "Open portfolio and P&L."
+    }
+  ]
+}

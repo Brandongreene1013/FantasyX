@@ -4,14 +4,44 @@ import { useEffect, useState } from "react";
 import { PageHeading } from "@/components/page-heading";
 import { apiGet, apiPatch, type SessionResponse } from "@/lib/client-api";
 
+const ALERT_PREFS = [
+  { key: "marketAlerts", label: "Market Alerts", description: "Price alerts, locking soon, and board movement." },
+  { key: "portfolioAlerts", label: "Portfolio Alerts", description: "Position changes, filled trades, and P&L swings." },
+  { key: "leaderboardAlerts", label: "Leaderboard Alerts", description: "Rank movement and weekly competition updates." },
+  { key: "sundayLiveAlerts", label: "Sunday Live Alerts", description: "Live game, player tracker, and command center signals." },
+  { key: "futurePushNotifications", label: "Future Push Notifications", description: "Reserve permission for future push delivery." }
+] as const;
+
+type AlertPrefKey = typeof ALERT_PREFS[number]["key"];
+type AlertPrefs = Record<AlertPrefKey, boolean>;
+const defaultAlertPrefs: AlertPrefs = {
+  marketAlerts: true,
+  portfolioAlerts: true,
+  leaderboardAlerts: true,
+  sundayLiveAlerts: true,
+  futurePushNotifications: false
+};
+
 export default function SettingsPage() {
   const [form, setForm] = useState({ firstName: "", lastName: "", displayName: "" });
+  const [alertPrefs, setAlertPrefs] = useState<AlertPrefs>(defaultAlertPrefs);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">("unsupported");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
+    const storedPrefs = window.localStorage.getItem("fantasyx:alert-preferences");
+    if (storedPrefs) {
+      try {
+        setAlertPrefs({ ...defaultAlertPrefs, ...(JSON.parse(storedPrefs) as Partial<AlertPrefs>) });
+      } catch { /* ignore malformed local preference cache */ }
+    }
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+
     apiGet<SessionResponse>("/api/session")
       .then((data) => {
         if (data.user) {
@@ -46,6 +76,20 @@ export default function SettingsPage() {
     }
   }
 
+  function toggleAlertPref(key: AlertPrefKey) {
+    setAlertPrefs((current) => {
+      const next = { ...current, [key]: !current[key] };
+      window.localStorage.setItem("fantasyx:alert-preferences", JSON.stringify(next));
+      return next;
+    });
+  }
+
+  async function requestNotificationPermission() {
+    if (!("Notification" in window)) return;
+    const result = await Notification.requestPermission();
+    setNotificationPermission(result);
+  }
+
   return (
     <>
       <PageHeading title="Settings" kicker="Profile">
@@ -74,6 +118,39 @@ export default function SettingsPage() {
             {isSaving ? "Saving..." : "Save settings"}
           </button>
         </form>
+      </section>
+
+      <section className="mx-auto mt-5 max-w-2xl rounded border border-rim bg-panel p-5" aria-labelledby="notification-heading">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="notification-heading" className="text-lg font-black text-frost">Notification Preferences</h2>
+            <p className="mt-1 text-sm font-semibold text-muted">Control the alerts used by Live Sunday mode and the installable app shell.</p>
+          </div>
+          <button
+            className="rounded border border-neon/30 bg-neon/10 px-3 py-2 text-xs font-black text-neon disabled:opacity-50"
+            type="button"
+            disabled={notificationPermission !== "default"}
+            onClick={requestNotificationPermission}
+          >
+            {notificationPermission === "granted" ? "Notifications On" : notificationPermission === "denied" ? "Blocked" : notificationPermission === "unsupported" ? "Unsupported" : "Enable Browser Alerts"}
+          </button>
+        </div>
+        <div className="mt-4 grid gap-2">
+          {ALERT_PREFS.map((pref) => (
+            <label key={pref.key} className="flex items-center justify-between gap-4 rounded border border-rim bg-panel2 p-3">
+              <span>
+                <span className="block text-sm font-black text-frost">{pref.label}</span>
+                <span className="block text-xs font-semibold text-muted">{pref.description}</span>
+              </span>
+              <input
+                type="checkbox"
+                className="h-5 w-5 accent-neon"
+                checked={alertPrefs[pref.key]}
+                onChange={() => toggleAlertPref(pref.key)}
+              />
+            </label>
+          ))}
+        </div>
       </section>
     </>
   );

@@ -38,9 +38,16 @@ describe("FX009.5 auth routing", () => {
   });
 
   it("includes account and settings in the middleware matcher", () => {
+    expect(config.matcher).toContain("/live");
     expect(config.matcher).toContain("/account");
     expect(config.matcher).toContain("/settings");
     expect(config.matcher).toContain("/login");
     expect(config.matcher).toContain("/signup");
+  });
+
+  it("protects Live Sunday mode for logged-in users", () => {
+    const response = middleware(new NextRequest("http://localhost/live"));
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/login?next=%2Flive");
   });
 });

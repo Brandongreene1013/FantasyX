@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FantasyX">
+  <rect width="512" height="512" rx="104" fill="#0D1117"/>
+  <rect x="42" y="42" width="428" height="428" rx="84" fill="#111827" stroke="#00D46A" stroke-width="16"/>
+  <path d="M106 338V140h145v48h-89v34h75v47h-75v69h-56Z" fill="#E2E8F0"/>
+  <path d="M260 338l74-101-68-97h66l38 57 39-57h63l-68 96 74 102h-67l-43-62-43 62h-65Z" fill="#00D46A"/>
+  <path d="M96 386h320" stroke="#3B82F6" stroke-width="18" stroke-linecap="round"/>
+</svg>
