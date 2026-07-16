@@ -1,4 +1,4 @@
-const CACHE_NAME = "fantasyx-os-v1";
+const CACHE_NAME = "fantasyx-os-v2";
 const APP_SHELL = [
   "/",
   "/live",
