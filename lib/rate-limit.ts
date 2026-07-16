@@ -15,6 +15,26 @@ export interface RateLimitResult {
   resetAt: number; // unix ms
 }
 
+/**
+ * Typed error thrown when a route-level rate limit is exceeded.
+ * `apiError` maps this to a 429 response with x-ratelimit-* headers.
+ */
+export class RateLimitError extends Error {
+  readonly code = "RATE_LIMITED";
+  readonly status = 429;
+  readonly limit: number;
+  readonly remaining: number;
+  readonly resetAt: number;
+
+  constructor(limit: number, remaining: number, resetAt: number) {
+    super("Too many requests. Please slow down and try again shortly.");
+    this.name = "RateLimitError";
+    this.limit = limit;
+    this.remaining = remaining;
+    this.resetAt = resetAt;
+  }
+}
+
 export interface RateLimitAdapter {
   check(key: string, limit: number, windowMs: number): Promise<RateLimitResult>;
   reset(key: string): Promise<void>;
@@ -25,7 +45,7 @@ interface InMemoryEntry {
   resetAt: number;
 }
 
-class InMemoryRateLimitAdapter implements RateLimitAdapter {
+export class InMemoryRateLimitAdapter implements RateLimitAdapter {
   private readonly store = new Map<string, InMemoryEntry>();
 
   async check(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {

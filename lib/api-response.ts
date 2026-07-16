@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { AuthError } from "@/lib/auth";
 import { DomainError } from "@/lib/domain-errors";
 import { EnvConfigError } from "@/lib/env";
+import { RateLimitError } from "@/lib/rate-limit";
 import { getRequestId, logServerError } from "@/lib/server-logging";
 
 export function apiError(error: unknown, fallback = "Request failed", status = 500, request?: Request) {
@@ -10,6 +11,14 @@ export function apiError(error: unknown, fallback = "Request failed", status = 5
 
   if (error instanceof AuthError) {
     return withRequestId(NextResponse.json({ error: error.message, requestId }, { status: error.status }), requestId);
+  }
+
+  if (error instanceof RateLimitError) {
+    const response = NextResponse.json({ error: error.message, code: error.code, requestId }, { status: error.status });
+    response.headers.set("x-ratelimit-limit", String(error.limit));
+    response.headers.set("x-ratelimit-remaining", String(error.remaining));
+    response.headers.set("x-ratelimit-reset", String(Math.ceil(error.resetAt / 1000)));
+    return withRequestId(response, requestId);
   }
 
   if (error instanceof DomainError) {

@@ -7,12 +7,14 @@ import { tradeSchema } from "@/lib/api-validation";
 import { requireSessionUser } from "@/lib/auth";
 import { trackBetaEvent } from "@/lib/beta-events";
 import { requireCsrf } from "@/lib/csrf";
+import { RATE_LIMITS, enforceRateLimit } from "@/lib/rate-limit-config";
 
 export async function POST(request: Request) {
   try {
     const body = tradeSchema.parse(await request.json());
     const user = await requireSessionUser(request);
     await requireCsrf(request);
+    await enforceRateLimit(RATE_LIMITS.trade, user.id);
     const trade = await runSerializableTrade((tx) => {
       if (body.action === "SELL") {
         return executeDbSell(tx, {

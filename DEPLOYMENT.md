@@ -7,21 +7,35 @@ Production URL: https://fantasy-x.vercel.app
 - Vercel project: `fantasy-x`
 - Database: Neon PostgreSQL via Vercel integration
 - Required env vars: `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME`
+- Recommended beta env vars: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
 
 ## Local Development
 
+Recommended database path: use a hosted dev Postgres database from Neon,
+Supabase, Vercel Postgres, or another disposable dev database. This avoids
+blocking local verification on Docker Desktop.
+
 ```powershell
 npm install
-docker compose up -d
 npm run prisma:generate
-npx prisma migrate deploy
-npm run prisma:seed
+npm run db:check
+npm run db:prepare
 npm run dev
 ```
 
 Open `http://localhost:3000/signup`.
 
 `npm run prisma:seed` creates the admin account from the `ADMIN_*` variables and seeded NFL market data. It also creates non-public development trader rows used only to populate analytics and leaderboard history.
+
+Optional Docker database:
+
+```powershell
+docker compose up -d
+npm run db:prepare
+```
+
+Do not spend sprint time debugging Docker Desktop if it is stuck. A hosted dev
+Postgres URL in `.env.local` is the preferred fallback.
 
 If an older production database already has the admin email but a stale or empty password hash, logging in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` upgrades that account to the admin role and refreshes its password hash.
 
@@ -32,11 +46,28 @@ Authenticated client mutations fetch a CSRF token from `/api/session` and send i
 ## Local Verification
 
 ```powershell
-npm run lint
-npm run typecheck
-npm test
-npm run build
+npm run verify:fast
+npm run verify
 ```
+
+`npm run verify:fast` does not require a database. It runs lint, typecheck, the
+focused no-DB rate-limit tests, and build.
+
+`npm run verify` is the full gate. It requires a reachable, migrated, and seeded
+Postgres database and runs lint, typecheck, full Vitest, build, and the E2E
+golden-path smoke test. If `DATABASE_URL` is missing or unreachable, it fails
+with setup guidance for hosted dev Postgres or optional Docker Postgres.
+
+Before full verification against a disposable dev/test database:
+
+```powershell
+npm run db:check
+npm run db:prepare
+```
+
+`npm run db:prepare` runs migrations and seed data against `DATABASE_URL`.
+Do not run it casually in production because the seed script resets seeded
+market, trade, account, and analytics state.
 
 `npm run build` intentionally runs only `next build` for local compatibility with existing `db push` databases.
 
@@ -66,9 +97,10 @@ For a fresh production database:
 2. Confirm `DATABASE_URL` exists for Production and Preview.
 3. Add `SESSION_SECRET` with at least 32 random characters.
 4. Add `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, and `ADMIN_LAST_NAME`.
-5. Deploy to Vercel.
-6. Vercel runs `prisma migrate deploy` automatically.
-7. Seed manually only when intentionally resetting market/account seed data:
+5. Add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` before beta launch so rate limits are durable across Vercel instances.
+6. Deploy to Vercel.
+7. Vercel runs `prisma migrate deploy` automatically.
+8. Seed manually only when intentionally resetting market/account seed data:
 
 ```powershell
 npx vercel env run --environment=production -- npm run prisma:seed

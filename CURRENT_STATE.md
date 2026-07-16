@@ -2,7 +2,7 @@
 
 ## Current Sprint
 
-FX023 - Week 1 Player Universe and Research-Based Opening Prices.
+FX024.5 - Beta Launch Hardening (durable rate limiting, verify script, E2E smoke test).
 
 ## Product State
 
@@ -10,6 +10,10 @@ FantasyX is a free-play NFL prediction market with real user accounts, mock cred
 
 ## Latest Additions
 
+- Durable Upstash-backed route-level rate limiting with in-memory local fallback.
+- Rate limits on trades (30/min per user), login/signup (10/min per IP), and beta events (60/min per user) returning 429 with `x-ratelimit-*` headers.
+- Single `npm run verify` pipeline (lint, typecheck, tests, build) with an actionable Postgres preflight.
+- E2E golden-path smoke test (`npm run test:e2e`): signup, onboarding, first trade, admin settlement payout.
 - Referral-code growth loop for beta launch.
 - `/signup?ref=CODE` attribution.
 - Copyable invite links on `/account`.
@@ -29,7 +33,7 @@ FantasyX is a free-play NFL prediction market with real user accounts, mock cred
 
 ## Production Readiness
 
-The application remains architected for Vercel and PostgreSQL through Prisma. FX020 added beta referrals. FX021 added conversion/share surfaces. FX022 added a first-party beta event table and admin dashboard. FX023 updates seed/player/pricing logic only and does not change trading, settlement, balances, or market state behavior.
+The application remains architected for Vercel and PostgreSQL through Prisma. FX020 added beta referrals. FX021 added conversion/share surfaces. FX022 added a first-party beta event table and admin dashboard. FX023 updated seed/player/pricing logic. FX024.5 added durable rate limiting (set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Vercel before launch), a verify pipeline, and an E2E smoke test; it does not change AMM math, settlement logic, or ledger semantics.
 
 ## Guardrails
 
@@ -50,4 +54,4 @@ FX024 should focus on provider-ready projection ingestion:
 - Projection metadata/source/date tracking
 - Admin projection import preview before market generation
 - ADP fallback only when projections are unavailable
-- Continue beta launch hardening afterward: durable rate limiting, observability, verify script, and E2E smoke tests
+- Remaining hardening afterward: structured observability/metrics, production load testing, CI pipeline

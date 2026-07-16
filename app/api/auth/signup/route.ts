@@ -5,6 +5,7 @@ import { signupSchema } from "@/lib/api-validation";
 import { trackBetaEventTx } from "@/lib/beta-events";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
+import { RATE_LIMITS, enforceRateLimit, getClientIp } from "@/lib/rate-limit-config";
 import { findReferrerId, reserveReferralCode } from "@/lib/referrals";
 import { sessionCookieName } from "@/lib/session";
 import { createSession, getSessionCookieOptions } from "@/lib/session-store";
@@ -13,6 +14,7 @@ const startingCredits = new Prisma.Decimal(10000);
 
 export async function POST(request: Request) {
   try {
+    await enforceRateLimit(RATE_LIMITS.auth, getClientIp(request));
     const body = signupSchema.parse(await request.json());
     const passwordHash = await hashPassword(body.password);
     const displayName = `${body.firstName} ${body.lastName}`.trim();

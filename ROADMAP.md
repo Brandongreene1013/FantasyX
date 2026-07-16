@@ -4,7 +4,7 @@ This roadmap prioritizes architectural work by impact and dependency order. It a
 
 ## Project Status
 
-Current milestone: FX-023 Week 1 Player Universe and Research-Based Opening Prices implemented.
+Current milestone: FX-024.5 Beta Launch Hardening implemented.
 
 Overall MVP foundation completion: 100%. Consumer-facing polish: complete. Exchange UX: complete. Installable Live Sunday OS: complete. Fantasy intelligence terminal layer: complete. Beta referral loop: implemented. First-trade conversion and market sharing: implemented. First-party activation metrics: implemented. Research-based Week 1 seed pricing: implemented.
 
@@ -32,7 +32,22 @@ Sprint 15 focus:
 - Completed: FX-021 Beta Conversion and Market Sharing (first-trade guide, shareable market links).
 - Completed: FX-022 Launch Instrumentation and Activation Metrics (BetaEvent ledger, tracking hooks, admin dashboard).
 - Completed: FX-023 Week 1 Player Universe and Research-Based Opening Prices (published Week 1 schedule, 119 seeded players, ADP/matchup-aware opening pricing).
-- Next: provider-ready projection ingestion, beta launch hardening, production launch checklist, durable/shared rate limiting, provider-backed live intelligence, production load testing, true push notifications, real live game-state provider, winRate API, and E2E smoke tests.
+- Completed: FX-024.5 Beta Launch Hardening (durable Upstash rate limiting on trades/auth/beta-events, npm run verify pipeline, E2E golden-path smoke test).
+- Next: provider-ready projection ingestion, production launch checklist, provider-backed live intelligence, production load testing, structured observability, CI pipeline, true push notifications, real live game-state provider, and winRate API.
+
+## Completed - FX-024.5 Beta Launch Hardening
+
+Implemented:
+
+- Added `lib/rate-limit-upstash.ts`: fixed-window Upstash Redis adapter over the REST API. Works in Node and edge runtimes, fails open when Redis is unreachable, and never logs the token.
+- Added `lib/rate-limit-config.ts`: limiter factory gated on `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` with in-memory fallback and one-time warning, `enforceRateLimit`, `getClientIp`, and shared route limit constants.
+- Added `RateLimitError` and mapped it in `lib/api-response.ts` to 429 responses with `code: "RATE_LIMITED"` and `x-ratelimit-limit/remaining/reset` headers.
+- Wired route-level limits: `POST /api/trades` 30/min per user, `POST /api/auth/login` and `POST /api/auth/signup` 10/min per IP, `POST /api/beta-events` 60/min per user.
+- Documented the per-instance limitation of the coarse middleware IP bucket.
+- Added `npm run verify` (`scripts/verify.mjs`): lint → typecheck → tests → build with fail-fast behavior and an actionable Postgres preflight before DB-backed tests.
+- Added `npm run test:e2e` with `playwright.e2e.config.ts` and `tests/e2e/golden-path.spec.ts` covering signup → onboarding → buy YES → portfolio → admin settlement → payout in balance and ledger.
+- Updated `.env.example` with the Upstash variables.
+- Added `tests/rate-limit.test.ts` (11 tests) for adapter behavior, factory selection, and 429 mapping.
 
 ## Completed - FX-023 Week 1 Player Universe and Research-Based Opening Prices
 
@@ -338,9 +353,10 @@ Goal: harden the real account/session system before broader release.
    - Replace boolean-only admin checks with roles or permissions.
    - Start with `TRADER`, `ADMIN`, `SETTLEMENT_OPERATOR`, `AUDITOR`.
 
-4. Replace in-memory rate limiting
-   - Use a durable/shared store before deployment.
-   - Keep route-specific limits for trade and settlement routes.
+4. Replace in-memory rate limiting - implemented in FX024.5
+   - Upstash-Redis-backed adapter selected via env vars, in-memory fallback for local dev.
+   - Route-specific limits on trades, login, signup, and beta events.
+   - Remaining: configure the Upstash env vars in Vercel before launch.
 
 5. Add security tests - in progress
    - Non-admin cannot settle.

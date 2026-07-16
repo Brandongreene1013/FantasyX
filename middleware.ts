@@ -2,6 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { safeInternalPath } from "@/lib/redirects";
 import { sessionCookieName } from "@/lib/session";
 
+// Coarse first-layer IP bucket only. This Map is PER edge/serverless instance
+// and resets on every cold start, so real-world enforcement on Vercel is weak.
+// Durable, cross-instance limits live at the route level via
+// lib/rate-limit-config.ts (Upstash-backed when configured).
 const buckets = new Map<string, { count: number; resetAt: number }>();
 const windowMs = 60_000;
 const maxRequests = 120;

@@ -8,7 +8,19 @@ FX024 - Provider-Ready Projection Ingestion.
 2. Add projection metadata/source/date tracking.
 3. Add admin projection import preview before market generation.
 4. Keep ADP as fallback pricing context only.
-5. Resume beta launch hardening afterward: durable rate limiting, observability, verify script, and E2E smoke tests.
+5. Remaining hardening follow-ups: structured observability/metrics, production load testing, CI pipeline.
+
+## Completed - FX-024.5 Beta Launch Hardening
+
+1. Added `lib/rate-limit-upstash.ts`: Upstash-Redis fixed-window adapter over the REST API (edge + Node compatible, fail-open, token never logged).
+2. Added `lib/rate-limit-config.ts`: env-gated limiter factory (`UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`), in-memory fallback with one-time warning, `enforceRateLimit`, `getClientIp`, route limit constants.
+3. Added `RateLimitError` (429, code `RATE_LIMITED`) and mapped it in `lib/api-response.ts` with `x-ratelimit-*` headers.
+4. Wired route-level limits: trades 30/min per user, login/signup 10/min per IP, beta-events 60/min per user.
+5. Documented the per-instance limitation of the middleware IP bucket.
+6. Added `npm run verify` (`scripts/verify.mjs`): lint → typecheck → tests → build, fail-fast, with an actionable Postgres preflight message before DB-backed tests.
+7. Added `npm run test:e2e` (`playwright.e2e.config.ts`, `tests/e2e/golden-path.spec.ts`): signup → onboarding → buy YES → portfolio → admin settle → payout in balance and ledger.
+8. Updated `.env.example` with Upstash variables.
+9. Added `tests/rate-limit.test.ts`: 11 tests (adapter windows, fail-open, factory selection, 429 mapping, client IP).
 
 ## Completed - FX-023 Week 1 Player Universe and Research-Based Opening Prices
 

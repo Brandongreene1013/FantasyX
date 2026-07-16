@@ -6,9 +6,11 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { createSession, getSessionCookieOptions } from "@/lib/session-store";
 import { sessionCookieName } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { RATE_LIMITS, enforceRateLimit, getClientIp } from "@/lib/rate-limit-config";
 
 export async function POST(request: Request) {
   try {
+    await enforceRateLimit(RATE_LIMITS.auth, getClientIp(request));
     const body = loginSchema.parse(await request.json());
     const user = await prisma.user.findUnique({
       where: { email: body.email },

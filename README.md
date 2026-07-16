@@ -16,23 +16,33 @@ Users buy mock-credit YES or NO shares on whether NFL players finish Top 3, Top 
 
 ## Setup
 
+Recommended path when Docker Desktop is unreliable: use a hosted development
+Postgres database from Neon, Supabase, Vercel Postgres, or another disposable
+dev database.
+
 ```powershell
 npm install
-docker compose up -d
 npm run prisma:generate
-npx prisma migrate deploy
-npm run prisma:seed
+npm run db:check
+npm run db:prepare
 npm run dev
 ```
 
 Open `http://localhost:3000/signup`, create an account, then trade from `/markets`.
+
+Optional local Docker database:
+
+```powershell
+docker compose up -d
+npm run db:prepare
+```
 
 ## Environment
 
 Create `.env` from `.env.example`:
 
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/fantasyx?schema=public"
+DATABASE_URL="postgresql://USER:PASSWORD@HOST/fantasyx_dev?sslmode=require"
 SESSION_SECRET="replace-with-at-least-32-random-characters"
 ADMIN_EMAIL="admin@example.com"
 ADMIN_PASSWORD="replace-with-a-strong-admin-password"
@@ -48,15 +58,31 @@ Production deployment uses Vercel + Neon/Postgres. See `DEPLOYMENT.md`.
 
 ```powershell
 npm run dev
+npm run db:check
+npm run db:prepare
 npm run lint
 npm run typecheck
 npm run test
 npm run test:a11y
+npm run test:e2e
 npm run build
+npm run verify:fast
+npm run verify
 npm run vercel-build
 npm run prisma:push
 npm run prisma:seed
 ```
+
+Use `npm run verify:fast` when no database is available. It runs lint,
+typecheck, the no-DB rate-limit unit tests, and production build.
+
+Use `npm run verify` for the full gate. It requires a migrated and seeded
+Postgres database and runs lint, typecheck, full Vitest, build, and the
+Playwright E2E smoke test. DB-backed tests are never silently skipped.
+
+`npm run db:prepare` runs migrations and seed data against `DATABASE_URL`.
+Use it only on a disposable dev/test database; the seed script resets seeded
+market, trade, account, and analytics state.
 
 Use `npm run vercel-build` only for Vercel-style migration/build verification against a migration-managed database.
 
