@@ -86,6 +86,20 @@ describe("Opening Price Model", () => {
     });
   });
 
+  describe("calcOpeningYesPrice — researched context", () => {
+    it("elite ADP improves confidence versus same projection with no ADP", () => {
+      const base = calcOpeningYesPrice(18, "RB", "TOP_5");
+      const researched = calcOpeningYesPrice(18, "RB", "TOP_5", "ACTIVE", { adpRank: 3 });
+      expect(researched).toBeGreaterThan(base);
+    });
+
+    it("poor matchup adjustment lowers the opening price", () => {
+      const neutral = calcOpeningYesPrice(18, "WR", "TOP_10", "ACTIVE", { adpRank: 40 });
+      const tough = calcOpeningYesPrice(18, "WR", "TOP_10", "ACTIVE", { adpRank: 40, matchupAdjustment: -2 });
+      expect(tough).toBeLessThan(neutral);
+    });
+  });
+
   describe("calcInitialPools — pool consistency", () => {
     it("yesPrice + noPrice = 1", () => {
       const { yesPrice, noPrice } = calcInitialPools(0.65);

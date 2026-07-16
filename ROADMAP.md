@@ -4,9 +4,9 @@ This roadmap prioritizes architectural work by impact and dependency order. It a
 
 ## Project Status
 
-Current milestone: FX-019 Fantasy Intelligence Terminal complete.
+Current milestone: FX-023 Week 1 Player Universe and Research-Based Opening Prices implemented.
 
-Overall MVP foundation completion: 100%. Consumer-facing polish: complete. Exchange UX: complete. Installable Live Sunday OS: complete. Fantasy intelligence terminal layer: complete.
+Overall MVP foundation completion: 100%. Consumer-facing polish: complete. Exchange UX: complete. Installable Live Sunday OS: complete. Fantasy intelligence terminal layer: complete. Beta referral loop: implemented. First-trade conversion and market sharing: implemented. First-party activation metrics: implemented. Research-based Week 1 seed pricing: implemented.
 
 Sprint 15 focus:
 
@@ -28,7 +28,91 @@ Sprint 15 focus:
 - Completed: FX-016.5 Bloomberg Terminal Rebrand (market board, terminal components, pixel avatars, opening price model, 105-player universe).
 - Completed: FX-017 FantasyX OS (installable PWA, offline shell, Live Sunday command center, notification preferences).
 - Completed: FX-019 Fantasy Intelligence Terminal (Fantasy Intelligence Engine, Market Scanner, live command center intelligence, market detail bull/bear cases).
-- Next: provider-backed live intelligence, production load testing, true push notifications, real live game-state provider, winRate API, and E2E smoke tests.
+- Completed: FX-020 Beta Growth Loop (referral codes, signup attribution, account invite links).
+- Completed: FX-021 Beta Conversion and Market Sharing (first-trade guide, shareable market links).
+- Completed: FX-022 Launch Instrumentation and Activation Metrics (BetaEvent ledger, tracking hooks, admin dashboard).
+- Completed: FX-023 Week 1 Player Universe and Research-Based Opening Prices (published Week 1 schedule, 119 seeded players, ADP/matchup-aware opening pricing).
+- Next: provider-ready projection ingestion, beta launch hardening, production launch checklist, durable/shared rate limiting, provider-backed live intelligence, production load testing, true push notifications, real live game-state provider, winRate API, and E2E smoke tests.
+
+## Completed - FX-023 Week 1 Player Universe and Research-Based Opening Prices
+
+Implemented:
+
+- Updated seed Week 1 schedule to the current published 2026 Week 1 slate.
+- Expanded seed player universe from 105 to 119 players.
+- Added researched RB/WR/TE depth names.
+- Corrected stale player team/game assignments.
+- Added `PricingContext` to the opening price model.
+- Added capped ADP/rank confidence adjustment.
+- Added small matchup adjustment support.
+- Updated seed market generation to pass ADP and matchup context into opening prices.
+- Added focused opening-price tests.
+- Added `FX023-PRICING-RESEARCH.md`.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test -- tests/opening-price-model.test.ts` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+
+## Completed - FX-022 Launch Instrumentation and Activation Metrics
+
+Implemented:
+
+- Added `BetaEventType` enum and `BetaEvent` table.
+- Added migration `20260708210000_fx022_beta_instrumentation`.
+- Added best-effort beta event tracking helpers.
+- Added `POST /api/beta-events` for authenticated client tracking.
+- Added `GET /api/admin/beta` for admin activation metrics.
+- Added `/admin/beta` dashboard with activation rates, event counts, and referral leaders.
+- Tracked signup, referral signup, onboarding completion, first trade, invite copy, and market share.
+
+Verification:
+
+- `npm run prisma:generate` passed.
+- `npm run typecheck` passed.
+- `npm run lint` passed.
+- `npm run build` passed after clearing stale generated `.next` output.
+
+## Completed - FX-021 Beta Conversion and Market Sharing
+
+Implemented:
+
+- Added a first-trade guide on `/markets`.
+- Updated onboarding completion to route users to `/markets?coach=first-trade`.
+- Added `components/first-trade-coach.tsx`.
+- Added `components/share-market-button.tsx` using native share where available and clipboard fallback elsewhere.
+- Added compact share buttons to market cards.
+- Added share buttons to market detail pages.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run lint` passed.
+- `npm run build` passed after clearing stale generated `.next` output.
+
+## Completed - FX-020 Beta Growth Loop
+
+Implemented:
+
+- Added referral-code fields to `User` with a self-referential inviter relation.
+- Added migration `20260708200000_fx020_beta_growth_loop`.
+- Added `lib/referrals.ts` for code generation, normalization, attribution lookup, and existing-user backfill.
+- Updated signup to accept invite codes from `/signup?ref=CODE`.
+- Updated `/api/account` to expose referral code, invite URL, referral count, and inviter display name.
+- Added a copyable invite panel to `/account`.
+- Added invite-code display to `/signup`.
+- Added deterministic referral codes for seeded demo users.
+- Added focused auth/account test coverage for referral attribution.
+
+Verification:
+
+- `npm run prisma:generate` passed.
+- `npm run typecheck` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused DB tests were blocked because Docker Desktop/Postgres was unavailable locally.
 
 ## Completed - FX-019 Fantasy Intelligence Terminal
 

@@ -2,7 +2,56 @@
 
 ## Active
 
-_No active tickets. Next sprint: FX-017 Concurrency Safety + winRate + E2E._
+FX024 - Provider-Ready Projection Ingestion.
+
+1. Add projection source abstraction separate from roster/schedule providers.
+2. Add projection metadata/source/date tracking.
+3. Add admin projection import preview before market generation.
+4. Keep ADP as fallback pricing context only.
+5. Resume beta launch hardening afterward: durable rate limiting, observability, verify script, and E2E smoke tests.
+
+## Completed - FX-023 Week 1 Player Universe and Research-Based Opening Prices
+
+1. Updated seed Week 1 schedule to the current published 2026 slate.
+2. Expanded seed player universe from 105 to 119 players.
+3. Added ADP/rank and matchup context inputs to opening price model.
+4. Updated seed market generation to use researched pricing context.
+5. Added `FX023-PRICING-RESEARCH.md`.
+6. Added focused opening-price tests for researched context.
+7. Verification: typecheck, opening-price tests, lint, and build passed.
+
+## Completed - FX-022 Launch Instrumentation and Activation Metrics
+
+1. Added `BetaEventType` enum and `BetaEvent` table.
+2. Added migration `20260708210000_fx022_beta_instrumentation`.
+3. Created `lib/beta-events.ts`.
+4. Added `POST /api/beta-events`.
+5. Added `GET /api/admin/beta`.
+6. Added `/admin/beta` activation dashboard.
+7. Tracked signup, referral signup, onboarding completion, first trade, invite copy, and market share.
+8. Verification: prisma generate, typecheck, lint, and build passed.
+
+## Completed - FX-021 Beta Conversion and Market Sharing
+
+1. Added first-trade guided path after onboarding.
+2. Created `components/first-trade-coach.tsx`.
+3. Updated onboarding completion to land on `/markets?coach=first-trade`.
+4. Created `components/share-market-button.tsx`.
+5. Added share/copy market links on market cards and market detail pages.
+6. Verification: typecheck, lint, and build passed.
+
+## Completed - FX-020 Beta Growth Loop
+
+1. Added referral-code fields and self-referential inviter relation to `User`.
+2. Added Prisma migration `20260708200000_fx020_beta_growth_loop`.
+3. Created `lib/referrals.ts` for referral code generation, normalization, lookup, and backfill.
+4. Updated signup to attribute `/signup?ref=CODE` signups to the referrer.
+5. Updated account API with referral code, invite URL, referral count, and inviter display name.
+6. Added copyable invite link panel to `/account`.
+7. Added active invite-code display to `/signup`.
+8. Added deterministic demo referral codes to seed users.
+9. Added referral attribution coverage to `tests/auth-accounts.test.ts`.
+10. Verification: prisma generate, typecheck, lint, and build passed. DB tests were blocked because Docker Desktop/Postgres was unavailable.
 
 ## Completed - FX-016.5 Bloomberg Terminal Rebrand
 

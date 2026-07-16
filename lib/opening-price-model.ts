@@ -16,6 +16,10 @@
 export type PlayerStatus = "ACTIVE" | "QUESTIONABLE" | "DOUBTFUL" | "OUT";
 export type ThresholdType = "TOP_3" | "TOP_5" | "TOP_10";
 export type Position = "QB" | "RB" | "WR" | "TE";
+export type PricingContext = {
+  adpRank?: number;
+  matchupAdjustment?: number;
+};
 
 /**
  * Typical projection range and starter pool size by position.
@@ -80,12 +84,21 @@ export function calcOpeningYesPrice(
   projection: number,
   position: Position,
   threshold: ThresholdType,
-  status: PlayerStatus = "ACTIVE"
+  status: PlayerStatus = "ACTIVE",
+  context: PricingContext = {}
 ): number {
-  const expectedRank = projectionToRank(projection, position);
+  const expectedRank = projectionToRank(projection + (context.matchupAdjustment ?? 0), position);
   const baseProb = rankToProb(expectedRank, threshold);
-  const statusAdj = baseProb * STATUS_MULTIPLIER[status];
+  const statusAdj = (baseProb + adpConfidenceAdjustment(context.adpRank, threshold)) * STATUS_MULTIPLIER[status];
   return round6(clamp(statusAdj, 0.05, 0.95));
+}
+
+function adpConfidenceAdjustment(adpRank: number | undefined, threshold: ThresholdType) {
+  if (!adpRank || adpRank <= 0) return 0;
+
+  const anchor = threshold === "TOP_3" ? 24 : threshold === "TOP_5" ? 48 : 96;
+  const raw = (anchor - adpRank) / anchor;
+  return clamp(raw * 0.08, -0.05, 0.08);
 }
 
 /**

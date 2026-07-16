@@ -2,7 +2,7 @@
 
 ## Current Sprint
 
-FX019 - Fantasy Intelligence Terminal.
+FX023 - Week 1 Player Universe and Research-Based Opening Prices.
 
 ## Product State
 
@@ -10,17 +10,26 @@ FantasyX is a free-play NFL prediction market with real user accounts, mock cred
 
 ## Latest Additions
 
-- Fantasy Intelligence Engine.
-- Week-level Market Scanner.
-- Market-level bull/bear cases.
-- Confidence, trend, matchup, opportunity, risk, sharp money, and public money scores.
-- Injury, weather, and Vegas line movement proxy impacts.
-- Historical similar-game readouts.
-- Intelligence surfaces on `/live`, `/markets/board`, and `/markets/[marketId]`.
+- Referral-code growth loop for beta launch.
+- `/signup?ref=CODE` attribution.
+- Copyable invite links on `/account`.
+- Account API referral count and inviter metadata.
+- First-trade guide after onboarding.
+- Shareable market links on market cards and market detail pages.
+- First-party beta event tracking.
+- `/admin/beta` activation dashboard.
+- Server-side tracking for signup, referral signup, onboarding completion, and first trade.
+- Client-side tracking for invite copies and market shares.
+- Updated published 2026 Week 1 seed schedule.
+- Expanded seed player universe from 105 to 119 players.
+- Added ADP/rank and matchup context to opening price calculation.
+- Added pricing research note.
+- Deterministic demo referral codes in seed data.
+- Fantasy Intelligence Engine from FX019 remains active across `/live`, `/markets/board`, and `/markets/[marketId]`.
 
 ## Production Readiness
 
-The application remains architected for Vercel and PostgreSQL through Prisma. The FX019 changes are read-only additions to the market intelligence surface and do not require a schema migration.
+The application remains architected for Vercel and PostgreSQL through Prisma. FX020 added beta referrals. FX021 added conversion/share surfaces. FX022 added a first-party beta event table and admin dashboard. FX023 updates seed/player/pricing logic only and does not change trading, settlement, balances, or market state behavior.
 
 ## Guardrails
 
@@ -35,10 +44,10 @@ FantasyX remains entirely free-play:
 
 ## Next Recommended Sprint
 
-FX020 should focus on provider-backed live intelligence:
+FX024 should focus on provider-ready projection ingestion:
 
-- Real weather provider
-- Real injury feed
-- Real Vegas line movement provider
-- Real historical fantasy comp dataset
-- E2E Sunday smoke tests for live command center, scanner, board, trade, and portfolio flows
+- Projection source abstraction
+- Projection metadata/source/date tracking
+- Admin projection import preview before market generation
+- ADP fallback only when projections are unavailable
+- Continue beta launch hardening afterward: durable rate limiting, observability, verify script, and E2E smoke tests
