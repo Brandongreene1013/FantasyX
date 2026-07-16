@@ -14,6 +14,7 @@ import { PriceFlash } from "@/components/ui/price-flash";
 import { ExchangeFeed } from "@/components/ui/exchange-feed";
 import { LiveBadge } from "@/components/ui/live-badge";
 import { FantasyIntelligencePanel } from "@/components/fantasy-intelligence-panel";
+import { ShareMarketButton } from "@/components/share-market-button";
 import { apiGet } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
 import { getPositionColor } from "@/lib/team-colors";
@@ -93,7 +94,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
     <div className="space-y-4 pb-6">
       <div className="flex items-center justify-between">
         <BackLink />
-        <LiveBadge isLive={liveConnected} />
+        <div className="flex items-center gap-2">
+          {detail?.player && <ShareMarketButton market={detail.market} player={detail.player} />}
+          <LiveBadge isLive={liveConnected} />
+        </div>
       </div>
 
       {/* Player hero card */}
@@ -155,11 +159,14 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
 
       {/* Market question */}
       <div className="rounded-xl border border-rim bg-panel px-4 py-3">
-        <p className="text-sm font-semibold text-muted">
-          Will <span className="font-black text-frost">{player.name}</span> finish{" "}
-          <span className="font-black text-neon">{thresholdLabel(market.threshold)}</span>{" "}
-          at {player.position} this week in half-PPR scoring?
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-muted">
+            Will <span className="font-black text-frost">{player.name}</span> finish{" "}
+            <span className="font-black text-neon">{thresholdLabel(market.threshold)}</span>{" "}
+            at {player.position} this week in half-PPR scoring?
+          </p>
+          <ShareMarketButton market={market} player={player} />
+        </div>
       </div>
 
       {/* Charts */}

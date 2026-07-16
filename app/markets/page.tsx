@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { Search, SlidersHorizontal, X, Radio } from "lucide-react";
 import { MarketCard } from "@/components/market-card";
+import { FirstTradeCoach } from "@/components/first-trade-coach";
 import { TradeModal } from "@/components/trade-modal";
 import { LoadingFeed } from "@/components/ui/loading-skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
@@ -52,6 +53,7 @@ export default function MarketsPage() {
   const [liveMsg, setLiveMsg]     = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [ticket, setTicket]       = useState<Ticket | null>(null);
+  const [showCoach, setShowCoach] = useState(false);
 
   const [search,      setSearch]      = useState("");
   const [position,    setPosition]    = useState<Position | "ALL">("ALL");
@@ -73,6 +75,10 @@ export default function MarketsPage() {
       setError(e instanceof Error ? e.message : "Could not load markets");
       setHasLoaded(true);
     });
+  }, []);
+
+  useEffect(() => {
+    setShowCoach(new URLSearchParams(window.location.search).get("coach") === "first-trade");
   }, []);
 
   // Mark loaded once SSE delivers first slate
@@ -173,6 +179,8 @@ export default function MarketsPage() {
           Board View
         </Link>
       </div>
+
+      <FirstTradeCoach visible={showCoach} onDismiss={() => setShowCoach(false)} />
 
       {/* Search */}
       <div className="relative">

@@ -7,6 +7,7 @@ import { getYesPrice, getNoPrice } from "@/lib/amm";
 import { credits, pct, thresholdLabel } from "@/lib/format";
 import type { Market, Player, Side } from "@/lib/types";
 import { PlayerAvatar } from "@/components/ui/player-avatar";
+import { ShareMarketButton } from "@/components/share-market-button";
 import { getPositionColor } from "@/lib/team-colors";
 
 export function MarketCard({
@@ -77,6 +78,7 @@ export function MarketCard({
               <Star className="h-4 w-4" fill={isWatched ? "currentColor" : "none"} aria-hidden />
             </button>
           )}
+          <ShareMarketButton market={market} player={player} compact />
         </div>
 
         {/* Market question */}

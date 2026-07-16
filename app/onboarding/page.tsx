@@ -25,7 +25,7 @@ export default function OnboardingPage() {
       await apiPost("/api/auth/onboarding", { favoriteTeam: favTeam || null, onboardingDone: true });
       window.dispatchEvent(new Event("fantasyx:data-changed"));
     } catch { /* non-blocking */ }
-    router.push("/markets" as Route);
+    router.push("/markets?coach=first-trade" as Route);
   }
 
   function next() {
