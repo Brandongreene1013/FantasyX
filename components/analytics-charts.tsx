@@ -47,7 +47,7 @@ export function MarketHistoryCharts({ history }: { history: MarketHistoryPoint[]
           <AreaChart data={data} margin={{ top: 12, right: 8, left: 0, bottom: 0 }} accessibilityLayer>
             <CartesianGrid stroke="#101820" strokeOpacity={0.08} vertical={false} />
             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#101820", fontSize: 11 }} />
-            <YAxis tickFormatter={(value) => credits(Number(value)).replace(" cr", "")} tickLine={false} axisLine={false} tick={{ fill: "#101820", fontSize: 11 }} width={44} />
+            <YAxis tickFormatter={(value) => credits(Number(value))} tickLine={false} axisLine={false} tick={{ fill: "#101820", fontSize: 11 }} width={44} />
             <Tooltip formatter={(value) => credits(Number(value))} />
             <Area type="monotone" dataKey="volume" name="Volume" stroke="#D7A94B" fill="#D7A94B" fillOpacity={0.25} strokeWidth={3} />
           </AreaChart>
@@ -85,7 +85,7 @@ export function EquityCurveChart({ points }: { points: PortfolioResponse["equity
         <AreaChart data={data} margin={{ top: 16, right: 16, left: 0, bottom: 0 }} accessibilityLayer>
           <CartesianGrid stroke="#101820" strokeOpacity={0.08} vertical={false} />
           <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#101820", fontSize: 11 }} />
-          <YAxis tickFormatter={(value) => credits(Number(value)).replace(" cr", "")} tickLine={false} axisLine={false} tick={{ fill: "#101820", fontSize: 11 }} width={58} />
+          <YAxis tickFormatter={(value) => credits(Number(value))} tickLine={false} axisLine={false} tick={{ fill: "#101820", fontSize: 11 }} width={58} />
           <Tooltip formatter={(value) => credits(Number(value))} />
           <Area type="monotone" dataKey="balance" name="Balance" stroke="#12664F" fill="#12664F" fillOpacity={0.22} strokeWidth={3} />
         </AreaChart>

@@ -2,12 +2,13 @@ export function money(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2
   }).format(value);
 }
 
 export function credits(value: number) {
-  return `${value.toLocaleString("en-US", { maximumFractionDigits: 2 })} cr`;
+  return money(value);
 }
 
 export function pct(value: number) {
