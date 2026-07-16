@@ -190,7 +190,7 @@ button, input, select, textarea {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
-.animate-ticker { animation: ticker 40s linear infinite; }
+.animate-ticker { animation: ticker 95s linear infinite; }
 .animate-ticker-fast { animation: ticker 20s linear infinite; }
 .animate-ticker:hover { animation-play-state: paused; }
 
