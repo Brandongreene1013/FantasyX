@@ -6,7 +6,6 @@ import { settleDbMarket } from "@/lib/settlement.service";
 import { calcOpeningYesPrice, calcInitialPools } from "@/lib/opening-price-model";
 
 const prisma = new PrismaClient();
-validateIdentityEnv();
 
 const season = 2026;
 const weekId = "nfl_2026_w1";
@@ -251,7 +250,9 @@ const demoTrades = [
   { userId: "user_admin",          marketId: "m_p_devonta_smith_top_10",      side: "YES", spend: 70  },
 ] as const;
 
-async function main() {
+export async function seedFantasyUniverse() {
+  validateIdentityEnv();
+
   await prisma.$executeRawUnsafe('TRUNCATE TABLE "account_ledger_entries", "admin_audit_logs", "market_events" CASCADE');
   await prisma.settlement.deleteMany();
   await prisma.trade.deleteMany();
@@ -379,10 +380,12 @@ async function main() {
   });
 }
 
-main()
-  .then(async () => { await prisma.$disconnect(); })
-  .catch(async (error) => {
-    console.error(error);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+if (process.argv[1]?.replace(/\\/g, "/").endsWith("prisma/seed.ts")) {
+  seedFantasyUniverse()
+    .then(async () => { await prisma.$disconnect(); })
+    .catch(async (error) => {
+      console.error(error);
+      await prisma.$disconnect();
+      process.exit(1);
+    });
+}
