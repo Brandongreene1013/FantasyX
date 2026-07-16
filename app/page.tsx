@@ -62,33 +62,31 @@ export default function Home() {
     <div className="space-y-6 pb-6">
 
       {/* ── Terminal status bar ──────────────────────────────── */}
-      <div className="rounded-lg border border-neon/20 bg-panel px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+      <div className="rounded-lg border border-neon/20 bg-panel px-3 py-2.5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 lg:flex-nowrap">
+          <div className="flex min-w-0 items-center gap-2.5">
             <LiveBadge isLive={live.isConnected} />
-            <span className="font-mono text-xs font-black text-frost">FX EXCHANGE</span>
+            <span className="whitespace-nowrap font-mono text-[11px] font-black text-frost">FX EXCHANGE</span>
             <span className="font-mono text-[10px] text-muted hidden sm:inline">NFL 2026 · WEEK 1</span>
           </div>
-          <span className="h-4 w-px bg-rim hidden sm:block" aria-hidden />
-          <span className="font-mono text-[10px] text-muted hidden sm:inline">{open.length} OPEN MKTS</span>
-        </div>
-        <div className="flex items-center gap-4">
-          {loaded && session ? (
-            <>
-              <div className="hidden sm:flex items-center gap-4">
-                <StatPill label="BALANCE" value={credits(portfolio?.user.mockBalance ?? 0)} />
-                <StatPill label="P&L" value={`${pnlPos ? "+" : ""}${credits(ana?.allTimePnl ?? 0)}`} tone={pnlPos ? "neon" : "crimson"} />
-                <StatPill label="OPEN" value={String(openCount)} />
-              </div>
-              <Link href="/markets/board" className="inline-flex items-center gap-1.5 rounded border border-neon/30 bg-neon/10 px-3 py-1.5 font-mono text-[10px] font-black text-neon hover:bg-neon/20 transition-colors">
-                <Activity className="h-3 w-3" aria-hidden /> BOARD
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            {loaded && session ? (
+              <>
+                <div className="hidden min-w-0 items-center gap-2 sm:flex">
+                  <StatPill label="BALANCE" value={credits(portfolio?.user.mockBalance ?? 0)} />
+                  <StatPill label="P&L" value={`${pnlPos ? "+" : ""}${credits(ana?.allTimePnl ?? 0)}`} tone={pnlPos ? "neon" : "crimson"} />
+                  <StatPill label="OPEN" value={String(openCount)} />
+                </div>
+                <Link href="/markets/board" className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded border border-neon/30 bg-neon/10 px-2.5 font-mono text-[9px] font-black text-neon transition-colors hover:bg-neon/20">
+                  <Activity className="h-3 w-3" aria-hidden /> BOARD
+                </Link>
+              </>
+            ) : loaded ? (
+              <Link href="/signup" className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded bg-neon px-2.5 font-mono text-[9px] font-black text-surface transition-colors hover:bg-neon/90">
+                START FREE <ArrowRight className="h-3 w-3" aria-hidden />
               </Link>
-            </>
-          ) : loaded ? (
-            <Link href="/signup" className="inline-flex items-center gap-1.5 rounded bg-neon px-3 py-1.5 font-mono text-[10px] font-black text-surface hover:bg-neon/90 transition-colors">
-              START FREE <ArrowRight className="h-3 w-3" aria-hidden />
-            </Link>
-          ) : null}
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -304,9 +302,9 @@ export default function Home() {
 function StatPill({ label, value, tone }: { label: string; value: string; tone?: "neon" | "crimson" }) {
   const color = tone === "neon" ? "text-neon" : tone === "crimson" ? "text-crimson" : "text-frost";
   return (
-    <div className="text-right">
-      <p className="font-mono text-[8px] text-muted/60 uppercase tracking-wider">{label}</p>
-      <p className={`font-mono text-xs font-black tabular-nums ${color}`}>{value}</p>
+    <div className="grid min-w-[72px] grid-cols-[auto_1fr] items-baseline gap-1.5 rounded border border-rim/50 bg-panel2/50 px-2 py-1">
+      <p className="whitespace-nowrap font-mono text-[8px] font-bold uppercase text-muted/60">{label}</p>
+      <p className={`truncate text-right font-mono text-[11px] font-black tabular-nums ${color}`}>{value}</p>
     </div>
   );
 }
