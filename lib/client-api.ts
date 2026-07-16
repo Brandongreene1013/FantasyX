@@ -14,6 +14,7 @@ export type SessionResponse = {
     isAdmin: boolean;
     mockBalance: number;
     startingBalance: number;
+    referralCode: string | null;
   } | null;
   csrfToken?: string | null;
 };
@@ -335,6 +336,20 @@ export type AdminWeeksResponse = {
     settledMarkets: number;
     draftMarkets: number;
   }>;
+};
+
+export type AdminBetaResponse = {
+  beta: {
+    since: string;
+    totalUsers: number;
+    counts: Record<string, number>;
+    activation: {
+      signupToOnboardingPct: number;
+      signupToFirstTradePct: number;
+      referralSignupPct: number;
+    };
+    topReferrers: Array<{ id: string; name: string; referralCode: string | null; referrals: number }>;
+  };
 };
 
 export type GenerateMarketsResponse = {

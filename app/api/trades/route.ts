@@ -5,6 +5,7 @@ import { executeDbBuy, executeDbSell } from "@/lib/trade.service";
 import { apiError } from "@/lib/api-response";
 import { tradeSchema } from "@/lib/api-validation";
 import { requireSessionUser } from "@/lib/auth";
+import { trackBetaEvent } from "@/lib/beta-events";
 import { requireCsrf } from "@/lib/csrf";
 
 export async function POST(request: Request) {
@@ -30,6 +31,16 @@ export async function POST(request: Request) {
         idempotencyKey: body.idempotencyKey
       });
     });
+
+    const tradeCount = await prisma.trade.count({ where: { userId: user.id } });
+    if (tradeCount === 1) {
+      await trackBetaEvent({
+        type: "FIRST_TRADE",
+        userId: user.id,
+        marketId: body.marketId,
+        metadata: { action: body.action, side: body.side }
+      });
+    }
 
     return NextResponse.json({ trade });
   } catch (error) {

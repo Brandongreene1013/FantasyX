@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Ban, CheckCircle2, Database, Lock, RefreshCw, Unlock } from "lucide-react";
+import { Ban, CheckCircle2, Database, Lock, RefreshCw, TrendingUp, Unlock } from "lucide-react";
 import { PageHeading } from "@/components/page-heading";
 import { getNoPrice, getYesPrice } from "@/lib/amm";
 import { apiGet, apiPost, defaultWeekId, type NflStatsResponse, type NflSyncResponse, type SessionResponse, type SlateResponse } from "@/lib/client-api";
@@ -182,6 +182,9 @@ export default function AdminPage() {
         </a>
         <a href="/admin/scoring" className="inline-flex items-center gap-1 rounded border border-ink/15 bg-white px-3 py-1.5 text-xs font-black hover:bg-ink/5 shadow-soft">
           <CheckCircle2 className="h-3 w-3" aria-hidden />Scoring &amp; Settlement
+        </a>
+        <a href="/admin/beta" className="inline-flex items-center gap-1 rounded border border-ink/15 bg-white px-3 py-1.5 text-xs font-black hover:bg-ink/5 shadow-soft">
+          <TrendingUp className="h-3 w-3" aria-hidden />Beta Metrics
         </a>
       </section>
 

@@ -95,6 +95,15 @@ enum UserRole {
   ADMIN
 }
 
+enum BetaEventType {
+  SIGNUP
+  REFERRAL_SIGNUP
+  ONBOARDING_COMPLETE
+  FIRST_TRADE
+  MARKET_SHARE
+  INVITE_COPY
+}
+
 model User {
   id              String             @id @default(cuid())
   name            String
@@ -110,6 +119,10 @@ model User {
   startingBalance  Decimal            @default(1000) @map("starting_balance") @db.Decimal(14, 2)
   favoriteTeam     String?            @map("favorite_team")
   onboardingDone   Boolean            @default(false) @map("onboarding_done")
+  referralCode     String?            @unique @map("referral_code")
+  referredByUserId String?            @map("referred_by_user_id")
+  referredBy       User?              @relation("UserReferrals", fields: [referredByUserId], references: [id], onDelete: SetNull)
+  referrals        User[]             @relation("UserReferrals")
   createdAt        DateTime           @default(now()) @map("created_at")
   updatedAt        DateTime           @updatedAt @map("updated_at")
   trades           Trade[]
@@ -123,8 +136,29 @@ model User {
   sessions         Session[]
   scoreImports     ScoreImport[]
   watchedMarkets   WatchMarket[]
+  betaEvents       BetaEvent[]         @relation("BetaEventUser")
+  betaReferrals    BetaEvent[]         @relation("BetaEventReferrer")
 
+  @@index([referredByUserId])
   @@map("users")
+}
+
+model BetaEvent {
+  id         String        @id @default(cuid())
+  type       BetaEventType
+  userId     String?       @map("user_id")
+  user       User?         @relation("BetaEventUser", fields: [userId], references: [id], onDelete: SetNull)
+  marketId   String?       @map("market_id")
+  referrerId String?       @map("referrer_id")
+  referrer   User?         @relation("BetaEventReferrer", fields: [referrerId], references: [id], onDelete: SetNull)
+  metadata   Json?
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@index([type, createdAt])
+  @@index([userId, createdAt])
+  @@index([marketId, createdAt])
+  @@index([referrerId, createdAt])
+  @@map("beta_events")
 }
 
 model Session {

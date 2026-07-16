@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { apiError } from "@/lib/api-response";
+import { trackBetaEvent } from "@/lib/beta-events";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -26,6 +27,14 @@ export async function POST(request: Request) {
         ...(parsed.data.onboardingDone !== undefined && { onboardingDone: parsed.data.onboardingDone })
       }
     });
+
+    if (parsed.data.onboardingDone) {
+      await trackBetaEvent({
+        type: "ONBOARDING_COMPLETE",
+        userId: user.id,
+        metadata: { favoriteTeam: parsed.data.favoriteTeam ?? null }
+      });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
