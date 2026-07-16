@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Users } from "lucide-react";
 import { apiGet, apiPost, type SessionResponse } from "@/lib/client-api";
 
 export default function SignupPage() {
   const router = useRouter();
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", confirmPassword: "" });
+  const [referralCode, setReferralCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -18,6 +20,11 @@ export default function SignupPage() {
     return () => { active = false; };
   }, [router]);
 
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) setReferralCode(ref.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 24));
+  }, []);
+
   function updateField(field: keyof typeof form, value: string) {
     setForm((cur) => ({ ...cur, [field]: value }));
   }
@@ -25,7 +32,7 @@ export default function SignupPage() {
   async function submitSignup(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setError(null); setIsSubmitting(true);
     try {
-      await apiPost("/api/auth/signup", form);
+      await apiPost("/api/auth/signup", { ...form, referralCode: referralCode || undefined });
       window.dispatchEvent(new Event("fantasyx:data-changed"));
       router.push("/onboarding" as Route); router.refresh();
     } catch (err) {
@@ -41,6 +48,12 @@ export default function SignupPage() {
       <div className="mb-8 text-center">
         <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-neon text-surface font-black text-lg">FX</div>
         <h1 className="text-2xl font-black text-frost">Join FantasyX</h1>
+        {referralCode && (
+          <div className="mx-auto mt-4 flex max-w-sm items-center justify-center gap-2 rounded-xl border border-neon/25 bg-neon/10 px-3 py-2 text-xs font-black text-neon">
+            <Users className="h-3.5 w-3.5" aria-hidden />
+            INVITED WITH CODE {referralCode}
+          </div>
+        )}
         <p className="mt-1 text-sm font-semibold text-muted">Free account · 10,000 mock credits · No deposits</p>
       </div>
 

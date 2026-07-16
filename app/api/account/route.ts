@@ -3,6 +3,7 @@ import { apiError } from "@/lib/api-response";
 import { requireSessionUser } from "@/lib/auth";
 import { toNumber } from "@/lib/db-serialization";
 import { prisma } from "@/lib/prisma";
+import { ensureUserReferralCode } from "@/lib/referrals";
 
 export async function GET(request: Request) {
   try {
@@ -11,13 +12,18 @@ export async function GET(request: Request) {
       where: { id: sessionUser.id },
       include: {
         positions: true,
-        trades: true
+        trades: true,
+        referrals: { select: { id: true } },
+        referredBy: { select: { displayName: true, name: true } }
       }
     });
 
     if (!user) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
+
+    const referralCode = await ensureUserReferralCode(prisma, user.id, user.referralCode);
+    const origin = new URL(request.url).origin;
 
     return NextResponse.json({
       account: {
@@ -33,7 +39,11 @@ export async function GET(request: Request) {
         joinedAt: user.createdAt.toISOString(),
         openPositions: user.positions.filter((position) => toNumber(position.yesShares) + toNumber(position.noShares) > 0).length,
         totalTrades: user.trades.length,
-        portfolioPnl: toNumber(user.mockBalance) - toNumber(user.startingBalance)
+        portfolioPnl: toNumber(user.mockBalance) - toNumber(user.startingBalance),
+        referralCode,
+        referralUrl: `${origin}/signup?ref=${encodeURIComponent(referralCode)}`,
+        referralCount: user.referrals.length,
+        referredByName: user.referredBy ? user.referredBy.displayName || user.referredBy.name : null
       }
     });
   } catch (error) {

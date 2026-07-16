@@ -30,7 +30,8 @@ export const signupSchema = z.object({
   lastName: z.string().trim().min(1, "Last name is required").max(80),
   email: z.string().trim().email().transform((value) => value.toLowerCase()),
   password: z.string().min(8, "Password must be at least 8 characters").max(128),
-  confirmPassword: z.string().min(1, "Confirm your password")
+  confirmPassword: z.string().min(1, "Confirm your password"),
+  referralCode: z.string().trim().max(24).optional().transform((value) => value ? value.toUpperCase().replace(/[^A-Z0-9]/g, "") : undefined)
 }).refine((value) => value.password === value.confirmPassword, {
   path: ["confirmPassword"],
   message: "Passwords do not match"

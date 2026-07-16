@@ -54,6 +54,36 @@ describe("FX009 real account auth", () => {
     expect((await signup(signupRequest("duplicate@example.com"))).status).toBe(409);
   });
 
+  it("creates referral codes and attributes referred signups", async () => {
+    await signup(signupRequest("inviter@example.com"));
+    const inviter = await prisma.user.findUniqueOrThrow({ where: { email: "inviter@example.com" } });
+    expect(inviter.referralCode).toMatch(/^FX[A-Z0-9]+/);
+
+    const referredResponse = await signup(jsonRequest("/api/auth/signup", {
+      firstName: "Riley",
+      lastName: "Referral",
+      email: "referred@example.com",
+      password: "SuperSecret123!",
+      confirmPassword: "SuperSecret123!",
+      referralCode: inviter.referralCode?.toLowerCase()
+    }));
+    expect(referredResponse.status).toBe(201);
+
+    const referred = await prisma.user.findUniqueOrThrow({ where: { email: "referred@example.com" } });
+    expect(referred.referredByUserId).toBe(inviter.id);
+
+    const account = await getAccount(new Request("http://localhost/api/account", {
+      headers: { cookie: `${sessionCookieName}=${await createSession(inviter.id)}` }
+    }));
+    expect(account.status).toBe(200);
+    expect(await account.json()).toMatchObject({
+      account: {
+        referralCode: inviter.referralCode,
+        referralCount: 1
+      }
+    });
+  });
+
   it("does not allow normal signup to reserve the configured admin email", async () => {
     const previousAdminEmail = process.env.ADMIN_EMAIL;
     process.env.ADMIN_EMAIL = "reserved-admin@example.com";

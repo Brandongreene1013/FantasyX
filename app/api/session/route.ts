@@ -20,7 +20,8 @@ export async function GET(request: Request) {
       role: user.role,
       isAdmin: user.role === "ADMIN" || user.isAdmin,
       mockBalance: toNumber(user.mockBalance),
-      startingBalance: toNumber(user.startingBalance)
+      startingBalance: toNumber(user.startingBalance),
+      referralCode: user.referralCode
     },
     csrfToken: csrfTokenForRequest(request)
   });

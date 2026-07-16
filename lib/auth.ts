@@ -2,7 +2,7 @@ import type { User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSessionUserIdFromToken, readSessionCookie } from "@/lib/session-store";
 
-export type SessionUser = Pick<User, "id" | "name" | "firstName" | "lastName" | "displayName" | "email" | "role" | "isAdmin" | "mockBalance" | "startingBalance">;
+export type SessionUser = Pick<User, "id" | "name" | "firstName" | "lastName" | "displayName" | "email" | "role" | "isAdmin" | "mockBalance" | "startingBalance" | "referralCode">;
 
 export async function getSessionUserId(request: Request) {
   return getSessionUserIdFromToken(readSessionCookie(request));
@@ -26,7 +26,8 @@ export async function getSessionUser(request: Request): Promise<SessionUser | nu
       role: true,
       isAdmin: true,
       mockBalance: true,
-      startingBalance: true
+      startingBalance: true,
+      referralCode: true
     }
   });
 }

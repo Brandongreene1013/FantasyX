@@ -2,8 +2,10 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-response";
 import { signupSchema } from "@/lib/api-validation";
+import { trackBetaEventTx } from "@/lib/beta-events";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
+import { findReferrerId, reserveReferralCode } from "@/lib/referrals";
 import { sessionCookieName } from "@/lib/session";
 import { createSession, getSessionCookieOptions } from "@/lib/session-store";
 
@@ -28,6 +30,11 @@ export async function POST(request: Request) {
     }
 
     const user = await prisma.$transaction(async (tx) => {
+      const [referralCode, referredByUserId] = await Promise.all([
+        reserveReferralCode(tx),
+        findReferrerId(tx, body.referralCode)
+      ]);
+
       const createdUser = await tx.user.create({
         data: {
           name: displayName,
@@ -39,7 +46,9 @@ export async function POST(request: Request) {
           role: "TRADER",
           isAdmin: false,
           mockBalance: startingCredits,
-          startingBalance: startingCredits
+          startingBalance: startingCredits,
+          referralCode,
+          referredByUserId
         },
         select: {
           id: true,
@@ -51,7 +60,8 @@ export async function POST(request: Request) {
           role: true,
           isAdmin: true,
           mockBalance: true,
-          startingBalance: true
+          startingBalance: true,
+          referralCode: true
         }
       });
 
@@ -66,6 +76,22 @@ export async function POST(request: Request) {
           metadata: { source: "signup" }
         }
       });
+
+      await trackBetaEventTx(tx, {
+        type: "SIGNUP",
+        userId: createdUser.id,
+        referrerId: referredByUserId,
+        metadata: { source: "signup" }
+      });
+
+      if (referredByUserId) {
+        await trackBetaEventTx(tx, {
+          type: "REFERRAL_SIGNUP",
+          userId: createdUser.id,
+          referrerId: referredByUserId,
+          metadata: { referralCode: body.referralCode }
+        });
+      }
 
       return createdUser;
     });
@@ -82,7 +108,8 @@ export async function POST(request: Request) {
         role: user.role,
         isAdmin: user.isAdmin,
         mockBalance: Number(user.mockBalance),
-        startingBalance: Number(user.startingBalance)
+        startingBalance: Number(user.startingBalance),
+        referralCode: user.referralCode
       }
     }, { status: 201 });
     response.cookies.set(sessionCookieName, sessionToken, getSessionCookieOptions());

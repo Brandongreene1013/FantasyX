@@ -5,9 +5,9 @@ import type { Route } from "next";
 import Link from "next/link";
 import {
   TrendingUp, TrendingDown, Wallet, Trophy, Target, Zap,
-  Calendar, Star, Shield, BarChart2, ChevronRight
+  Calendar, Star, Shield, BarChart2, ChevronRight, Copy, Users
 } from "lucide-react";
-import { apiGet } from "@/lib/client-api";
+import { apiGet, apiPost } from "@/lib/client-api";
 import { credits, pct } from "@/lib/format";
 import { getTeamColors } from "@/lib/team-colors";
 import { LoadingFeed } from "@/components/ui/loading-skeleton";
@@ -22,6 +22,7 @@ type AccountResponse = {
     joinedAt: string; openPositions: number;
     totalTrades: number; portfolioPnl: number;
     favoriteTeam?: string | null; winRate?: number;
+    referralCode: string; referralUrl: string; referralCount: number; referredByName: string | null;
   };
 };
 
@@ -44,6 +45,7 @@ export default function AccountPage() {
   const [data,      setData]      = useState<AccountResponse | null>(null);
   const [error,     setError]     = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [copied,    setCopied]    = useState(false);
 
   useEffect(() => {
     apiGet<AccountResponse>("/api/account")
@@ -66,6 +68,20 @@ export default function AccountPage() {
   const teamColors   = a.favoriteTeam ? getTeamColors(a.favoriteTeam) : null;
   const avatarBg     = teamColors ? `linear-gradient(135deg, ${teamColors.primary}, ${teamColors.secondary})` : "linear-gradient(135deg, #00D46A, #12664F)";
   const wr           = a.winRate ?? 0;
+
+  async function copyInvite() {
+    const inviteUrl = data?.account.referralUrl;
+    if (!inviteUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      void apiPost("/api/beta-events", { type: "INVITE_COPY", source: "account" }).catch(() => undefined);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   return (
     <div className="space-y-5 pb-6">
@@ -134,6 +150,33 @@ export default function AccountPage() {
           <p className={`text-[10px] font-semibold mt-1 ${pnlPos ? "text-neon/70" : "text-crimson/70"}`}>
             {profitPct >= 0 ? "+" : ""}{profitPct.toFixed(1)}% return
           </p>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-neon/20 bg-neon/5 p-5 card-depth" aria-label="Invite friends">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 text-sm font-black text-frost">
+              <Users className="h-4 w-4 text-neon" aria-hidden /> Invite League Mates
+            </h2>
+            <p className="mt-1 text-xs font-semibold text-muted">
+              Share your free-play invite link before kickoff. {a.referralCount} joined from your code.
+            </p>
+            {a.referredByName && (
+              <p className="mt-1 text-[10px] font-bold text-muted">Invited by {a.referredByName}</p>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="rounded-xl border border-rim bg-panel px-3 py-2 font-mono text-xs font-black text-neon">{a.referralCode}</span>
+            <button
+              type="button"
+              onClick={copyInvite}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-neon/30 bg-neon/10 px-3 text-xs font-black text-neon transition hover:bg-neon/20"
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden />
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
         </div>
       </section>
 
