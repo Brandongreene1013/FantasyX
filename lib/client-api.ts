@@ -25,6 +25,69 @@ export type SlateResponse = {
   markets: Array<Market & { weekId: string; kickoffTime: string; yesPrice: number; noPrice: number; openingPrice: number; volume: number; openInterest: number }>;
 };
 
+export type MarketDiscoveryResponse = {
+  weekId: string;
+  query: {
+    weekId: string;
+    q: string;
+    position?: "QB" | "RB" | "WR" | "TE";
+    team?: string;
+    marketType?: "TOP_3" | "TOP_5" | "TOP_10";
+    status?: "DRAFT" | "SCHEDULED" | "OPEN" | "LOCKED" | "SETTLED" | "VOID";
+    sort: "popular" | "price-desc" | "price-asc" | "gainers" | "losers" | "updated" | "alpha";
+    limit: number;
+    page: number;
+    watchlistOnly: boolean;
+  };
+  markets: Array<{
+    id: string;
+    title: string;
+    weekId: string;
+    playerId: string;
+    marketType: "TOP_3" | "TOP_5" | "TOP_10";
+    marketTypeLabel: string;
+    status: "DRAFT" | "SCHEDULED" | "OPEN" | "LOCKED" | "SETTLED" | "VOID";
+    result: "YES" | "NO" | null;
+    price: number;
+    priceLabel: string;
+    noPrice: number;
+    noPriceLabel: string;
+    openingPrice: number;
+    change: number;
+    changePercent: number;
+    volume: number;
+    liquidity: number;
+    openInterest: number;
+    tradeCount: number;
+    watchCount: number;
+    popularityScore: number;
+    updatedAt: string;
+    kickoffTime: string;
+    isWatchlisted: boolean;
+    player: {
+      id: string;
+      name: string;
+      team: string;
+      position: "QB" | "RB" | "WR" | "TE";
+    };
+  }>;
+  filters: {
+    positions: Array<"QB" | "RB" | "WR" | "TE">;
+    teams: string[];
+    marketTypes: Array<"TOP_3" | "TOP_5" | "TOP_10">;
+    statuses: Array<"DRAFT" | "SCHEDULED" | "OPEN" | "LOCKED" | "SETTLED" | "VOID">;
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    nextPage: number | null;
+  };
+  meta: {
+    metrics: Record<string, string>;
+  };
+};
+
 export type PortfolioResponse = {
   user: {
     id: string;

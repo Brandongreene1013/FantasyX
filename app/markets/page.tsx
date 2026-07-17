@@ -1,277 +1,389 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { Search, SlidersHorizontal, X, Radio } from "lucide-react";
-import { MarketCard } from "@/components/market-card";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  Activity,
+  ArrowDown,
+  ArrowUp,
+  BarChart3,
+  Eye,
+  LineChart,
+  ListFilter,
+  RotateCcw,
+  Search,
+  Star,
+  TrendingDown,
+  TrendingUp,
+  X
+} from "lucide-react";
 import { FirstTradeCoach } from "@/components/first-trade-coach";
 import { TradeModal } from "@/components/trade-modal";
-import { LoadingFeed } from "@/components/ui/loading-skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
-import { LiveBadge } from "@/components/ui/live-badge";
-import { useLiveExchange } from "@/hooks/use-live-exchange";
-import { apiGet, apiPost, defaultWeekId, type PortfolioResponse } from "@/lib/client-api";
-import type { Market, Player, Position, Side, Threshold, MarketStatus } from "@/lib/types";
-import { thresholdLabel } from "@/lib/format";
-import { TrendingUp } from "lucide-react";
+import { LoadingFeed } from "@/components/ui/loading-skeleton";
+import { PlayerAvatar } from "@/components/ui/player-avatar";
+import { apiGet, apiPost, defaultWeekId, type MarketDiscoveryResponse, type PortfolioResponse } from "@/lib/client-api";
+import { credits, money, thresholdLabel } from "@/lib/format";
+import { getPositionColor } from "@/lib/team-colors";
+import type { Market, Player, Position, Side } from "@/lib/types";
 
-type Ticket = { market: Market; player: Player; side: Side };
-type SortKey = "kickoff" | "yes-asc" | "yes-desc" | "liquidity" | "volume";
-type ExtMarket = Market & { weekId: string; kickoffTime: string; yesPrice: number; noPrice: number; openingPrice: number; volume: number; openInterest: number };
+type DiscoveryMarket = MarketDiscoveryResponse["markets"][number];
+type DiscoverySort = MarketDiscoveryResponse["query"]["sort"];
+type MarketType = NonNullable<MarketDiscoveryResponse["query"]["marketType"]>;
+type StatusFilter = NonNullable<MarketDiscoveryResponse["query"]["status"]>;
+type ViewKey = "all" | "trending" | "movers" | "QB" | "RB" | "WR" | "TE" | "watchlist";
+type Ticket = { market: MarketForTrade; player: Player; side: Side };
+type MarketForTrade = Market & {
+  weekId: string;
+  kickoffTime: string;
+  yesPrice: number;
+  noPrice: number;
+  openingPrice: number;
+  volume: number;
+  openInterest: number;
+};
 
-const POSITIONS: Array<{ value: Position | "ALL"; label: string }> = [
-  { value: "ALL", label: "All" },
-  { value: "QB", label: "QB" },
-  { value: "RB", label: "RB" },
-  { value: "WR", label: "WR" },
-  { value: "TE", label: "TE" }
+const VIEW_OPTIONS: Array<{ value: ViewKey; label: string; icon: React.ReactNode }> = [
+  { value: "all", label: "All Markets", icon: <BarChart3 className="h-3.5 w-3.5" /> },
+  { value: "trending", label: "Trending", icon: <Activity className="h-3.5 w-3.5" /> },
+  { value: "movers", label: "Top Movers", icon: <TrendingUp className="h-3.5 w-3.5" /> },
+  { value: "QB", label: "QB", icon: <span className="text-[10px] font-black">QB</span> },
+  { value: "RB", label: "RB", icon: <span className="text-[10px] font-black">RB</span> },
+  { value: "WR", label: "WR", icon: <span className="text-[10px] font-black">WR</span> },
+  { value: "TE", label: "TE", icon: <span className="text-[10px] font-black">TE</span> },
+  { value: "watchlist", label: "Watchlist", icon: <Star className="h-3.5 w-3.5" /> }
 ];
 
-const THRESHOLDS: Array<{ value: Threshold | "ALL"; label: string }> = [
-  { value: "ALL", label: "All" },
+const SORT_OPTIONS: Array<{ value: DiscoverySort; label: string }> = [
+  { value: "popular", label: "Popular" },
+  { value: "price-desc", label: "Price high to low" },
+  { value: "price-asc", label: "Price low to high" },
+  { value: "gainers", label: "Biggest gainers" },
+  { value: "losers", label: "Biggest losers" },
+  { value: "updated", label: "Recently updated" },
+  { value: "alpha", label: "Alphabetical" }
+];
+
+const MARKET_TYPE_OPTIONS: Array<{ value: MarketType | "ALL"; label: string }> = [
+  { value: "ALL", label: "All markets" },
   { value: "TOP_3", label: "Top 3" },
   { value: "TOP_5", label: "Top 5" },
   { value: "TOP_10", label: "Top 10" }
 ];
 
-const SORT_OPTIONS = [
-  { value: "kickoff",  label: "Kickoff" },
-  { value: "volume",   label: "Volume ↓" },
-  { value: "yes-desc", label: "YES ↓" },
-  { value: "yes-asc",  label: "YES ↑" },
-  { value: "liquidity",label: "Liquidity" }
+const STATUS_OPTIONS: Array<{ value: StatusFilter | "ALL"; label: string }> = [
+  { value: "ALL", label: "All statuses" },
+  { value: "OPEN", label: "Open" },
+  { value: "LOCKED", label: "Locked" },
+  { value: "SETTLED", label: "Settled" },
+  { value: "VOID", label: "Void" }
 ];
 
 export default function MarketsPage() {
-  const live = useLiveExchange(defaultWeekId);
+  return (
+    <Suspense fallback={<LoadingFeed count={8} />}>
+      <MarketsDiscovery />
+    </Suspense>
+  );
+}
 
+function MarketsDiscovery() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const [data, setData] = useState<MarketDiscoveryResponse | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
-  const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
-  const [hasLoaded, setHasLoaded] = useState(false);
-  const [error, setError]         = useState<string | null>(null);
-  const [liveMsg, setLiveMsg]     = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [ticket, setTicket]       = useState<Ticket | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [searchDraft, setSearchDraft] = useState(searchParams.get("q") ?? "");
   const [showCoach, setShowCoach] = useState(false);
 
-  const [search,      setSearch]      = useState("");
-  const [position,    setPosition]    = useState<Position | "ALL">("ALL");
-  const [threshold,   setThreshold]   = useState<Threshold | "ALL">("ALL");
-  const [team,        setTeam]        = useState("ALL");
-  const [statusFilter,setStatusFilter]= useState<MarketStatus | "ALL">("ALL");
-  const [sortBy,      setSortBy]      = useState<SortKey>("kickoff");
+  const query = useMemo(() => queryFromParams(searchParams), [searchParams]);
+  const apiUrl = useMemo(() => `/api/markets/discovery?${query.toString()}`, [query]);
 
-  // Initial load of portfolio + watchlist (not from SSE)
-  useEffect(() => {
-    Promise.all([
-      apiGet<PortfolioResponse>("/api/portfolio"),
-      apiGet<{ marketIds: string[] }>("/api/watchlist").catch(() => ({ marketIds: [] }))
-    ]).then(([p, wl]) => {
-      setPortfolio(p);
-      setWatchlist(new Set(wl.marketIds));
-      setHasLoaded(true);
-    }).catch((e) => {
-      setError(e instanceof Error ? e.message : "Could not load markets");
-      setHasLoaded(true);
+  const replaceParams = useCallback((mutator: (params: URLSearchParams) => void) => {
+    const next = new URLSearchParams(searchParams.toString());
+    mutator(next);
+    next.set("weekId", defaultWeekId);
+    next.set("page", "1");
+    const nextString = next.toString();
+    router.replace((nextString ? `${pathname}?${nextString}` : pathname) as Route, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const updateParam = useCallback((key: string, value: string | null) => {
+    replaceParams((next) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
     });
-  }, []);
+  }, [replaceParams]);
+
+  const resetFilters = useCallback(() => {
+    router.replace(`${pathname}?weekId=${defaultWeekId}&sort=popular&limit=50` as Route, { scroll: false });
+  }, [pathname, router]);
 
   useEffect(() => {
-    setShowCoach(new URLSearchParams(window.location.search).get("coach") === "first-trade");
-  }, []);
+    setSearchDraft(searchParams.get("q") ?? "");
+  }, [searchParams]);
 
-  // Mark loaded once SSE delivers first slate
   useEffect(() => {
-    if (live.markets.length > 0) setHasLoaded(true);
-  }, [live.markets.length]);
+    setShowCoach(searchParams.get("coach") === "first-trade");
+  }, [searchParams]);
 
-  const playerMap = useMemo(() => new Map(live.players.map((p) => [p.id, p])), [live.players]);
-  const teams = useMemo(() => {
-    const s = new Set<string>();
-    for (const p of live.players) s.add(p.team);
-    return Array.from(s).sort();
-  }, [live.players]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setIsLoading(true);
+    setError(null);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (live.markets as ExtMarket[])
-      .filter((m) => {
-        const p = playerMap.get(m.playerId);
-        if (!p) return false;
-        if (position !== "ALL" && m.position !== position) return false;
-        if (threshold !== "ALL" && m.threshold !== threshold) return false;
-        if (team !== "ALL" && p.team !== team) return false;
-        if (statusFilter !== "ALL" && m.status !== statusFilter) return false;
-        if (q && !p.name.toLowerCase().includes(q)) return false;
-        return true;
+    fetch(apiUrl, { cache: "no-store", credentials: "same-origin", signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json() as unknown;
+        if (!response.ok) {
+          throw new Error(isErrorPayload(payload) ? payload.error : "Could not load market discovery");
+        }
+        return payload as MarketDiscoveryResponse;
       })
-      .sort((a, b) => {
-        if (sortBy === "kickoff")  return a.kickoffTime.localeCompare(b.kickoffTime);
-        if (sortBy === "yes-asc")  return a.yesPrice - b.yesPrice;
-        if (sortBy === "yes-desc") return b.yesPrice - a.yesPrice;
-        if (sortBy === "liquidity")return b.liquidity - a.liquidity;
-        if (sortBy === "volume")   return b.volume - a.volume;
-        return 0;
+      .then((nextData) => setData(nextData))
+      .catch((nextError) => {
+        if (nextError instanceof DOMException && nextError.name === "AbortError") return;
+        setError(nextError instanceof Error ? nextError.message : "Could not load market discovery");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false);
       });
-  }, [live.markets, playerMap, position, threshold, team, statusFilter, search, sortBy]);
+
+    return () => controller.abort();
+  }, [apiUrl]);
+
+  useEffect(() => {
+    apiGet<PortfolioResponse>("/api/portfolio")
+      .then(setPortfolio)
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if ((searchParams.get("q") ?? "") === searchDraft.trim()) return;
+      updateParam("q", searchDraft.trim() || null);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [searchDraft, searchParams, updateParam]);
+
+  const activeView = getActiveView(searchParams);
+  const activeFilters = [
+    searchParams.get("q"),
+    searchParams.get("position"),
+    searchParams.get("team"),
+    searchParams.get("marketType"),
+    searchParams.get("status"),
+    searchParams.get("watchlistOnly")
+  ].filter(Boolean).length;
+
+  function setView(view: ViewKey) {
+    replaceParams((next) => {
+      next.delete("position");
+      next.delete("watchlistOnly");
+      if (view === "trending") next.set("sort", "popular");
+      if (view === "movers") next.set("sort", "gainers");
+      if (["QB", "RB", "WR", "TE"].includes(view)) next.set("position", view);
+      if (view === "watchlist") next.set("watchlistOnly", "true");
+    });
+  }
 
   async function toggleWatch(marketId: string) {
-    const isWatched = watchlist.has(marketId);
-    setWatchlist((prev) => { const n = new Set(prev); isWatched ? n.delete(marketId) : n.add(marketId); return n; });
+    const market = data?.markets.find((item) => item.id === marketId);
+    if (!market) return;
+    const action = market.isWatchlisted ? "remove" : "add";
+
+    setData((current) => current ? {
+      ...current,
+      markets: current.markets.map((item) =>
+        item.id === marketId
+          ? { ...item, isWatchlisted: !item.isWatchlisted, watchCount: Math.max(0, item.watchCount + (item.isWatchlisted ? -1 : 1)) }
+          : item
+      )
+    } : current);
+
     try {
-      await apiPost(`/api/watchlist/${marketId}`, { action: isWatched ? "remove" : "add" });
+      await apiPost(`/api/watchlist/${marketId}`, { action });
     } catch {
-      setWatchlist((prev) => { const n = new Set(prev); isWatched ? n.add(marketId) : n.delete(marketId); return n; });
+      setData((current) => current ? {
+        ...current,
+        markets: current.markets.map((item) =>
+          item.id === marketId
+            ? { ...item, isWatchlisted: market.isWatchlisted, watchCount: market.watchCount }
+            : item
+        )
+      } : current);
     }
   }
 
-  const activeFiltersCount = [
-    position !== "ALL", threshold !== "ALL", team !== "ALL", statusFilter !== "ALL", search !== ""
-  ].filter(Boolean).length;
-
-  const isLoading = !hasLoaded && live.markets.length === 0;
+  const markets = data?.markets ?? [];
+  const hasMarkets = markets.length > 0;
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black text-frost flex items-center gap-2">
-            Markets
-            <LiveBadge isLive={live.isConnected} />
-          </h1>
-          <p className="text-xs font-semibold text-muted flex items-center gap-1.5 mt-0.5">
-            <Radio className="h-3 w-3" aria-hidden />
-            Week 1 · {filtered.length} markets · live
+          <div className="flex items-center gap-2">
+            <h1 className="font-mono text-xl font-black uppercase tracking-wide text-frost">Market Discovery</h1>
+            <span className="rounded border border-neon/20 bg-neon/10 px-2 py-1 font-mono text-[10px] font-black uppercase text-neon">
+              Week 1
+            </span>
+          </div>
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-muted">
+            {data?.pagination.total ?? 0} markets loaded from {data?.filters.positions.length ?? 0} positions
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden overflow-hidden rounded-xl border border-rim bg-panel sm:flex">
-            <span className="bg-neon/10 px-3 py-2 text-xs font-black text-neon">Feed View</span>
-            <Link href={"/markets/board" as Route} className="px-3 py-2 text-xs font-black text-muted transition-colors hover:bg-panel2 hover:text-frost">
-              Board View
-            </Link>
-          </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={"/markets/board" as Route}
+            className="rounded border border-rim bg-panel2 px-3 py-2 font-mono text-[10px] font-black uppercase tracking-wider text-muted transition-colors hover:text-frost"
+          >
+            Board View
+          </Link>
           <button
-            onClick={() => setShowFilters((v) => !v)}
-            className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
-              showFilters || activeFiltersCount > 0
-                ? "border-neon/40 bg-neon/10 text-neon"
-                : "border-rim bg-panel text-muted hover:text-frost"
-            }`}
+            onClick={resetFilters}
+            className="inline-flex items-center gap-1 rounded border border-rim bg-panel2 px-3 py-2 font-mono text-[10px] font-black uppercase tracking-wider text-muted transition-colors hover:text-frost"
             type="button"
           >
-            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
-            Filters
-            {activeFiltersCount > 0 && (
-              <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-neon text-[9px] font-black text-surface">
-                {activeFiltersCount}
-              </span>
-            )}
+            <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+            Reset
           </button>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-rim bg-panel sm:hidden">
-        <span className="bg-neon/10 px-3 py-2 text-center text-xs font-black text-neon">Feed View</span>
-        <Link href={"/markets/board" as Route} className="px-3 py-2 text-center text-xs font-black text-muted transition-colors hover:bg-panel2 hover:text-frost">
-          Board View
-        </Link>
       </div>
 
       <FirstTradeCoach visible={showCoach} onDismiss={() => setShowCoach(false)} />
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
-        <label htmlFor="market-search" className="sr-only">Search by player name</label>
-        <input
-          id="market-search"
-          type="search"
-          placeholder="Search player…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-11 w-full rounded-xl border border-rim bg-panel pl-9 pr-4 text-sm font-semibold text-frost placeholder:text-muted outline-none focus:border-neon/50 transition-colors"
-        />
-        {search && (
-          <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-frost" aria-label="Clear search" type="button">
-            <X className="h-4 w-4" aria-hidden />
+      <section className="rounded-lg border border-rim bg-panel p-3">
+        <div className="grid gap-2 lg:grid-cols-[minmax(220px,1fr)_170px_150px_140px_170px]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
+            <label htmlFor="market-search" className="sr-only">Search markets</label>
+            <input
+              id="market-search"
+              value={searchDraft}
+              onChange={(event) => setSearchDraft(event.target.value)}
+              className="h-10 w-full rounded border border-rim bg-surface pl-9 pr-9 font-mono text-xs font-bold text-frost outline-none placeholder:text-muted/50 focus:border-neon/50"
+              placeholder="SEARCH PLAYER / TEAM / POSITION"
+              type="search"
+            />
+            {searchDraft && (
+              <button
+                onClick={() => setSearchDraft("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-frost"
+                aria-label="Clear search"
+                type="button"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            )}
+          </div>
+
+          <SelectControl
+            label="Sort"
+            value={searchParams.get("sort") ?? "popular"}
+            onChange={(value) => updateParam("sort", value)}
+            options={SORT_OPTIONS}
+          />
+          <SelectControl
+            label="Team"
+            value={searchParams.get("team") ?? "ALL"}
+            onChange={(value) => updateParam("team", value === "ALL" ? null : value)}
+            options={[{ value: "ALL", label: "All teams" }, ...(data?.filters.teams ?? []).map((team) => ({ value: team, label: team }))]}
+          />
+          <SelectControl
+            label="Market"
+            value={searchParams.get("marketType") ?? "ALL"}
+            onChange={(value) => updateParam("marketType", value === "ALL" ? null : value)}
+            options={MARKET_TYPE_OPTIONS}
+          />
+          <SelectControl
+            label="Status"
+            value={searchParams.get("status") ?? "ALL"}
+            onChange={(value) => updateParam("status", value === "ALL" ? null : value)}
+            options={STATUS_OPTIONS}
+          />
+        </div>
+
+        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+          {VIEW_OPTIONS.map((view) => (
+            <button
+              key={view.value}
+              onClick={() => setView(view.value)}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded border px-3 py-1.5 font-mono text-[10px] font-black uppercase tracking-wide transition-colors ${
+                activeView === view.value
+                  ? "border-neon/30 bg-neon/15 text-neon"
+                  : "border-rim bg-panel2 text-muted hover:text-frost"
+              }`}
+              type="button"
+            >
+              {view.icon}
+              {view.label}
+            </button>
+          ))}
+        </div>
+
+        {activeFilters > 0 && (
+          <button
+            onClick={resetFilters}
+            className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-wider text-muted transition-colors hover:text-crimson"
+            type="button"
+          >
+            <ListFilter className="h-3.5 w-3.5" aria-hidden />
+            Clear {activeFilters} active filters
           </button>
         )}
-      </div>
+      </section>
 
-      {/* Position pills */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
-        {POSITIONS.map(({ value, label }) => (
-          <button key={value} onClick={() => setPosition(value)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-black transition-colors ${position === value ? "bg-neon text-surface" : "bg-panel2 text-muted hover:text-frost border border-rim"}`}
-            type="button">{label}</button>
-        ))}
-        <div className="w-4 shrink-0" />
-      </div>
+      {isLoading && <LoadingFeed count={8} />}
 
-      {/* Expanded filters */}
-      {showFilters && (
-        <div className="rounded-xl border border-rim bg-panel p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <FilterSelect id="threshold-filter" label="Threshold" value={threshold} onChange={(v) => setThreshold(v as Threshold | "ALL")} options={THRESHOLDS.map((t) => ({ value: t.value, label: t.label }))} />
-            <FilterSelect id="team-filter" label="Team" value={team} onChange={setTeam} options={[{ value: "ALL", label: "All teams" }, ...teams.map((t) => ({ value: t, label: t }))]} />
-            <FilterSelect id="status-filter" label="Status" value={statusFilter} onChange={(v) => setStatusFilter(v as MarketStatus | "ALL")} options={[{ value: "ALL", label: "All statuses" }, { value: "OPEN", label: "Open" }, { value: "LOCKED", label: "Locked" }, { value: "SETTLED", label: "Settled" }]} />
-            <FilterSelect id="sort-by" label="Sort" value={sortBy} onChange={(v) => setSortBy(v as SortKey)} options={SORT_OPTIONS} />
-          </div>
-          {activeFiltersCount > 0 && (
-            <button onClick={() => { setPosition("ALL"); setThreshold("ALL"); setTeam("ALL"); setStatusFilter("ALL"); setSearch(""); }}
-              className="text-xs font-bold text-muted hover:text-crimson transition-colors flex items-center gap-1" type="button">
-              <X className="h-3 w-3" aria-hidden /> Clear all filters
-            </button>
-          )}
-        </div>
+      {!isLoading && error && (
+        <ErrorState message={error} onRetry={() => router.refresh()} />
       )}
 
-      {/* Threshold tabs */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4">
-        {THRESHOLDS.map(({ value, label }) => (
-          <button key={value} onClick={() => setThreshold(value)}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors border ${threshold === value ? "border-gold/40 bg-gold/10 text-gold" : "border-rim bg-panel text-muted hover:text-frost"}`}
-            type="button">{label}</button>
-        ))}
-      </div>
-
-      {/* Content */}
-      {isLoading && <LoadingFeed count={6} />}
-      {!isLoading && error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
-      {!isLoading && !error && filtered.length === 0 && (
+      {!isLoading && !error && !hasMarkets && (
         <EmptyState
-          icon={<TrendingUp className="h-6 w-6" />}
-          title="No markets found"
-          description="Try adjusting your filters or search term."
+          icon={<LineChart className="h-6 w-6" />}
+          title={searchParams.get("watchlistOnly") === "true" ? "Your watchlist is empty" : "No markets found"}
+          description={searchParams.get("watchlistOnly") === "true" ? "Add players from all markets to build a focused board." : "Try a different player, team, position, or status filter."}
           action={
-            <button onClick={() => { setPosition("ALL"); setThreshold("ALL"); setTeam("ALL"); setStatusFilter("ALL"); setSearch(""); }}
-              className="rounded-xl bg-neon/10 border border-neon/20 px-4 py-2 text-sm font-black text-neon hover:bg-neon/20 transition" type="button">
-              Clear filters
+            <button
+              onClick={resetFilters}
+              className="rounded border border-neon/30 bg-neon/10 px-4 py-2 text-sm font-black text-neon transition-colors hover:bg-neon/15"
+              type="button"
+            >
+              Show all markets
             </button>
           }
         />
       )}
 
-      {!isLoading && !error && filtered.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((market) => {
-            const player = playerMap.get(market.playerId);
-            if (!player) return null;
-            return (
-              <MarketCard
+      {!isLoading && !error && hasMarkets && (
+        <section className="overflow-hidden rounded-lg border border-rim bg-panel">
+          <div className="hidden grid-cols-[minmax(230px,1.35fr)_96px_96px_106px_106px_92px_90px_86px] gap-3 border-b border-rim/70 bg-panel2 px-3 py-2 xl:grid">
+            {["Market", "YES", "Move", "Volume", "Liquidity", "Trades", "Status", "Actions"].map((header) => (
+              <span key={header} className="text-right font-mono text-[9px] font-black uppercase tracking-widest text-muted/60 first:text-left">
+                {header}
+              </span>
+            ))}
+          </div>
+
+          <div className="divide-y divide-rim/40">
+            {markets.map((market) => (
+              <MarketDiscoveryRow
                 key={market.id}
                 market={market}
-                player={player}
-                onTrade={(m, side) => setTicket({ market: m, player, side })}
-                onWatch={toggleWatch}
-                isWatched={watchlist.has(market.id)}
+                onTrade={(side) => setTicket({ market: toTradeMarket(market), player: toPlayer(market), side })}
+                onWatch={() => toggleWatch(market.id)}
               />
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {ticket && (
@@ -280,27 +392,197 @@ export default function MarketsPage() {
           player={ticket.player}
           side={ticket.side}
           balance={portfolio?.user.mockBalance ?? 0}
-          onTradeComplete={() => { setLiveMsg("Trade confirmed."); }}
+          onTradeComplete={() => setTicket(null)}
           onClose={() => setTicket(null)}
         />
       )}
-
-      <p className="sr-only" aria-live="polite" aria-atomic>{liveMsg}</p>
     </div>
   );
 }
 
-function FilterSelect({ id, label, value, onChange, options }: {
-  id: string; label: string; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[];
+function MarketDiscoveryRow({
+  market,
+  onTrade,
+  onWatch
+}: {
+  market: DiscoveryMarket;
+  onTrade: (side: Side) => void;
+  onWatch: () => void;
 }) {
+  const player = market.player;
+  const posColor = getPositionColor(player.position);
+  const changeTone = market.change > 0 ? "text-neon" : market.change < 0 ? "text-crimson" : "text-muted";
+  const isOpen = market.status === "OPEN";
+
   return (
-    <div>
-      <label htmlFor={id} className="sr-only">{label}</label>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)}
-        className="h-10 w-full rounded-lg border border-rim bg-panel2 px-3 text-xs font-semibold text-frost outline-none focus:border-neon/50" aria-label={label}>
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+    <article className="grid gap-3 px-3 py-3 transition-colors hover:bg-panel2 xl:grid-cols-[minmax(230px,1.35fr)_96px_96px_106px_106px_92px_90px_86px] xl:items-center">
+      <div className="flex min-w-0 items-center gap-3">
+        <PlayerAvatar name={player.name} team={player.team} position={player.position} size="sm" />
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span
+              className="rounded px-1.5 py-0.5 font-mono text-[9px] font-black"
+              style={{ background: posColor.bg, color: posColor.text }}
+            >
+              {player.position}
+            </span>
+            <span className="font-mono text-[10px] font-bold text-muted">{player.team}</span>
+            <span className="truncate font-mono text-[10px] text-muted">{market.marketTypeLabel}</span>
+          </div>
+          <Link href={`/markets/${market.id}` as Route} className="block truncate text-sm font-black text-frost transition-colors hover:text-neon">
+            {player.name}
+          </Link>
+          <p className="truncate font-mono text-[10px] text-muted">{market.title}</p>
+        </div>
+      </div>
+
+      <Metric label="YES" value={market.priceLabel} tone="text-neon" />
+      <Metric
+        label="Move"
+        value={`${market.change >= 0 ? "+" : ""}${money(market.change)} (${market.changePercent >= 0 ? "+" : ""}${(market.changePercent * 100).toFixed(1)}%)`}
+        tone={changeTone}
+        icon={market.change > 0 ? <ArrowUp className="h-3 w-3" /> : market.change < 0 ? <ArrowDown className="h-3 w-3" /> : null}
+      />
+      <Metric label="Volume" value={credits(market.volume)} />
+      <Metric label="Liquidity" value={credits(market.liquidity)} />
+      <Metric label="Trades" value={String(market.tradeCount)} />
+      <Metric label="Status" value={market.status} tone={isOpen ? "text-neon" : market.status === "LOCKED" ? "text-amber" : "text-muted"} />
+
+      <div className="flex items-center justify-between gap-2 xl:justify-end">
+        <span className="font-mono text-[9px] text-muted/60 xl:hidden">Actions</span>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onWatch}
+            className={`rounded border p-2 transition-colors ${
+              market.isWatchlisted
+                ? "border-gold/30 bg-gold/10 text-gold"
+                : "border-rim bg-panel3 text-muted hover:text-frost"
+            }`}
+            aria-label={market.isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}
+            type="button"
+          >
+            <Star className="h-3.5 w-3.5" fill={market.isWatchlisted ? "currentColor" : "none"} aria-hidden />
+          </button>
+          <Link
+            href={`/markets/${market.id}` as Route}
+            className="rounded border border-rim bg-panel3 p-2 text-muted transition-colors hover:text-frost"
+            aria-label={`View ${player.name} market`}
+          >
+            <Eye className="h-3.5 w-3.5" aria-hidden />
+          </Link>
+          <button
+            onClick={() => onTrade("YES")}
+            disabled={!isOpen}
+            className="rounded border border-neon/25 bg-neon/10 px-2.5 py-2 font-mono text-[10px] font-black text-neon transition-colors hover:bg-neon/15 disabled:cursor-not-allowed disabled:opacity-40"
+            type="button"
+          >
+            BUY
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function Metric({ label, value, tone = "text-frost", icon }: { label: string; value: string; tone?: string; icon?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 xl:block xl:text-right">
+      <span className="font-mono text-[9px] text-muted/60 xl:hidden">{label}</span>
+      <span className={`inline-flex items-center justify-end gap-1 font-mono text-[10px] font-black tabular-nums ${tone}`}>
+        {icon}
+        {value}
+      </span>
     </div>
   );
+}
+
+function SelectControl({
+  label,
+  value,
+  onChange,
+  options
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <label className="block">
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-10 w-full rounded border border-rim bg-surface px-3 font-mono text-[11px] font-bold uppercase tracking-wide text-frost outline-none focus:border-neon/50"
+        aria-label={label}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function queryFromParams(searchParams: URLSearchParams) {
+  const query = new URLSearchParams();
+  query.set("weekId", searchParams.get("weekId") ?? defaultWeekId);
+  query.set("limit", searchParams.get("limit") ?? "50");
+  query.set("page", searchParams.get("page") ?? "1");
+  query.set("sort", searchParams.get("sort") ?? "popular");
+
+  for (const key of ["q", "position", "team", "marketType", "status", "watchlistOnly"]) {
+    const value = searchParams.get(key);
+    if (value) query.set(key, value);
+  }
+
+  return query;
+}
+
+function getActiveView(searchParams: URLSearchParams): ViewKey {
+  if (searchParams.get("watchlistOnly") === "true") return "watchlist";
+  const position = searchParams.get("position");
+  if (position === "QB" || position === "RB" || position === "WR" || position === "TE") return position;
+  const sort = searchParams.get("sort");
+  if (sort === "gainers") return "movers";
+  if (sort === "popular") return "trending";
+  return "all";
+}
+
+function toTradeMarket(market: DiscoveryMarket): MarketForTrade {
+  return {
+    id: market.id,
+    playerId: market.playerId,
+    weekId: market.weekId,
+    week: 1,
+    position: market.player.position,
+    threshold: market.marketType,
+    yesPrice: market.price,
+    noPrice: market.noPrice,
+    openingPrice: market.openingPrice,
+    yesPool: market.liquidity * market.price,
+    noPool: market.liquidity * market.noPrice,
+    liquidity: market.liquidity,
+    volume: market.volume,
+    openInterest: market.openInterest,
+    status: market.status,
+    result: market.result,
+    kickoffTime: market.kickoffTime
+  };
+}
+
+function toPlayer(market: DiscoveryMarket): Player {
+  return {
+    id: market.player.id,
+    name: market.player.name,
+    team: market.player.team,
+    opponent: "TBD",
+    position: market.player.position as Position,
+    kickoff: market.kickoffTime,
+    projection: 0
+  };
+}
+
+function isErrorPayload(payload: unknown): payload is { error: string } {
+  return Boolean(payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string");
 }
