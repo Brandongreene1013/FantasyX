@@ -9,7 +9,6 @@ import {
   ArrowDown,
   ArrowUp,
   BarChart3,
-  Eye,
   LineChart,
   ListFilter,
   RotateCcw,
@@ -43,6 +42,20 @@ type MarketForTrade = Market & {
   openingPrice: number;
   volume: number;
   openInterest: number;
+};
+type MarketEventGroup = {
+  id: string;
+  player: DiscoveryMarket["player"];
+  markets: DiscoveryMarket[];
+  volume: number;
+  liquidity: number;
+  openInterest: number;
+  tradeCount: number;
+  watchCount: number;
+  bestPrice: number;
+  biggestMove: number;
+  kickoffTime: string;
+  isWatchlisted: boolean;
 };
 
 const VIEW_OPTIONS: Array<{ value: ViewKey; label: string; icon: React.ReactNode }> = [
@@ -122,7 +135,7 @@ function MarketsDiscovery() {
   }, [replaceParams]);
 
   const resetFilters = useCallback(() => {
-    router.replace(`${pathname}?weekId=${defaultWeekId}&sort=popular&limit=50` as Route, { scroll: false });
+    router.replace(`${pathname}?weekId=${defaultWeekId}&sort=popular&limit=100` as Route, { scroll: false });
   }, [pathname, router]);
 
   useEffect(() => {
@@ -221,8 +234,8 @@ function MarketsDiscovery() {
     }
   }
 
-  const markets = data?.markets ?? [];
-  const hasMarkets = markets.length > 0;
+  const marketGroups = useMemo(() => groupMarketsByPlayer(data?.markets ?? []), [data?.markets]);
+  const hasMarkets = marketGroups.length > 0;
 
   return (
     <div className="space-y-4">
@@ -235,7 +248,7 @@ function MarketsDiscovery() {
             </span>
           </div>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-muted">
-            {data?.pagination.total ?? 0} markets loaded from {data?.filters.positions.length ?? 0} positions
+            {marketGroups.length} events · {data?.pagination.total ?? 0} contracts · {data?.filters.positions.length ?? 0} positions
           </p>
         </div>
 
@@ -364,22 +377,14 @@ function MarketsDiscovery() {
       )}
 
       {!isLoading && !error && hasMarkets && (
-        <section className="overflow-hidden rounded-lg border border-rim bg-panel">
-          <div className="hidden grid-cols-[minmax(230px,1.35fr)_96px_96px_106px_106px_92px_90px_86px] gap-3 border-b border-rim/70 bg-panel2 px-3 py-2 xl:grid">
-            {["Market", "YES", "Move", "Volume", "Liquidity", "Trades", "Status", "Actions"].map((header) => (
-              <span key={header} className="text-right font-mono text-[9px] font-black uppercase tracking-widest text-muted/60 first:text-left">
-                {header}
-              </span>
-            ))}
-          </div>
-
-          <div className="divide-y divide-rim/40">
-            {markets.map((market) => (
-              <MarketDiscoveryRow
-                key={market.id}
-                market={market}
-                onTrade={(side) => setTicket({ market: toTradeMarket(market), player: toPlayer(market), side })}
-                onWatch={() => toggleWatch(market.id)}
+        <section className="space-y-3">
+          <div className="grid gap-3 xl:grid-cols-2">
+            {marketGroups.map((group) => (
+              <MarketEventCard
+                key={group.id}
+                group={group}
+                onTrade={(market, side) => setTicket({ market: toTradeMarket(market), player: toPlayer(market), side })}
+                onWatch={(marketId) => toggleWatch(marketId)}
               />
             ))}
           </div>
@@ -400,100 +405,180 @@ function MarketsDiscovery() {
   );
 }
 
-function MarketDiscoveryRow({
-  market,
+function MarketEventCard({
+  group,
   onTrade,
   onWatch
 }: {
-  market: DiscoveryMarket;
-  onTrade: (side: Side) => void;
-  onWatch: () => void;
+  group: MarketEventGroup;
+  onTrade: (market: DiscoveryMarket, side: Side) => void;
+  onWatch: (marketId: string) => void;
 }) {
-  const player = market.player;
+  const player = group.player;
   const posColor = getPositionColor(player.position);
-  const changeTone = market.change > 0 ? "text-neon" : market.change < 0 ? "text-crimson" : "text-muted";
-  const isOpen = market.status === "OPEN";
+  const changeTone = group.biggestMove > 0 ? "text-neon" : group.biggestMove < 0 ? "text-crimson" : "text-muted";
+  const sortedMarkets = orderMarketsByType(group.markets);
+  const primaryMarket = sortedMarkets[0];
 
   return (
-    <article className="grid gap-3 px-3 py-3 transition-colors hover:bg-panel2 xl:grid-cols-[minmax(230px,1.35fr)_96px_96px_106px_106px_92px_90px_86px] xl:items-center">
-      <div className="flex min-w-0 items-center gap-3">
-        <PlayerAvatar name={player.name} team={player.team} position={player.position} size="sm" />
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <span
-              className="rounded px-1.5 py-0.5 font-mono text-[9px] font-black"
-              style={{ background: posColor.bg, color: posColor.text }}
-            >
-              {player.position}
-            </span>
-            <span className="font-mono text-[10px] font-bold text-muted">{player.team}</span>
-            <span className="truncate font-mono text-[10px] text-muted">{market.marketTypeLabel}</span>
+    <article className="overflow-hidden rounded-lg border border-rim bg-panel transition-colors hover:border-rim/80 hover:bg-panel2">
+      <div className="flex items-start justify-between gap-3 border-b border-rim/60 p-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <PlayerAvatar name={player.name} team={player.team} position={player.position} size="md" />
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span
+                className="rounded px-1.5 py-0.5 font-mono text-[9px] font-black"
+                style={{ background: posColor.bg, color: posColor.text }}
+              >
+                {player.position}
+              </span>
+              <span className="font-mono text-[10px] font-bold text-muted">{player.team}</span>
+              <span className={`inline-flex items-center gap-1 font-mono text-[10px] font-black ${changeTone}`}>
+                {group.biggestMove > 0 ? <ArrowUp className="h-3 w-3" /> : group.biggestMove < 0 ? <ArrowDown className="h-3 w-3" /> : null}
+                {group.biggestMove >= 0 ? "+" : ""}{money(group.biggestMove)}
+              </span>
+            </div>
+            <Link href={`/players/${player.id}` as Route} className="mt-0.5 block truncate text-base font-black text-frost transition-colors hover:text-neon">
+              {player.name}
+            </Link>
+            <p className="truncate text-xs font-semibold text-muted">
+              Will {player.name} finish as a top fantasy {player.position} in Week 1?
+            </p>
           </div>
-          <Link href={`/markets/${market.id}` as Route} className="block truncate text-sm font-black text-frost transition-colors hover:text-neon">
-            {player.name}
-          </Link>
-          <p className="truncate font-mono text-[10px] text-muted">{market.title}</p>
         </div>
-      </div>
 
-      <Metric label="YES" value={market.priceLabel} tone="text-neon" />
-      <Metric
-        label="Move"
-        value={`${market.change >= 0 ? "+" : ""}${money(market.change)} (${market.changePercent >= 0 ? "+" : ""}${(market.changePercent * 100).toFixed(1)}%)`}
-        tone={changeTone}
-        icon={market.change > 0 ? <ArrowUp className="h-3 w-3" /> : market.change < 0 ? <ArrowDown className="h-3 w-3" /> : null}
-      />
-      <Metric label="Volume" value={credits(market.volume)} />
-      <Metric label="Liquidity" value={credits(market.liquidity)} />
-      <Metric label="Trades" value={String(market.tradeCount)} />
-      <Metric label="Status" value={market.status} tone={isOpen ? "text-neon" : market.status === "LOCKED" ? "text-amber" : "text-muted"} />
-
-      <div className="flex items-center justify-between gap-2 xl:justify-end">
-        <span className="font-mono text-[9px] text-muted/60 xl:hidden">Actions</span>
-        <div className="flex items-center gap-1.5">
+        {primaryMarket && (
           <button
-            onClick={onWatch}
+            onClick={() => onWatch(primaryMarket.id)}
             className={`rounded border p-2 transition-colors ${
-              market.isWatchlisted
+              group.isWatchlisted
                 ? "border-gold/30 bg-gold/10 text-gold"
                 : "border-rim bg-panel3 text-muted hover:text-frost"
             }`}
-            aria-label={market.isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}
+            aria-label={group.isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}
             type="button"
           >
-            <Star className="h-3.5 w-3.5" fill={market.isWatchlisted ? "currentColor" : "none"} aria-hidden />
+            <Star className="h-4 w-4" fill={group.isWatchlisted ? "currentColor" : "none"} aria-hidden />
           </button>
-          <Link
-            href={`/markets/${market.id}` as Route}
-            className="rounded border border-rim bg-panel3 p-2 text-muted transition-colors hover:text-frost"
-            aria-label={`View ${player.name} market`}
-          >
-            <Eye className="h-3.5 w-3.5" aria-hidden />
-          </Link>
-          <button
-            onClick={() => onTrade("YES")}
-            disabled={!isOpen}
-            className="rounded border border-neon/25 bg-neon/10 px-2.5 py-2 font-mono text-[10px] font-black text-neon transition-colors hover:bg-neon/15 disabled:cursor-not-allowed disabled:opacity-40"
-            type="button"
-          >
-            BUY
-          </button>
-        </div>
+        )}
+      </div>
+
+      <div className="grid gap-2 p-3">
+        {sortedMarkets.map((market) => {
+          const isOpen = market.status === "OPEN";
+          const marketChangeTone = market.change > 0 ? "text-neon" : market.change < 0 ? "text-crimson" : "text-muted";
+
+          return (
+            <div
+              key={market.id}
+              className="grid gap-2 rounded border border-rim/70 bg-surface p-2 sm:grid-cols-[minmax(120px,1fr)_86px_86px_132px] sm:items-center"
+            >
+              <Link href={`/markets/${market.id}` as Route} className="min-w-0">
+                <div className="truncate text-sm font-black text-frost">{market.marketTypeLabel}</div>
+                <div className={`flex items-center gap-1 font-mono text-[10px] font-black ${marketChangeTone}`}>
+                  {market.change > 0 ? <ArrowUp className="h-3 w-3" /> : market.change < 0 ? <ArrowDown className="h-3 w-3" /> : null}
+                  {market.change >= 0 ? "+" : ""}{money(market.change)} · {(market.changePercent * 100).toFixed(1)}%
+                </div>
+              </Link>
+
+              <OutcomePrice label="YES" value={market.priceLabel} tone="text-neon" />
+              <OutcomePrice label="NO" value={market.noPriceLabel} tone="text-crimson" />
+
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => onTrade(market, "YES")}
+                  disabled={!isOpen}
+                  className="rounded border border-neon/25 bg-neon/10 px-2 py-2 font-mono text-[10px] font-black text-neon transition-colors hover:bg-neon/15 disabled:cursor-not-allowed disabled:opacity-40"
+                  type="button"
+                >
+                  Buy Yes
+                </button>
+                <button
+                  onClick={() => onTrade(market, "NO")}
+                  disabled={!isOpen}
+                  className="rounded border border-crimson/25 bg-crimson/10 px-2 py-2 font-mono text-[10px] font-black text-crimson transition-colors hover:bg-crimson/15 disabled:cursor-not-allowed disabled:opacity-40"
+                  type="button"
+                >
+                  Buy No
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-4 gap-2 border-t border-rim/60 bg-panel2 px-3 py-2">
+        <CardStat label="Volume" value={credits(group.volume)} />
+        <CardStat label="Liquidity" value={credits(group.liquidity)} />
+        <CardStat label="Open Int" value={credits(group.openInterest)} />
+        <CardStat label="Trades" value={String(group.tradeCount)} />
       </div>
     </article>
   );
 }
 
-function Metric({ label, value, tone = "text-frost", icon }: { label: string; value: string; tone?: string; icon?: React.ReactNode }) {
+function OutcomePrice({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 xl:block xl:text-right">
-      <span className="font-mono text-[9px] text-muted/60 xl:hidden">{label}</span>
-      <span className={`inline-flex items-center justify-end gap-1 font-mono text-[10px] font-black tabular-nums ${tone}`}>
-        {icon}
-        {value}
-      </span>
+    <div className="flex items-center justify-between rounded bg-panel3 px-2 py-1.5 sm:block sm:text-right">
+      <span className="font-mono text-[9px] font-black uppercase tracking-wider text-muted/70">{label}</span>
+      <span className={`block font-mono text-sm font-black tabular-nums ${tone}`}>{value}</span>
     </div>
   );
+}
+
+function CardStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="truncate font-mono text-[8px] font-black uppercase tracking-widest text-muted/60">{label}</div>
+      <div className="truncate font-mono text-[10px] font-black tabular-nums text-frost">{value}</div>
+    </div>
+  );
+}
+
+function groupMarketsByPlayer(markets: DiscoveryMarket[]): MarketEventGroup[] {
+  const groups = new Map<string, MarketEventGroup>();
+
+  for (const market of markets) {
+    const existing = groups.get(market.player.id);
+    if (!existing) {
+      groups.set(market.player.id, {
+        id: market.player.id,
+        player: market.player,
+        markets: [market],
+        volume: market.volume,
+        liquidity: market.liquidity,
+        openInterest: market.openInterest,
+        tradeCount: market.tradeCount,
+        watchCount: market.watchCount,
+        bestPrice: market.price,
+        biggestMove: market.change,
+        kickoffTime: market.kickoffTime,
+        isWatchlisted: market.isWatchlisted
+      });
+      continue;
+    }
+
+    existing.markets.push(market);
+    existing.volume += market.volume;
+    existing.liquidity += market.liquidity;
+    existing.openInterest += market.openInterest;
+    existing.tradeCount += market.tradeCount;
+    existing.watchCount += market.watchCount;
+    existing.bestPrice = Math.max(existing.bestPrice, market.price);
+    existing.biggestMove = Math.abs(market.change) > Math.abs(existing.biggestMove) ? market.change : existing.biggestMove;
+    existing.isWatchlisted = existing.isWatchlisted || market.isWatchlisted;
+  }
+
+  return Array.from(groups.values()).sort((a, b) => {
+    const activity = b.volume + b.openInterest * 10 + b.tradeCount * 50 + b.watchCount * 25 - (a.volume + a.openInterest * 10 + a.tradeCount * 50 + a.watchCount * 25);
+    return activity || b.bestPrice - a.bestPrice || a.player.name.localeCompare(b.player.name);
+  });
+}
+
+function orderMarketsByType(markets: DiscoveryMarket[]) {
+  const order: Record<string, number> = { TOP_3: 0, TOP_5: 1, TOP_10: 2 };
+  return [...markets].sort((a, b) => order[a.marketType] - order[b.marketType]);
 }
 
 function SelectControl({
@@ -527,7 +612,7 @@ function SelectControl({
 function queryFromParams(searchParams: URLSearchParams) {
   const query = new URLSearchParams();
   query.set("weekId", searchParams.get("weekId") ?? defaultWeekId);
-  query.set("limit", searchParams.get("limit") ?? "50");
+  query.set("limit", searchParams.get("limit") ?? "100");
   query.set("page", searchParams.get("page") ?? "1");
   query.set("sort", searchParams.get("sort") ?? "popular");
 
