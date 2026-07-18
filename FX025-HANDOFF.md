@@ -48,3 +48,13 @@ Production smoke checks:
 Invoke-WebRequest -UseBasicParsing "https://fantasy-x.vercel.app/api/slate?weekId=nfl_2026_w1"
 Invoke-WebRequest -UseBasicParsing "https://fantasy-x.vercel.app/api/markets/discovery?weekId=nfl_2026_w1&position=WR&sort=popular&limit=5"
 ```
+
+## Deployment note
+
+Vercel `vercel-build` runs `prisma generate && next build`. Database migrations are intentionally explicit via:
+
+```powershell
+npm run db:migrate
+```
+
+This keeps UI-only deploys from failing on transient hosted Postgres migration advisory locks. Run migrations before deployment whenever `prisma/schema.prisma` or `prisma/migrations` changes.
