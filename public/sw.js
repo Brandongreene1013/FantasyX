@@ -1,4 +1,4 @@
-const CACHE_NAME = "fantasyx-os-v2";
+const CACHE_NAME = "fantasyx-os-v3";
 const APP_SHELL = [
   "/",
   "/live",
@@ -50,14 +50,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(request)
-      .then((cached) => cached || fetch(request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        return response;
-      }))
-  );
+  event.respondWith(networkWithCacheFallback(request));
 });
 
 async function networkWithCacheFallback(request) {

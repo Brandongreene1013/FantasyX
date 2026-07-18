@@ -20,21 +20,33 @@ export function PwaShell() {
       setNotificationState(Notification.permission);
     }
 
-    if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.register("/sw.js");
-    }
-
     const onBeforeInstall = (event: Event) => {
       event.preventDefault();
       setDeferredPrompt(event as BeforeInstallPromptEvent);
     };
     const onOnline = () => setIsOnline(true);
     const onOffline = () => setIsOnline(false);
+    const onControllerChange = () => {
+      if (sessionStorage.getItem("fantasyx-sw-reloaded") === "1") return;
+      sessionStorage.setItem("fantasyx-sw-reloaded", "1");
+      window.location.reload();
+    };
 
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+      void navigator.serviceWorker
+        .register("/sw.js", { updateViaCache: "none" })
+        .then((registration) => registration.update());
+    }
+
     return () => {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+      }
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
