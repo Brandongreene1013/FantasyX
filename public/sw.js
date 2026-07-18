@@ -1,10 +1,6 @@
-const CACHE_NAME = "fantasyx-os-v3";
+const CACHE_NAME = "fantasyx-os-v4";
 const APP_SHELL = [
   "/",
-  "/live",
-  "/markets",
-  "/markets/board",
-  "/portfolio",
   "/offline.html",
   "/manifest.json",
   "/icons/icon.svg",
@@ -33,7 +29,10 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
 
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/_next/webpack-hmr")) {
-    event.respondWith(networkWithCacheFallback(request));
+    event.respondWith(fetch(request).catch(() => new Response(JSON.stringify({ error: "Offline" }), {
+      status: 503,
+      headers: { "content-type": "application/json" }
+    })));
     return;
   }
 
@@ -41,8 +40,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          if (response.ok && !response.redirected && isPublicNavigation(url.pathname)) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
           return response;
         })
         .catch(() => caches.match(request).then((cached) => cached || caches.match("/offline.html")))
@@ -52,6 +53,10 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(networkWithCacheFallback(request));
 });
+
+function isPublicNavigation(pathname) {
+  return pathname === "/" || pathname === "/login" || pathname === "/signup";
+}
 
 async function networkWithCacheFallback(request) {
   try {

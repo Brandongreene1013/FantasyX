@@ -35,6 +35,11 @@ export function SiteNav() {
     return () => { active = false; window.removeEventListener("fantasyx:data-changed", loadSession); };
   }, []);
 
+  useEffect(() => {
+    if (!hasLoaded || session || !requiresAuthentication(pathname)) return;
+    window.location.replace(`/login?next=${encodeURIComponent(pathname)}`);
+  }, [hasLoaded, pathname, session]);
+
   async function logout() {
     await apiPost("/api/auth/logout", {});
     window.dispatchEvent(new Event("fantasyx:data-changed"));
@@ -114,4 +119,17 @@ export function SiteNav() {
       <BottomNav isLoggedIn={hasLoaded && Boolean(session)} />
     </>
   );
+}
+
+function requiresAuthentication(pathname: string) {
+  return pathname === "/live"
+    || pathname === "/markets"
+    || pathname.startsWith("/markets/")
+    || pathname.startsWith("/players/")
+    || pathname === "/portfolio"
+    || pathname === "/history"
+    || pathname === "/account"
+    || pathname === "/settings"
+    || pathname === "/admin"
+    || pathname.startsWith("/admin/");
 }
