@@ -43,10 +43,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                   <span className="grid h-8 w-8 place-items-center rounded-lg bg-neon text-xs font-black text-surface shadow-glow-sm">FX</span>
                   <span className="text-lg font-black tracking-tight text-frost">FantasyX</span>
                 </Link>
-                <ExchangeStatusBar />
                 <SiteNav />
               </div>
-              <AccountBar />
+              <div className="border-t border-rim/50 bg-panel/60">
+                <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 overflow-hidden px-4 py-1.5">
+                  <ExchangeStatusBar />
+                  <AccountBar />
+                </div>
+              </div>
             </header>
             <ExchangeTicker />
           </div>

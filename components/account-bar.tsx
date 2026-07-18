@@ -29,29 +29,25 @@ export function AccountBar() {
   const pnlPositive = user.pnl >= 0;
 
   return (
-    <div className="border-t border-rim/50 bg-panel/60">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-1.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <Wallet className="h-3.5 w-3.5 text-muted shrink-0" aria-hidden />
-          <span className="text-xs font-bold text-frost truncate">{credits(user.mockBalance)}</span>
-          <span className="hidden text-[10px] font-semibold text-muted sm:inline">mock credits</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className={`flex items-center gap-1 text-xs font-bold ${pnlPositive ? "text-neon" : "text-crimson"}`}>
-            {pnlPositive
-              ? <TrendingUp className="h-3.5 w-3.5" aria-hidden />
-              : <TrendingDown className="h-3.5 w-3.5" aria-hidden />
-            }
-            <span>{pnlPositive ? "+" : ""}{credits(user.pnl)}</span>
-          </div>
-          <span className="hidden text-[10px] font-semibold text-muted sm:inline">P&L</span>
-          {user.isAdmin && (
-            <Link href={"/admin" as Route} className="rounded bg-amber/15 px-2 py-0.5 text-[10px] font-black text-amber">
-              ADMIN
-            </Link>
-          )}
-        </div>
+    <div className="flex shrink-0 items-center gap-3 border-l border-rim/60 pl-4" aria-label="Account summary">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <Wallet className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
+        <span className="truncate text-xs font-black text-frost">{credits(user.mockBalance)}</span>
+        <span className="hidden text-[10px] font-semibold text-muted md:inline">balance</span>
       </div>
+      <div className={`flex items-center gap-1 text-xs font-black ${pnlPositive ? "text-neon" : "text-crimson"}`}>
+        {pnlPositive
+          ? <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+          : <TrendingDown className="h-3.5 w-3.5" aria-hidden />
+        }
+        <span>{pnlPositive ? "+" : ""}{credits(user.pnl)}</span>
+        <span className="hidden text-[10px] font-semibold text-muted md:inline">P&amp;L</span>
+      </div>
+      {user.isAdmin && (
+        <Link href={"/admin" as Route} className="rounded bg-amber/15 px-2 py-0.5 text-[10px] font-black text-amber">
+          ADMIN
+        </Link>
+      )}
     </div>
   );
 }
