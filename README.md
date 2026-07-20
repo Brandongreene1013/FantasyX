@@ -44,11 +44,18 @@ Create `.env` from `.env.example`:
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST/fantasyx_dev?sslmode=require"
 SESSION_SECRET="replace-with-at-least-32-random-characters"
+AUTH_BASE_URL="http://localhost:3000"
 ADMIN_EMAIL="admin@example.com"
 ADMIN_PASSWORD="replace-with-a-strong-admin-password"
 ADMIN_FIRST_NAME="FantasyX"
 ADMIN_LAST_NAME="Admin"
 ```
+
+Authentication supports verified email/password accounts, authenticator-app 2FA,
+trusted devices, recovery codes, and optional Google, Apple, and Microsoft sign-in.
+See `.env.example` for provider callback URLs and email delivery variables. The
+`ADMIN_*` values are used by database seeding only; runtime login cannot create or
+promote an administrator.
 
 Do not commit `.env` files or secrets.
 

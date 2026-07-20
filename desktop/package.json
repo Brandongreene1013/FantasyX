@@ -1,0 +1,57 @@
+{
+  "name": "fantasyx-desktop",
+  "version": "1.0.0",
+  "description": "FantasyX OS desktop app",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "prepare:icon": "node scripts/prepare-icon.mjs",
+    "dist": "npm run prepare:icon && electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "^37.2.3",
+    "electron-builder": "^26.0.12",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.3"
+  },
+  "build": {
+    "appId": "com.fantasyx.desktop",
+    "productName": "FantasyX OS",
+    "artifactName": "FantasyX-OS-Setup-${version}.${ext}",
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "package.json",
+      "build/icon.ico"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "protocols": [
+      {
+        "name": "FantasyX authentication",
+        "schemes": ["fantasyx"]
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FantasyX OS",
+      "runAfterFinish": true
+    }
+  }
+}

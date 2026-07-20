@@ -47,11 +47,11 @@ describe("FX016.5 market board routing", () => {
     expect(source).not.toContain("Market not found");
   });
 
-  it("protects /markets/board for logged-in users", () => {
+  it("allows guests to explore /markets/board", () => {
     const response = middleware(new NextRequest("http://localhost/markets/board"));
 
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://localhost/login?next=%2Fmarkets%2Fboard");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
   });
 
   it("keeps normal /markets/[marketId] detail lookups working", async () => {

@@ -95,7 +95,11 @@ export function useLiveExchange(weekId: string): LiveExchangeState {
   useEffect(() => {
     mounted.current = true;
 
-    // Try SSE first; browsers that don't support EventSource fall back to polling
+    // Hydrate immediately from the normal JSON endpoint. SSE can stay open yet
+    // fail to deliver an initial event, which must not leave discovery empty.
+    void poll();
+
+    // Layer live events on top; browsers without EventSource continue polling.
     if (typeof EventSource !== "undefined") {
       connect();
     } else {
@@ -107,7 +111,7 @@ export function useLiveExchange(weekId: string): LiveExchangeState {
       esRef.current?.close();
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [connect, startPolling]);
+  }, [connect, poll, startPolling]);
 
   return state;
 }

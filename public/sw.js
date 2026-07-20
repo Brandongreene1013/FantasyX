@@ -1,6 +1,9 @@
-const CACHE_NAME = "fantasyx-os-v4";
+const CACHE_NAME = "fantasyx-os-v11";
 const APP_SHELL = [
   "/",
+  "/markets",
+  "/markets/board",
+  "/live",
   "/offline.html",
   "/manifest.json",
   "/icons/icon.svg",
@@ -55,7 +58,14 @@ self.addEventListener("fetch", (event) => {
 });
 
 function isPublicNavigation(pathname) {
-  return pathname === "/" || pathname === "/login" || pathname === "/signup";
+  return pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/live" ||
+    pathname === "/markets" ||
+    pathname === "/markets/board" ||
+    pathname.startsWith("/markets/") ||
+    pathname.startsWith("/players/");
 }
 
 async function networkWithCacheFallback(request) {

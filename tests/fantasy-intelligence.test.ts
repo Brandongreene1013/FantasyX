@@ -67,13 +67,16 @@ describe("FX019 Fantasy Intelligence Terminal", () => {
     expect(scanner.lockingSoon[0].marketId).toBe("locking");
   });
 
-  it("requires authentication for the fantasy intelligence API", async () => {
+  it("returns fantasy intelligence to guests without account data", async () => {
     const response = await getIntelligence(new Request(`http://localhost/api/intelligence?weekId=${weekId}`));
 
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(200);
+    const body = await response.json() as { weekId: string; markets: Array<{ marketId: string }> };
+    expect(body.weekId).toBe(weekId);
+    expect(body.markets[0].marketId).toBe(marketId);
   });
 
-  it("returns scanner sections from the protected fantasy intelligence API", async () => {
+  it("returns the same scanner sections to authenticated users", async () => {
     const cookie = `${sessionCookieName}=${await createSession(userId)}`;
     const response = await getIntelligence(
       new Request(`http://localhost/api/intelligence?weekId=${weekId}`, { headers: { cookie } })

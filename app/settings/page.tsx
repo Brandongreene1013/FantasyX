@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { PageHeading } from "@/components/page-heading";
 import { apiGet, apiPatch, type SessionResponse } from "@/lib/client-api";
+import { AuthRequiredState } from "@/components/auth-required-state";
+import { SecuritySettings } from "@/components/auth/security-settings";
 
 const ALERT_PREFS = [
   { key: "marketAlerts", label: "Market Alerts", description: "Price alerts, locking soon, and board movement." },
@@ -30,6 +32,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     const storedPrefs = window.localStorage.getItem("fantasyx:alert-preferences");
@@ -50,9 +53,11 @@ export default function SettingsPage() {
             lastName: data.user.lastName,
             displayName: data.user.displayName
           });
+        } else {
+          setIsGuest(true);
         }
       })
-      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Could not load settings"))
+      .catch(() => setIsGuest(true))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -90,6 +95,10 @@ export default function SettingsPage() {
     setNotificationPermission(result);
   }
 
+  if (!isLoading && isGuest) {
+    return <AuthRequiredState title="Settings require an account" description="Log in to manage your profile and personalized alert preferences." next="/settings" />;
+  }
+
   return (
     <>
       <PageHeading title="Settings" kicker="Profile">
@@ -119,6 +128,8 @@ export default function SettingsPage() {
           </button>
         </form>
       </section>
+
+      {!isLoading ? <SecuritySettings /> : null}
 
       <section className="mx-auto mt-5 max-w-2xl rounded border border-rim bg-panel p-5" aria-labelledby="notification-heading">
         <div className="flex flex-wrap items-start justify-between gap-3">

@@ -6,7 +6,7 @@ import type { Route } from "next";
 import { Search, SlidersHorizontal, X, Radio } from "lucide-react";
 import { MarketCard } from "@/components/market-card";
 import { FirstTradeCoach } from "@/components/first-trade-coach";
-import { TradeModal } from "@/components/trade-modal";
+import { TradeLauncher } from "@/components/trade-launcher";
 import { LoadingFeed } from "@/components/ui/loading-skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { LiveBadge } from "@/components/ui/live-badge";
@@ -18,6 +18,7 @@ import { TrendingUp } from "lucide-react";
 type Ticket = { market: Market; player: Player; side: Side };
 type SortKey = "kickoff" | "yes-asc" | "yes-desc" | "liquidity" | "volume";
 type ExtMarket = Market & { weekId: string; kickoffTime: string; yesPrice: number; noPrice: number; openingPrice: number; volume: number; openInterest: number };
+type PlayerMarketRow = { player: Player; markets: ExtMarket[]; selectedMarket: ExtMarket };
 
 const POSITIONS: Array<{ value: Position | "ALL"; label: string }> = [
   { value: "ALL", label: "All" },
@@ -34,6 +35,9 @@ const THRESHOLDS: Array<{ value: Threshold | "ALL"; label: string }> = [
   { value: "TOP_10", label: "Top 10" }
 ];
 
+const PLAYER_MARKET_DEFAULTS: Threshold[] = ["TOP_5", "TOP_10", "TOP_3"];
+const THRESHOLD_ORDER: Threshold[] = ["TOP_3", "TOP_5", "TOP_10"];
+
 const SORT_OPTIONS = [
   { value: "kickoff",  label: "Kickoff" },
   { value: "volume",   label: "Volume ↓" },
@@ -46,6 +50,7 @@ export default function MarketsPage() {
   const live = useLiveExchange(defaultWeekId);
 
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError]         = useState<string | null>(null);
@@ -60,20 +65,23 @@ export default function MarketsPage() {
   const [team,        setTeam]        = useState("ALL");
   const [statusFilter,setStatusFilter]= useState<MarketStatus | "ALL">("ALL");
   const [sortBy,      setSortBy]      = useState<SortKey>("kickoff");
+  const [selectedMarketByPlayer, setSelectedMarketByPlayer] = useState<Record<string, Threshold>>({});
 
-  // Initial load of portfolio + watchlist (not from SSE)
+  // Portfolio and watchlist are personalized overlays. Market discovery stays public.
   useEffect(() => {
-    Promise.all([
-      apiGet<PortfolioResponse>("/api/portfolio"),
-      apiGet<{ marketIds: string[] }>("/api/watchlist").catch(() => ({ marketIds: [] }))
-    ]).then(([p, wl]) => {
-      setPortfolio(p);
-      setWatchlist(new Set(wl.marketIds));
-      setHasLoaded(true);
-    }).catch((e) => {
-      setError(e instanceof Error ? e.message : "Could not load markets");
-      setHasLoaded(true);
-    });
+    apiGet<PortfolioResponse>("/api/portfolio")
+      .then((p) => {
+        setPortfolio(p);
+        setIsAuthenticated(true);
+        return apiGet<{ marketIds: string[] }>("/api/watchlist");
+      })
+      .then((wl) => setWatchlist(new Set(wl.marketIds)))
+      .catch(() => {
+        setPortfolio(null);
+        setIsAuthenticated(false);
+        setWatchlist(new Set());
+      })
+      .finally(() => setHasLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -86,36 +94,63 @@ export default function MarketsPage() {
   }, [live.markets.length]);
 
   const playerMap = useMemo(() => new Map(live.players.map((p) => [p.id, p])), [live.players]);
+  const positionMap = useMemo(() => new Map((portfolio?.positions ?? []).map((p) => [p.marketId, p])), [portfolio]);
   const teams = useMemo(() => {
     const s = new Set<string>();
     for (const p of live.players) s.add(p.team);
     return Array.from(s).sort();
   }, [live.players]);
 
-  const filtered = useMemo(() => {
+  const playerRows = useMemo<PlayerMarketRow[]>(() => {
     const q = search.trim().toLowerCase();
-    return (live.markets as ExtMarket[])
-      .filter((m) => {
-        const p = playerMap.get(m.playerId);
-        if (!p) return false;
-        if (position !== "ALL" && m.position !== position) return false;
-        if (threshold !== "ALL" && m.threshold !== threshold) return false;
-        if (team !== "ALL" && p.team !== team) return false;
-        if (statusFilter !== "ALL" && m.status !== statusFilter) return false;
-        if (q && !p.name.toLowerCase().includes(q)) return false;
-        return true;
+    const grouped = new Map<string, { player: Player; markets: ExtMarket[] }>();
+
+    for (const market of live.markets as ExtMarket[]) {
+      const player = playerMap.get(market.playerId);
+      if (!player) continue;
+      if (position !== "ALL" && market.position !== position) continue;
+      if (team !== "ALL" && player.team !== team) continue;
+      if (statusFilter !== "ALL" && market.status !== statusFilter) continue;
+      if (q && !player.name.toLowerCase().includes(q)) continue;
+
+      const existing = grouped.get(market.playerId);
+      if (existing) {
+        existing.markets.push(market);
+      } else {
+        grouped.set(market.playerId, { player, markets: [market] });
+      }
+    }
+
+    return Array.from(grouped.values())
+      .map(({ player, markets }) => {
+        const orderedMarkets = [...markets].sort((a, b) => THRESHOLD_ORDER.indexOf(a.threshold) - THRESHOLD_ORDER.indexOf(b.threshold));
+        const preferredThreshold = threshold !== "ALL" ? threshold : selectedMarketByPlayer[player.id];
+        const selectedMarket =
+          orderedMarkets.find((market) => market.threshold === preferredThreshold) ??
+          PLAYER_MARKET_DEFAULTS.map((candidate) => orderedMarkets.find((market) => market.threshold === candidate)).find(Boolean) ??
+          orderedMarkets[0];
+
+        return selectedMarket ? { player, markets: orderedMarkets, selectedMarket } : null;
       })
+      .filter((row): row is PlayerMarketRow => Boolean(row))
+      .filter((row) => threshold === "ALL" || row.markets.some((market) => market.threshold === threshold))
       .sort((a, b) => {
-        if (sortBy === "kickoff")  return a.kickoffTime.localeCompare(b.kickoffTime);
-        if (sortBy === "yes-asc")  return a.yesPrice - b.yesPrice;
-        if (sortBy === "yes-desc") return b.yesPrice - a.yesPrice;
-        if (sortBy === "liquidity")return b.liquidity - a.liquidity;
-        if (sortBy === "volume")   return b.volume - a.volume;
+        const marketA = a.selectedMarket;
+        const marketB = b.selectedMarket;
+        if (sortBy === "kickoff")  return marketA.kickoffTime.localeCompare(marketB.kickoffTime);
+        if (sortBy === "yes-asc")  return marketA.yesPrice - marketB.yesPrice;
+        if (sortBy === "yes-desc") return marketB.yesPrice - marketA.yesPrice;
+        if (sortBy === "liquidity")return marketB.liquidity - marketA.liquidity;
+        if (sortBy === "volume")   return marketB.volume - marketA.volume;
         return 0;
       });
-  }, [live.markets, playerMap, position, threshold, team, statusFilter, search, sortBy]);
+  }, [live.markets, playerMap, position, threshold, team, statusFilter, search, sortBy, selectedMarketByPlayer]);
 
   async function toggleWatch(marketId: string) {
+    if (!isAuthenticated) {
+      setLiveMsg("Log in to add markets to your watchlist.");
+      return;
+    }
     const isWatched = watchlist.has(marketId);
     setWatchlist((prev) => { const n = new Set(prev); isWatched ? n.delete(marketId) : n.add(marketId); return n; });
     try {
@@ -142,7 +177,7 @@ export default function MarketsPage() {
           </h1>
           <p className="text-xs font-semibold text-muted flex items-center gap-1.5 mt-0.5">
             <Radio className="h-3 w-3" aria-hidden />
-            Week 1 · {filtered.length} markets · live
+            Week 1 · {playerRows.length} players · live
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -220,7 +255,7 @@ export default function MarketsPage() {
             <FilterSelect id="sort-by" label="Sort" value={sortBy} onChange={(v) => setSortBy(v as SortKey)} options={SORT_OPTIONS} />
           </div>
           {activeFiltersCount > 0 && (
-            <button onClick={() => { setPosition("ALL"); setThreshold("ALL"); setTeam("ALL"); setStatusFilter("ALL"); setSearch(""); }}
+            <button onClick={() => { setPosition("ALL"); setThreshold("ALL"); setTeam("ALL"); setStatusFilter("ALL"); setSearch(""); setSelectedMarketByPlayer({}); }}
               className="text-xs font-bold text-muted hover:text-crimson transition-colors flex items-center gap-1" type="button">
               <X className="h-3 w-3" aria-hidden /> Clear all filters
             </button>
@@ -228,25 +263,16 @@ export default function MarketsPage() {
         </div>
       )}
 
-      {/* Threshold tabs */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4">
-        {THRESHOLDS.map(({ value, label }) => (
-          <button key={value} onClick={() => setThreshold(value)}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors border ${threshold === value ? "border-gold/40 bg-gold/10 text-gold" : "border-rim bg-panel text-muted hover:text-frost"}`}
-            type="button">{label}</button>
-        ))}
-      </div>
-
       {/* Content */}
       {isLoading && <LoadingFeed count={6} />}
       {!isLoading && error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
-      {!isLoading && !error && filtered.length === 0 && (
+      {!isLoading && !error && playerRows.length === 0 && (
         <EmptyState
           icon={<TrendingUp className="h-6 w-6" />}
-          title="No markets found"
+          title="No players found"
           description="Try adjusting your filters or search term."
           action={
-            <button onClick={() => { setPosition("ALL"); setThreshold("ALL"); setTeam("ALL"); setStatusFilter("ALL"); setSearch(""); }}
+            <button onClick={() => { setPosition("ALL"); setThreshold("ALL"); setTeam("ALL"); setStatusFilter("ALL"); setSearch(""); setSelectedMarketByPlayer({}); }}
               className="rounded-xl bg-neon/10 border border-neon/20 px-4 py-2 text-sm font-black text-neon hover:bg-neon/20 transition" type="button">
               Clear filters
             </button>
@@ -254,19 +280,22 @@ export default function MarketsPage() {
         />
       )}
 
-      {!isLoading && !error && filtered.length > 0 && (
+      {!isLoading && !error && playerRows.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((market) => {
-            const player = playerMap.get(market.playerId);
-            if (!player) return null;
+          {playerRows.map(({ player, markets, selectedMarket }) => {
             return (
               <MarketCard
-                key={market.id}
-                market={market}
+                key={player.id}
+                market={selectedMarket}
                 player={player}
                 onTrade={(m, side) => setTicket({ market: m, player, side })}
-                onWatch={toggleWatch}
-                isWatched={watchlist.has(market.id)}
+                onWatch={isAuthenticated ? toggleWatch : undefined}
+                isWatched={watchlist.has(selectedMarket.id)}
+                marketOptions={markets}
+                onSelectMarket={(nextMarket) => {
+                  setThreshold("ALL");
+                  setSelectedMarketByPlayer((prev) => ({ ...prev, [player.id]: nextMarket.threshold }));
+                }}
               />
             );
           })}
@@ -274,13 +303,24 @@ export default function MarketsPage() {
       )}
 
       {ticket && (
-        <TradeModal
+        <TradeLauncher
           market={ticket.market}
           player={ticket.player}
-          side={ticket.side}
+          initialSide={ticket.side}
           balance={portfolio?.user.mockBalance ?? 0}
-          onTradeComplete={() => { setLiveMsg("Trade confirmed."); }}
-          onClose={() => setTicket(null)}
+          position={positionMap.get(ticket.market.id) ?? null}
+          open={Boolean(ticket)}
+          showButton={false}
+          onOpenChange={(nextOpen) => { if (!nextOpen) setTicket(null); }}
+          onTradeComplete={() => {
+            setLiveMsg("Trade confirmed.");
+            void apiGet<PortfolioResponse>("/api/portfolio").then((p) => {
+              setPortfolio(p);
+              setIsAuthenticated(true);
+            });
+            window.dispatchEvent(new Event("fantasyx:data-changed"));
+          }}
+          isAuthenticated={isAuthenticated}
         />
       )}
 

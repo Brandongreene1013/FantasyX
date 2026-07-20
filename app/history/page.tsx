@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MarketTimeline } from "@/components/market-timeline";
 import { PageHeading } from "@/components/page-heading";
-import { apiGet, defaultWeekId, type MarketEventsResponse, type SlateResponse, type TradeHistoryResponse } from "@/lib/client-api";
+import { apiGet, defaultWeekId, type MarketEventsResponse, type SessionResponse, type SlateResponse, type TradeHistoryResponse } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
+import { AuthRequiredState } from "@/components/auth-required-state";
 
 export default function HistoryPage() {
   const [slate, setSlate] = useState<SlateResponse | null>(null);
@@ -13,11 +14,18 @@ export default function HistoryPage() {
   const [filters, setFilters] = useState({ weekId: defaultWeekId, playerId: "", position: "", marketId: "", status: "" });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
 
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
+      const session = await apiGet<SessionResponse>("/api/session").catch(() => ({ user: null }));
+      if (!session.user) {
+        setIsGuest(true);
+        return;
+      }
+      setIsGuest(false);
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
         if (value) {
@@ -61,7 +69,11 @@ export default function HistoryPage() {
         <span>Review executions, price changes, market events, and the trail behind every move.</span>
       </PageHeading>
 
-      <section className="mb-5 grid gap-3 rounded border border-ink/10 bg-white p-4 shadow-soft md:grid-cols-5" aria-label="History filters">
+      {!isLoading && isGuest ? (
+        <AuthRequiredState title="Your trade history is private" description="Log in to review your executions and personalized activity. Public market prices and player timelines remain available from the market pages." next="/history" />
+      ) : null}
+
+      {!isGuest ? <section className="mb-5 grid gap-3 rounded border border-ink/10 bg-white p-4 shadow-soft md:grid-cols-5" aria-label="History filters">
         <Select label="Week" value={filters.weekId} onChange={(value) => updateFilter("weekId", value)}>
           <option value={defaultWeekId}>Week 1</option>
         </Select>
@@ -90,12 +102,12 @@ export default function HistoryPage() {
           <option value="SETTLED">Settled</option>
           <option value="VOID">Void</option>
         </Select>
-      </section>
+      </section> : null}
 
       {isLoading ? <StatePanel text="Loading exchange history..." /> : null}
       {error ? <StatePanel text={error} tone="error" actionLabel="Retry" onAction={loadHistory} /> : null}
 
-      {!isLoading && !error ? (
+      {!isLoading && !error && !isGuest ? (
         <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
           <section className="overflow-hidden rounded border border-ink/10 bg-white shadow-soft">
             <div className="border-b border-ink/10 bg-chalk px-4 py-3">

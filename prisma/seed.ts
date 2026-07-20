@@ -279,6 +279,7 @@ export async function seedFantasyUniverse() {
       id: u.id, name: u.displayName, firstName: u.firstName, lastName: u.lastName,
       displayName: u.displayName, email: u.email,
       passwordHash: await hashPassword(u.password),
+      emailVerifiedAt: new Date(),
       role: u.role, isAdmin: u.isAdmin,
       mockBalance: u.mockBalance, startingBalance: u.startingBalance,
       referralCode: `FX${u.id.replace("user_", "").replace(/_/g, "").toUpperCase().slice(0, 18)}`

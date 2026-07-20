@@ -10,6 +10,8 @@ export type SessionResponse = {
     lastName: string;
     displayName: string;
     email: string | null;
+    emailVerified: boolean;
+    twoFactorEnabled: boolean;
     role: "TRADER" | "ADMIN";
     isAdmin: boolean;
     mockBalance: number;
@@ -209,7 +211,23 @@ export type PlayerDetailResponse = {
     opponent: string;
     kickoff: string;
   };
-  markets: SlateResponse["markets"];
+  account: {
+    balance: number;
+    isAuthenticated: boolean;
+  };
+  weekId: string;
+  markets: Array<SlateResponse["markets"][number] & {
+    isWatchlisted: boolean;
+    history: MarketHistoryPoint[];
+    position: {
+      yesShares: number;
+      noShares: number;
+      costBasis: number;
+      currentValue: number;
+      unrealizedPnl: number;
+    } | null;
+    events: MarketEventsResponse["events"];
+  }>;
   sentiment: {
     avgYesPrice: number;
     totalVolume: number;
@@ -476,10 +494,20 @@ export async function apiPatch<T>(url: string, body: unknown): Promise<T> {
   return parseResponse<T>(response);
 }
 
+export async function apiDelete<T>(url: string): Promise<T> {
+  const csrfToken = await getCsrfTokenForMutation(url);
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: { ...(csrfToken ? { "x-csrf-token": csrfToken } : {}) },
+    credentials: "same-origin"
+  });
+  return parseResponse<T>(response);
+}
+
 let csrfTokenCache: string | null = null;
 
 async function getCsrfTokenForMutation(url: string) {
-  if (url === "/api/auth/login" || url === "/api/auth/signup") {
+  if (isPublicAuthMutation(url)) {
     return null;
   }
   if (csrfTokenCache) {
@@ -489,6 +517,14 @@ async function getCsrfTokenForMutation(url: string) {
   const session = await apiGet<SessionResponse>("/api/session");
   csrfTokenCache = session.csrfToken ?? null;
   return csrfTokenCache;
+}
+
+function isPublicAuthMutation(url: string) {
+  return [
+    "/api/auth/login", "/api/auth/signup", "/api/auth/verify-email",
+    "/api/auth/resend-verification", "/api/auth/forgot-password",
+    "/api/auth/reset-password", "/api/auth/2fa/verify"
+  ].includes(url);
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {

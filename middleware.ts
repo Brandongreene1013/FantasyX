@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
   requestHeaders.set("x-request-id", requestId);
   const hasSession = Boolean(request.cookies.get(sessionCookieName)?.value);
 
-  if (request.nextUrl.pathname === "/live" || request.nextUrl.pathname === "/markets" || request.nextUrl.pathname.startsWith("/markets/") || request.nextUrl.pathname.startsWith("/players/") || request.nextUrl.pathname === "/portfolio" || request.nextUrl.pathname === "/history" || request.nextUrl.pathname === "/admin" || request.nextUrl.pathname.startsWith("/admin/") || request.nextUrl.pathname === "/account" || request.nextUrl.pathname === "/settings") {
+  if (request.nextUrl.pathname === "/admin" || request.nextUrl.pathname.startsWith("/admin/")) {
     if (!hasSession) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("next", safeInternalPath(`${request.nextUrl.pathname}${request.nextUrl.search}`));
@@ -26,13 +26,11 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  if (hasSession && (request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup")) {
-    const response = NextResponse.redirect(new URL("/markets", request.url));
-    response.headers.set("x-request-id", requestId);
-    return response;
+  if (!request.nextUrl.pathname.startsWith("/api")) {
+    return withRequestHeaders(NextResponse.next({ request: { headers: requestHeaders } }), requestId);
   }
 
-  if (!request.nextUrl.pathname.startsWith("/api")) {
+  if (request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS") {
     return withRequestHeaders(NextResponse.next({ request: { headers: requestHeaders } }), requestId);
   }
 

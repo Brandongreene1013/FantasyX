@@ -6,7 +6,10 @@ Production URL: https://fantasy-x.vercel.app
 
 - Vercel project: `fantasy-x`
 - Database: Neon PostgreSQL via Vercel integration
-- Required env vars: `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME`
+- Required env vars: `DATABASE_URL`, `SESSION_SECRET`, and `AUTH_BASE_URL`
+- Required for email authentication: `RESEND_API_KEY` and `AUTH_EMAIL_FROM`
+- Required for social login: the credentials for each enabled Google, Microsoft, or Apple provider
+- Seed-only admin vars: `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME`
 - Recommended beta env vars: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
 
 ## Local Development
@@ -37,7 +40,9 @@ npm run db:prepare
 Do not spend sprint time debugging Docker Desktop if it is stuck. A hosted dev
 Postgres URL in `.env.local` is the preferred fallback.
 
-If an older production database already has the admin email but a stale or empty password hash, logging in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` upgrades that account to the admin role and refreshes its password hash.
+Admin access is provisioned only by the explicit seed operation. The public login route never creates users, changes roles, or refreshes an administrator password from environment variables.
+
+Email/password accounts must verify their email address before the first login. In production, verification and password-reset links are delivered through Resend. Social sign-in providers appear only when their complete credential set is configured.
 
 Login redirects only allow internal `next` paths. External or protocol-relative redirect targets fall back to `/markets`.
 
@@ -96,11 +101,13 @@ For a fresh production database:
 1. Attach Neon/Postgres to the Vercel project.
 2. Confirm `DATABASE_URL` exists for Production and Preview.
 3. Add `SESSION_SECRET` with at least 32 random characters.
-4. Add `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, and `ADMIN_LAST_NAME`.
-5. Add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` before beta launch so rate limits are durable across Vercel instances.
-6. Deploy to Vercel.
-7. Vercel runs `prisma migrate deploy` automatically.
-8. Seed manually only when intentionally resetting market/account seed data:
+4. Set `AUTH_BASE_URL` to the canonical HTTPS application URL.
+5. Add `RESEND_API_KEY` and a verified `AUTH_EMAIL_FROM` sender.
+6. Add credentials and registered callback URLs for each enabled OAuth provider. Apple web callbacks require a registered HTTPS domain.
+7. Add `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, and `ADMIN_LAST_NAME` only if the seed operation will provision an administrator.
+8. Add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` before beta launch so rate limits are durable across Vercel instances.
+9. Deploy to Vercel. Vercel runs `prisma migrate deploy` automatically.
+10. Seed manually only when intentionally resetting market/account seed data:
 
 ```powershell
 npx vercel env run --environment=production -- npm run prisma:seed
@@ -127,11 +134,12 @@ Check:
 
 Then manually verify:
 
-1. Create a new account from `/signup`.
-2. Open Markets.
-3. Buy YES on an open market.
-4. Buy NO on an open market.
-5. Open Portfolio and confirm balance/positions update.
-6. Open Leaderboard.
-7. Login as the admin account from `ADMIN_EMAIL`.
-8. Open Admin and lock/open/settle or void a market.
+1. Create a new account from `/signup`, verify its email, and log in.
+2. Request and complete a password reset; confirm the reset link cannot be reused.
+3. Enable authenticator-app 2FA, sign in with a TOTP code, and test one recovery code.
+4. Verify each configured social provider shows its account-selection screen and returns to FantasyX.
+5. Open Markets and buy YES and NO on an open market.
+6. Open Portfolio and confirm balance/positions update.
+7. Confirm a signed-out visitor can browse but cannot submit a trade.
+8. Login as the seeded admin and lock/open/settle or void a market.
+9. Launch the packaged desktop app and verify the browser-to-app login handoff completes once and cannot be replayed.

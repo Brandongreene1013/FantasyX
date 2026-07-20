@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { TrendingUp, TrendingDown, BarChart2, Wallet, Lock, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
-import { apiGet, apiPost, type PortfolioResponse } from "@/lib/client-api";
+import { apiGet, type PortfolioResponse } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
 import { EquityCurveChart } from "@/components/analytics-charts";
 import { PlayerAvatar } from "@/components/ui/player-avatar";
 import { LoadingFeed } from "@/components/ui/loading-skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { AuthRequiredState } from "@/components/auth-required-state";
 
 function signedCredits(v: number) {
   return `${v >= 0 ? "+" : ""}${credits(v)}`;
@@ -18,13 +19,16 @@ export default function PortfolioPage() {
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [liveMsg, setLiveMsg] = useState("");
   const [tab, setTab] = useState<"open" | "closed">("open");
+  const [isGuest, setIsGuest] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true); setError(null);
     try { setPortfolio(await apiGet<PortfolioResponse>("/api/portfolio")); }
-    catch (e) { setError(e instanceof Error ? e.message : "Could not load portfolio"); }
+    catch (e) {
+      if (e instanceof Error && e.message === "Authentication required") setIsGuest(true);
+      else setError(e instanceof Error ? e.message : "Could not load portfolio");
+    }
     finally { setIsLoading(false); }
   }, []);
 
@@ -34,18 +38,8 @@ export default function PortfolioPage() {
   const closedPositions = (portfolio?.positions ?? []).filter((p) => p.status === "SETTLED" || p.status === "VOID");
   const openValue       = openPositions.reduce((s, p) => s + p.value, 0);
 
-  async function sell(positionId: string) {
-    try {
-      await apiPost("/api/trade/sell", { positionId });
-      setLiveMsg("Position sold.");
-      void load();
-      window.dispatchEvent(new Event("fantasyx:data-changed"));
-    } catch (e) {
-      setLiveMsg(e instanceof Error ? e.message : "Sell failed");
-    }
-  }
-
   if (isLoading) return <LoadingFeed count={4} />;
+  if (isGuest) return <AuthRequiredState title="Build your portfolio" description="Market browsing is open to everyone. Log in to place free-play trades and track positions, performance, and P&L." next="/portfolio" />;
   if (error) return <ErrorState message={error} onRetry={load} />;
 
   const user = portfolio?.user;
@@ -129,7 +123,6 @@ export default function PortfolioPage() {
             <PositionCard
               key={pos.id}
               position={pos}
-              onSell={pos.status === "OPEN" ? () => sell(pos.id) : undefined}
             />
           ))}
         </section>
@@ -144,8 +137,6 @@ export default function PortfolioPage() {
           ))}
         </section>
       )}
-
-      <p className="sr-only" aria-live="polite" aria-atomic>{liveMsg}</p>
     </div>
   );
 }
@@ -170,9 +161,8 @@ function AnalyticsCard({ label, value, tone }: { label: string; value: string; t
   );
 }
 
-function PositionCard({ position: pos, onSell }: {
+function PositionCard({ position: pos }: {
   position: PortfolioResponse["positions"][0];
-  onSell?: () => void;
 }) {
   const side  = pos.yesShares > 0 ? "YES" : "NO";
   const shares = side === "YES" ? pos.yesShares : pos.noShares;
@@ -218,15 +208,12 @@ function PositionCard({ position: pos, onSell }: {
           <span>Cost {credits(pos.costBasis)}</span>
         </div>
         <div className="flex items-center gap-2">
-          {onSell && (
-            <button
-              onClick={onSell}
-              className="rounded-lg bg-panel2 border border-rim px-3 py-1 text-xs font-black text-frost hover:border-crimson/40 hover:text-crimson transition-colors"
-              type="button"
-            >
-              Sell
-            </button>
-          )}
+          <Link
+            href={`/players/${pos.playerId}?threshold=${pos.thresholdType}`}
+            className="rounded-lg bg-panel2 border border-rim px-3 py-1 text-xs font-black text-frost hover:border-neon/40 hover:text-neon transition-colors"
+          >
+            Trade
+          </Link>
           <Link
             href={`/markets/${pos.marketId}`}
             className="text-xs font-bold text-field hover:text-neon transition-colors"

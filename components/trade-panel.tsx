@@ -1,24 +1,26 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { CheckCircle2, Zap } from "lucide-react";
 import { getSidePrice, quoteBuy, quoteSell } from "@/lib/amm";
 import { apiPost } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
 import type { Market, Player, Side } from "@/lib/types";
+import { AuthRequiredState } from "@/components/auth-required-state";
 
 type TradePosition = { yesShares: number; noShares: number; currentValue: number };
 
-const QUICK_AMOUNTS = [25, 50, 100, 250, 500] as const;
+const QUICK_AMOUNTS = [25, 50, 100, 250] as const;
+const SELL_PCTS = [25, 50, 75] as const;
 
 export function TradePanel({
-  market, player, balance, position, onTradeComplete
+  market, player, balance, position, initialSide = "YES", onTradeComplete, isAuthenticated = true
 }: {
   market: Market; player: Player; balance: number;
-  position?: TradePosition | null; onTradeComplete: () => void;
+  position?: TradePosition | null; initialSide?: Side; onTradeComplete: () => void; isAuthenticated?: boolean;
 }) {
   const [mode, setMode]         = useState<"BUY" | "SELL">("BUY");
-  const [side, setSide]         = useState<Side>("YES");
+  const [side, setSide]         = useState<Side>(initialSide);
   const [amount, setAmount]     = useState(50);
   const [sellShares, setSellShares] = useState(1);
   const [error, setError]       = useState<string | null>(null);
@@ -37,6 +39,20 @@ export function TradePanel({
   const avgEntry     = estShares > 0 ? amount / estShares : 0;
   const balAfterBuy  = balance - amount;
   const balAfterSell = balance + sellQuote.proceeds;
+  const priceImpact  = mode === "SELL"
+    ? Math.abs(sellQuote.priceAfter - sellQuote.priceBefore)
+    : Math.abs(buyQuote.priceAfter - buyQuote.priceBefore);
+  const maxLoss = mode === "BUY" ? amount : 0;
+  const potentialSettlement = mode === "BUY" ? estShares : Math.max(0, ownedShares - sellShares);
+
+  useEffect(() => {
+    setSide(initialSide);
+    setMode("BUY");
+    setAmount(50);
+    setSellShares(1);
+    setError(null);
+    setSuccess(false);
+  }, [market.id, initialSide]);
 
   const inputError = mode === "SELL"
     ? (sellShares <= 0 ? "Must be > 0" : sellShares > ownedShares ? "Exceeds shares owned" : null)
@@ -53,7 +69,8 @@ export function TradePanel({
         ? { action: "SELL", marketId: market.id, side, shares: sellShares, idempotencyKey: crypto.randomUUID() }
         : { action: "BUY",  marketId: market.id, side, spend: amount,      idempotencyKey: crypto.randomUUID() });
       setSuccess(true);
-      setTimeout(() => { setSuccess(false); onTradeComplete(); }, 1400);
+      onTradeComplete();
+      setTimeout(() => { setSuccess(false); }, 1400);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Trade failed");
     } finally {
@@ -63,6 +80,23 @@ export function TradePanel({
 
   function changeMode(m: "BUY" | "SELL") { setMode(m); setError(null); setSuccess(false); }
   function changeSide(s: Side)            { setSide(s); setError(null); setSuccess(false); }
+  function setSellPercent(percent: number) {
+    const next = percent >= 1 ? ownedShares : Math.floor(ownedShares * percent * 1_000_000) / 1_000_000;
+    setSellShares(next);
+    setError(null);
+    setSuccess(false);
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <AuthRequiredState
+        compact
+        title="Log in to trade"
+        description={`Explore ${player.name} ${thresholdLabel(market.threshold)} freely. Log in or create an account when you are ready to place a free-play trade.`}
+        next={`/players/${player.id}?threshold=${market.threshold}`}
+      />
+    );
+  }
 
   // ── Success overlay ────────────────────────────────────────────
   if (success) {
@@ -205,6 +239,27 @@ export function TradePanel({
         ) : (
           <div>
             <label htmlFor={amountId} className="block mb-1 text-[10px] font-black uppercase tracking-wider text-muted">Shares to sell</label>
+            <div className="mb-2 grid grid-cols-4 gap-1.5">
+              {SELL_PCTS.map((percent) => (
+                <button
+                  key={percent}
+                  type="button"
+                  disabled={!isOpen || ownedShares <= 0}
+                  onClick={() => setSellPercent(percent / 100)}
+                  className="rounded-lg border border-rim bg-panel2 py-1.5 text-[10px] font-black text-muted transition-colors hover:text-frost disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {percent}%
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={!isOpen || ownedShares <= 0}
+                onClick={() => setSellPercent(1)}
+                className="rounded-lg border border-crimson/25 bg-crimson/10 py-1.5 text-[10px] font-black text-crimson transition-colors hover:bg-crimson/15 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                MAX
+              </button>
+            </div>
             <div className="flex gap-2">
               <input
                 id={amountId}
@@ -217,15 +272,6 @@ export function TradePanel({
                 onChange={(e) => { setSellShares(Number(e.target.value)); setError(null); setSuccess(false); }}
                 className="h-12 flex-1 rounded-xl border border-rim bg-panel2 px-4 text-lg font-black text-frost outline-none focus:border-crimson/50 transition-colors disabled:opacity-50"
               />
-              {ownedShares > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSellShares(ownedShares)}
-                  className="rounded-xl border border-rim bg-panel2 px-3 text-[10px] font-black text-muted hover:text-frost transition-colors"
-                >
-                  All
-                </button>
-              )}
             </div>
             <p className="mt-1 text-[10px] font-semibold text-muted">Owned {side}: {ownedShares.toFixed(4)} sh</p>
           </div>
@@ -236,6 +282,9 @@ export function TradePanel({
           <Metric label="Price" value={pct(getSidePrice(market, side))} />
           <Metric label={mode === "SELL" ? "Est. proceeds" : "Est. shares"} value={mode === "SELL" ? credits(sellQuote.proceeds) : (estShares > 0 ? estShares.toFixed(3) : "—")} />
           <Metric label={mode === "SELL" ? "Shares owned" : "Avg entry"} value={mode === "SELL" ? ownedShares.toFixed(3) : (avgEntry > 0 ? pct(avgEntry) : "—")} />
+          <Metric label="Price impact" value={pct(priceImpact)} />
+          <Metric label={mode === "SELL" ? "Remaining" : "Max loss"} value={mode === "SELL" ? Math.max(0, ownedShares - sellShares).toFixed(3) : credits(maxLoss)} />
+          <Metric label={mode === "SELL" ? "Position effect" : "Settle value"} value={mode === "SELL" ? credits(sellQuote.proceeds) : credits(potentialSettlement)} />
           <Metric
             label="Balance after"
             value={credits(mode === "SELL" ? balAfterSell : Math.max(0, balAfterBuy))}
@@ -269,8 +318,8 @@ export function TradePanel({
           {isSubmitting
             ? "Confirming…"
             : mode === "BUY"
-              ? `Buy ${side} · ${credits(amount)}`
-              : `Sell ${side} · ${sellShares.toFixed(3)} sh`
+              ? `Buy ${estShares.toFixed(2)} ${side} Shares`
+              : `Sell ${sellShares.toFixed(2)} ${side} Shares`
           }
         </button>
       </div>

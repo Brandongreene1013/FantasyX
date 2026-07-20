@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import {
-  ArrowLeft, Clock, TrendingUp, ShieldCheck, AlertTriangle,
-  BarChart2, Activity, Zap, Target, ChevronRight
-} from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, BarChart2, Clock, ShieldCheck, AlertTriangle, Target, TrendingUp, Zap } from "lucide-react";
+import { MarketTimeline } from "@/components/market-timeline";
+import { PlayerMarketChart } from "@/components/player-market-chart";
+import { MarketTimeRangeSelector, PlayerThresholdSelector, type MarketTimeRange } from "@/components/player-market-controls";
 import { TradePanel } from "@/components/trade-panel";
 import { PlayerAvatar } from "@/components/ui/player-avatar";
 import { LoadingFeed } from "@/components/ui/loading-skeleton";
@@ -14,74 +15,96 @@ import { ErrorState } from "@/components/ui/empty-state";
 import { getPositionColor } from "@/lib/team-colors";
 import { apiGet } from "@/lib/client-api";
 import { credits, pct, thresholdLabel } from "@/lib/format";
-import type { PlayerDetailResponse, PortfolioResponse } from "@/lib/client-api";
+import type { PlayerDetailResponse } from "@/lib/client-api";
+import type { Threshold } from "@/lib/types";
 
+const THRESHOLD_PRIORITY: Threshold[] = ["TOP_5", "TOP_10", "TOP_3"];
 export default function PlayerPage({ params }: { params: Promise<{ playerId: string }> }) {
-  const [playerId,      setPlayerId]      = useState<string | null>(null);
-  const [detail,        setDetail]        = useState<PlayerDetailResponse | null>(null);
-  const [balance,       setBalance]       = useState(0);
-  const [isLoading,     setIsLoading]     = useState(true);
-  const [error,         setError]         = useState<string | null>(null);
-  const [activeMarketId, setActiveMarketId] = useState<string | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const requestedThreshold = searchParams.get("threshold") as Threshold | null;
+
+  const [playerId, setPlayerId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<PlayerDetailResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [chartRange, setChartRange] = useState<MarketTimeRange>("ALL");
 
   useEffect(() => { void params.then((p) => setPlayerId(p.playerId)); }, [params]);
 
   const load = useCallback(async (id: string) => {
-    setIsLoading(true); setError(null);
+    setIsLoading(true);
+    setError(null);
     try {
-      const [pd, pf] = await Promise.all([
-        apiGet<PlayerDetailResponse>(`/api/players/${id}`),
-        apiGet<PortfolioResponse>("/api/portfolio")
-      ]);
-      setDetail(pd); setBalance(pf.user.mockBalance);
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not load player"); }
-    finally { setIsLoading(false); }
+      setDetail(await apiGet<PlayerDetailResponse>(`/api/players/${id}`));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load player");
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => { if (playerId) void load(playerId); }, [playerId, load]);
 
+  const availableThresholds = useMemo(() => new Set((detail?.markets ?? []).map((market) => market.threshold)), [detail]);
+  const selectedThreshold = useMemo(() => {
+    if (requestedThreshold && availableThresholds.has(requestedThreshold)) return requestedThreshold;
+    return THRESHOLD_PRIORITY.find((threshold) => availableThresholds.has(threshold)) ?? detail?.markets[0]?.threshold ?? "TOP_5";
+  }, [availableThresholds, detail?.markets, requestedThreshold]);
+
+  useEffect(() => {
+    if (!detail || detail.markets.length === 0) return;
+    if (requestedThreshold === selectedThreshold) return;
+    const paramsForUrl = new URLSearchParams(searchParams.toString());
+    paramsForUrl.set("threshold", selectedThreshold);
+    router.replace(`${pathname}?${paramsForUrl.toString()}` as Route, { scroll: false });
+  }, [detail, pathname, requestedThreshold, router, searchParams, selectedThreshold]);
+
   if (isLoading) return <div className="space-y-4"><BackLink /><LoadingFeed count={3} /></div>;
   if (error || !detail) return <div className="space-y-4"><BackLink /><ErrorState message={error ?? "Player not found."} onRetry={playerId ? () => void load(playerId) : undefined} /></div>;
 
-  const { player, markets, sentiment, intelligence } = detail;
-  const activeMarket = markets.find((m) => m.id === activeMarketId) ?? null;
+  const { player, markets, sentiment, intelligence, account } = detail;
+  const selectedMarket = markets.find((market) => market.threshold === selectedThreshold) ?? markets[0] ?? null;
   const posColor = getPositionColor(player.position);
-
   const injuryColor = {
-    ACTIVE:       "text-neon",
+    ACTIVE: "text-neon",
     QUESTIONABLE: "text-amber",
-    DOUBTFUL:     "text-crimson",
-    OUT:          "text-crimson"
+    DOUBTFUL: "text-crimson",
+    OUT: "text-crimson"
   }[intelligence.injuryStatus] ?? "text-muted";
-
   const InjuryIcon = intelligence.injuryStatus === "ACTIVE" ? ShieldCheck : AlertTriangle;
+
+  function changeThreshold(threshold: Threshold) {
+    const paramsForUrl = new URLSearchParams(searchParams.toString());
+    paramsForUrl.set("threshold", threshold);
+    router.push(`${pathname}?${paramsForUrl.toString()}` as Route, { scroll: false });
+  }
 
   return (
     <div className="space-y-4 pb-6">
       <BackLink />
 
-      {/* Player hero */}
       <div className="rounded-2xl border border-rim bg-panel overflow-hidden card-depth">
         <div className="h-1 w-full" style={{ background: posColor.text }} />
         <div className="p-5">
           <div className="flex items-start gap-4">
             <PlayerAvatar name={player.name} team={player.team} position={player.position} size="xl" />
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: posColor.bg, color: posColor.text }}>{player.position}</span>
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <span className="rounded px-2 py-0.5 text-[10px] font-black" style={{ background: posColor.bg, color: posColor.text }}>{player.position}</span>
                 <span className="text-xs font-bold text-steel">{player.team}</span>
                 {player.opponent && <span className="text-xs text-muted">vs {player.opponent}</span>}
                 <span className={`flex items-center gap-1 text-[10px] font-black ${injuryColor}`}>
                   <InjuryIcon className="h-3 w-3" aria-hidden />{intelligence.injuryStatus}
                 </span>
               </div>
-              <h1 className="text-2xl font-black text-frost leading-tight">{player.name}</h1>
-              <p className="text-xs font-semibold text-muted mt-1 flex items-center gap-1.5">
+              <h1 className="text-2xl font-black leading-tight text-frost">{player.name}</h1>
+              <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
                 <Clock className="h-3 w-3" aria-hidden />
                 Kickoff {new Date(player.kickoff).toLocaleString()}
               </p>
             </div>
-            {/* Projected pts */}
             <div className="shrink-0 text-right">
               <p className="text-[10px] font-black uppercase tracking-wider text-muted">Projected</p>
               <p className="text-3xl font-black text-neon">{intelligence.projectedPoints}</p>
@@ -89,220 +112,167 @@ export default function PlayerPage({ params }: { params: Promise<{ playerId: str
             </div>
           </div>
 
-          {/* Quick stat strip */}
           <div className="mt-4 grid grid-cols-3 gap-2">
             <QuickStat label="Confidence" value={`${intelligence.confidenceScore}%`} icon={<Target className="h-3 w-3" />} />
             <QuickStat label="Proj. Rank" value={intelligence.projectedRank} icon={<TrendingUp className="h-3 w-3" />} />
-            <QuickStat label="Vol (all mkts)" value={sentiment ? credits(sentiment.totalVolume) : "—"} icon={<BarChart2 className="h-3 w-3" />} />
+            <QuickStat label="All Volume" value={sentiment ? credits(sentiment.totalVolume) : "-"} icon={<BarChart2 className="h-3 w-3" />} />
           </div>
         </div>
       </div>
 
-      {/* Markets */}
-      <section aria-label="Player markets">
-        <h2 className="text-sm font-black text-frost mb-3 flex items-center gap-2">
-          <Zap className="h-4 w-4 text-neon" aria-hidden />
-          Markets
-        </h2>
-        {markets.length === 0 ? (
-          <div className="rounded-xl border border-rim bg-panel px-4 py-6 text-center text-sm font-semibold text-muted">
-            No markets for this player this week.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {markets.map((market) => (
-              <PlayerMarketRow
-                key={market.id}
-                market={market}
-                isActive={activeMarketId === market.id}
-                onTrade={() => setActiveMarketId(activeMarketId === market.id ? null : market.id)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Inline trade panel */}
-      {activeMarket && (
-        <div className="animate-slide-up">
-          <TradePanel
-            market={activeMarket}
-            player={{ id: player.id, name: player.name, team: player.team, position: player.position, opponent: player.opponent, kickoff: player.kickoff, projection: intelligence.projectedPoints }}
-            balance={balance}
-            onTradeComplete={() => { void load(playerId!); setActiveMarketId(null); }}
-          />
+      {markets.length === 0 || !selectedMarket ? (
+        <div className="rounded-xl border border-rim bg-panel px-4 py-8 text-center text-sm font-semibold text-muted">
+          No markets are available for this player this week.
         </div>
-      )}
-
-      {/* Intelligence + Sentiment grid */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Intelligence */}
-        <section className="rounded-xl border border-rim bg-panel p-4" aria-label="Player intelligence">
-          <h2 className="flex items-center gap-2 text-sm font-black text-frost mb-3">
-            <TrendingUp className="h-4 w-4 text-charge" aria-hidden /> Intelligence
-          </h2>
-          <div className="space-y-2">
-            <IntelRow label="Projected rank"  value={intelligence.projectedRank} />
-            <IntelRow label="Confidence"      value={`${intelligence.confidenceScore}%`} />
-            <IntelRow label="Projected pts"   value={`${intelligence.projectedPoints} pts`} />
-            <IntelRow label="Injury status"   value={intelligence.injuryStatus} valueClass={injuryColor} />
-          </div>
-          <div className="mt-3 rounded-lg bg-panel2 px-3 py-2.5">
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted mb-1">Matchup Notes</p>
-            <p className="text-sm font-semibold text-steel">{intelligence.matchupNotes}</p>
-          </div>
-          <p className="mt-3 text-[10px] font-semibold text-muted/60">Demo projection model · live NFL stats in a future sprint</p>
-        </section>
-
-        {/* Market sentiment */}
-        {sentiment ? (
-          <section className="rounded-xl border border-rim bg-panel p-4" aria-label="Market sentiment">
-            <h2 className="flex items-center gap-2 text-sm font-black text-frost mb-3">
-              <Activity className="h-4 w-4 text-neon" aria-hidden /> Market Sentiment
-            </h2>
-            <div className="grid grid-cols-2 gap-2">
-              <SentStat label="Avg YES price"   value={pct(sentiment.avgYesPrice)} />
-              <SentStat label="Total volume"    value={credits(sentiment.totalVolume)} />
-              <SentStat label="Open interest"   value={sentiment.totalOpenInterest.toFixed(1)} />
-              <SentStat label="Markets"         value={`${markets.length}`} />
-            </div>
-            <div className="mt-3 space-y-1.5">
-              <div className="flex items-center justify-between rounded-lg bg-neon/8 border border-neon/15 px-3 py-2">
-                <p className="text-[10px] font-black text-neon">Highest Confidence</p>
-                <p className="text-xs font-black text-frost">{thresholdLabel(sentiment.highestConfidenceMarket.threshold)} · {pct(sentiment.highestConfidenceMarket.yesPrice)}</p>
-              </div>
-              <div className="flex items-center justify-between rounded-lg bg-crimson/8 border border-crimson/15 px-3 py-2">
-                <p className="text-[10px] font-black text-crimson">Lowest Confidence</p>
-                <p className="text-xs font-black text-frost">{thresholdLabel(sentiment.lowestConfidenceMarket.threshold)} · {pct(sentiment.lowestConfidenceMarket.yesPrice)}</p>
-              </div>
-            </div>
+      ) : (
+        <>
+          <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_340px]" aria-label="Player market controls">
+            <PlayerThresholdSelector
+              playerName={player.name}
+              markets={markets}
+              activeThreshold={selectedMarket.threshold}
+              onChange={(market) => changeThreshold(market.threshold)}
+              sticky
+            />
+            <MarketTimeRangeSelector value={chartRange} onChange={setChartRange} />
           </section>
-        ) : null}
-      </div>
 
-      {/* Historical performance */}
-      <section className="rounded-xl border border-rim bg-panel p-4" aria-label="Historical performance">
-        <h2 className="flex items-center gap-2 text-sm font-black text-frost mb-3">
-          <BarChart2 className="h-4 w-4 text-amber" aria-hidden /> Historical Performance
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-rim">
-                <th className="pb-2 text-left text-[10px] font-black uppercase tracking-wider text-muted">Week</th>
-                <th className="pb-2 text-right text-[10px] font-black uppercase tracking-wider text-muted">Finish</th>
-                <th className="pb-2 text-right text-[10px] font-black uppercase tracking-wider text-muted">Pts</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-rim/40">
-              {intelligence.historicalFinishes.map((row) => (
-                <tr key={row.week}>
-                  <td className="py-2 text-xs font-semibold text-muted">Week {row.week}</td>
-                  <td className="py-2 text-right text-sm font-black text-frost">#{row.finish}</td>
-                  <td className="py-2 text-right text-xs font-semibold text-steel">{row.points}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {intelligence.historicalFinishes.length > 0 && (
-          <div className="mt-3 grid grid-cols-3 gap-2 border-t border-rim/40 pt-3">
-            <HistStat label="Avg pts" value={avgPoints(intelligence.historicalFinishes)} />
-            <HistStat label="Best finish" value={`#${Math.min(...intelligence.historicalFinishes.map((r) => r.finish))}`} tone="positive" />
-            <HistStat label="Worst finish" value={`#${Math.max(...intelligence.historicalFinishes.map((r) => r.finish))}`} tone="negative" />
+          <div id="selected-player-market" className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <main className="min-w-0 space-y-4">
+              <MarketSummary market={selectedMarket} />
+              <PlayerMarketChart
+                history={selectedMarket.history}
+                openingPrice={selectedMarket.openingPrice}
+                currentPrice={selectedMarket.yesPrice}
+                label={`${player.name} ${thresholdLabel(selectedMarket.threshold)}`}
+                range={chartRange}
+              />
+              <PositionSummary market={selectedMarket} />
+              <MarketStats market={selectedMarket} />
+              <IntelligencePanel intelligence={intelligence} injuryColor={injuryColor} />
+              <section aria-label="Selected market timeline">
+                <MarketTimeline events={selectedMarket.events} compact />
+              </section>
+            </main>
+
+            <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+              <TradePanel
+                market={selectedMarket}
+                player={{ ...player, projection: intelligence.projectedPoints }}
+                balance={account.balance}
+                position={selectedMarket.position}
+                onTradeComplete={() => { if (playerId) void load(playerId); }}
+                isAuthenticated={account.isAuthenticated}
+              />
+            </aside>
           </div>
-        )}
-        <p className="mt-3 text-[10px] font-semibold text-muted/60">Demo performance history · live integration in a future sprint</p>
-      </section>
+        </>
+      )}
     </div>
   );
 }
 
 function BackLink() {
   return (
-    <Link href="/markets" className="inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-frost transition-colors" aria-label="Back to markets">
+    <Link href="/markets" className="inline-flex items-center gap-2 text-sm font-semibold text-muted transition-colors hover:text-frost" aria-label="Back to markets">
       <ArrowLeft className="h-4 w-4" aria-hidden /> Markets
     </Link>
+  );
+}
+
+function MarketSummary({ market }: { market: PlayerDetailResponse["markets"][number] }) {
+  const movement = market.yesPrice - market.openingPrice;
+  return (
+    <section className="rounded-xl border border-rim bg-panel p-4" aria-label="Selected market price summary">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-black text-frost">
+            <Zap className="h-4 w-4 text-neon" aria-hidden />
+            {thresholdLabel(market.threshold)} Contract
+          </p>
+          <p className="mt-1 text-xs font-semibold text-muted">Free-play prediction-market shares for this weekly player outcome.</p>
+        </div>
+        <span className="rounded-full border border-rim bg-panel2 px-3 py-1 text-[10px] font-black text-muted">
+          {market.status}{market.result ? ` - ${market.result}` : ""}
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Metric label="YES" value={pct(market.yesPrice)} tone="positive" />
+        <Metric label="NO" value={pct(market.noPrice)} tone="negative" />
+        <Metric label="Open" value={pct(market.openingPrice)} />
+        <Metric label="Move" value={`${movement >= 0 ? "+" : ""}${pct(movement)}`} tone={movement >= 0 ? "positive" : "negative"} />
+      </div>
+    </section>
+  );
+}
+
+function PositionSummary({ market }: { market: PlayerDetailResponse["markets"][number] }) {
+  const position = market.position;
+  return (
+    <section className="rounded-xl border border-rim bg-panel p-4" aria-label="Your selected market position">
+      <h2 className="text-sm font-black text-frost">Your Position</h2>
+      {position ? (
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <Metric label="YES Shares" value={position.yesShares.toFixed(3)} tone="positive" />
+          <Metric label="NO Shares" value={position.noShares.toFixed(3)} tone="negative" />
+          <Metric label="Cost Basis" value={credits(position.costBasis)} />
+          <Metric label="Value" value={credits(position.currentValue)} />
+          <Metric label="Unrealized" value={`${position.unrealizedPnl >= 0 ? "+" : ""}${credits(position.unrealizedPnl)}`} tone={position.unrealizedPnl >= 0 ? "positive" : "negative"} />
+        </div>
+      ) : (
+        <p className="mt-2 rounded-lg bg-panel2 px-3 py-3 text-sm font-semibold text-muted">No position in this threshold yet.</p>
+      )}
+    </section>
+  );
+}
+
+function MarketStats({ market }: { market: PlayerDetailResponse["markets"][number] }) {
+  return (
+    <section className="rounded-xl border border-rim bg-panel p-4" aria-label="Selected market statistics">
+      <h2 className="text-sm font-black text-frost">Market Stats</h2>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Metric label="Volume" value={credits(market.volume)} />
+        <Metric label="Liquidity" value={credits(market.liquidity)} />
+        <Metric label="Open Interest" value={market.openInterest.toFixed(3)} />
+        <Metric label="History Points" value={`${market.history.length}`} />
+      </div>
+    </section>
+  );
+}
+
+function IntelligencePanel({ intelligence, injuryColor }: { intelligence: PlayerDetailResponse["intelligence"]; injuryColor: string }) {
+  return (
+    <section className="rounded-xl border border-rim bg-panel p-4" aria-label="Player intelligence">
+      <h2 className="text-sm font-black text-frost">Player Intelligence</h2>
+      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+        <Metric label="Projected Rank" value={intelligence.projectedRank} />
+        <Metric label="Confidence" value={`${intelligence.confidenceScore}%`} tone="positive" />
+        <Metric label="Projected Pts" value={`${intelligence.projectedPoints} pts`} />
+        <div className="rounded-xl bg-panel2 px-3 py-2.5">
+          <p className="text-[9px] font-black uppercase tracking-wider text-muted">Availability</p>
+          <p className={`mt-0.5 text-sm font-black ${injuryColor}`}>{intelligence.injuryStatus}</p>
+        </div>
+      </div>
+      <p className="mt-3 rounded-lg bg-panel2 px-3 py-2.5 text-sm font-semibold text-steel">{intelligence.matchupNotes}</p>
+    </section>
   );
 }
 
 function QuickStat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
     <div className="rounded-lg bg-panel2 px-3 py-2 text-center">
-      <div className="flex items-center justify-center gap-1 text-muted mb-0.5">{icon}<span className="text-[9px] font-bold uppercase tracking-wider">{label}</span></div>
+      <div className="mb-0.5 flex items-center justify-center gap-1 text-muted">{icon}<span className="text-[9px] font-bold uppercase tracking-wider">{label}</span></div>
       <p className="text-sm font-black text-frost">{value}</p>
     </div>
   );
 }
 
-function PlayerMarketRow({ market, isActive, onTrade }: {
-  market: PlayerDetailResponse["markets"][number]; isActive: boolean; onTrade: () => void;
-}) {
-  const isOpen = market.status === "OPEN";
-  return (
-    <div className={`rounded-xl border transition-all ${isActive ? "border-neon/30 bg-neon/5" : "border-rim bg-panel"}`}>
-      <div className="flex items-center gap-3 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-black text-frost">{thresholdLabel(market.threshold)}</p>
-          <p className="text-[10px] font-semibold text-muted">{market.status}{market.result ? ` · ${market.result}` : ""}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded-lg border border-neon/25 bg-neon/8 px-2.5 py-1 text-xs font-black text-neon">{pct(market.yesPrice)}</span>
-          <span className="rounded-lg border border-crimson/25 bg-crimson/8 px-2.5 py-1 text-xs font-black text-crimson">{pct(market.noPrice)}</span>
-        </div>
-        <div className="flex items-center gap-1.5 ml-1">
-          <Link href={`/markets/${market.id}` as Route} className="p-1.5 text-muted hover:text-frost transition-colors" aria-label={`View detail for ${thresholdLabel(market.threshold)}`}>
-            <ChevronRight className="h-4 w-4" aria-hidden />
-          </Link>
-          {isOpen && (
-            <button
-              type="button"
-              onClick={onTrade}
-              className={`rounded-lg px-3 py-1.5 text-[10px] font-black transition-all ${isActive ? "bg-rim text-muted" : "bg-neon/10 text-neon border border-neon/25 hover:bg-neon/20"}`}
-            >
-              {isActive ? "Cancel" : "Trade"}
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="border-t border-rim/40 px-4 py-2 flex gap-4 text-[10px] font-semibold text-muted">
-        <span>Pool {credits(market.liquidity)}</span>
-        <span>Vol {credits(market.volume)}</span>
-        <span>OI {Number(market.openInterest).toFixed(1)}</span>
-      </div>
-    </div>
-  );
-}
-
-function IntelRow({ label, value, valueClass = "" }: { label: string; value: string; valueClass?: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg bg-panel2 px-3 py-2">
-      <span className="text-[10px] font-bold text-muted">{label}</span>
-      <span className={`text-sm font-black ${valueClass || "text-frost"}`}>{value}</span>
-    </div>
-  );
-}
-
-function SentStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-panel2 p-3">
-      <p className="text-[9px] font-black uppercase tracking-wider text-muted">{label}</p>
-      <p className="mt-0.5 text-sm font-black text-frost">{value}</p>
-    </div>
-  );
-}
-
-function HistStat({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" }) {
+function Metric({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "positive" | "negative" }) {
   const color = tone === "positive" ? "text-neon" : tone === "negative" ? "text-crimson" : "text-frost";
   return (
-    <div className="rounded-lg bg-panel2 p-2.5 text-center">
-      <p className="text-[9px] font-bold text-muted">{label}</p>
+    <div className="rounded-xl bg-panel2 px-3 py-2.5">
+      <p className="text-[9px] font-black uppercase tracking-wider text-muted">{label}</p>
       <p className={`mt-0.5 text-sm font-black ${color}`}>{value}</p>
     </div>
   );
-}
-
-function avgPoints(finishes: Array<{ points: number }>) {
-  if (!finishes.length) return "—";
-  return `${(finishes.reduce((s, r) => s + r.points, 0) / finishes.length).toFixed(1)}`;
 }

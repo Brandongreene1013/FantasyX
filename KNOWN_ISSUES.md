@@ -61,6 +61,11 @@ Date: 2026-06-28 (updated after FX-017)
 16. `openingPrice` must be set at market creation for 24h move percentage calculations.
     - The exchange ticker and movers use `(yesPrice - openingPrice) / openingPrice`.
 
+17. FX026 database-backed and browser flow verification requires a running local PostgreSQL service.
+    - On 2026-07-18, DB-backed Vitest checks failed before assertions because `localhost:5432` was unreachable.
+    - Re-run `npm run test`, `npm run test:a11y`, and `npm run test:e2e` after starting PostgreSQL and preparing the database.
+    - Manual buy, partial sell, MAX sell, refresh persistence, and mobile layout checks still need browser verification in that environment.
+
 ## Not Allowed Without Separate Approval
 
 - Real-money wagering.

@@ -12,6 +12,7 @@ import { credits, pct } from "@/lib/format";
 import { getTeamColors } from "@/lib/team-colors";
 import { LoadingFeed } from "@/components/ui/loading-skeleton";
 import { ErrorState } from "@/components/ui/empty-state";
+import { AuthRequiredState } from "@/components/auth-required-state";
 
 type AccountResponse = {
   account: {
@@ -46,15 +47,20 @@ export default function AccountPage() {
   const [error,     setError]     = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [copied,    setCopied]    = useState(false);
+  const [isGuest,   setIsGuest]   = useState(false);
 
   useEffect(() => {
     apiGet<AccountResponse>("/api/account")
       .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : "Could not load account"))
+      .catch((e) => {
+        if (e instanceof Error && e.message === "Authentication required") setIsGuest(true);
+        else setError(e instanceof Error ? e.message : "Could not load account");
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
   if (isLoading) return <LoadingFeed count={3} />;
+  if (isGuest) return <AuthRequiredState title="Your account starts here" description="Log in to view your balance, achievements, referrals, and personalized FantasyX profile." next="/account" />;
   if (error)     return <ErrorState message={error} />;
 
   const a = data?.account;

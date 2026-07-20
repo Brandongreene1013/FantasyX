@@ -28,6 +28,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
   const [detail, setDetail]     = useState<MarketDetailResponse | null>(null);
   const [balance, setBalance]   = useState(0);
   const [marketPosition, setMarketPosition] = useState<PortfolioResponse["positions"][number] | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError]       = useState<string | null>(null);
   const [feed, setFeed]         = useState<FeedEvent[]>([]);
@@ -38,13 +39,12 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
   const load = useCallback(async (id: string) => {
     setError(null);
     try {
-      const [d, p] = await Promise.all([
-        apiGet<MarketDetailResponse>(`/api/markets/${id}`),
-        apiGet<PortfolioResponse>("/api/portfolio")
-      ]);
+      const d = await apiGet<MarketDetailResponse>(`/api/markets/${id}`);
+      const p = await apiGet<PortfolioResponse>("/api/portfolio").catch(() => null);
       setDetail(d);
-      setBalance(p.user.mockBalance);
-      setMarketPosition(p.positions.find((pos) => pos.marketId === id) ?? null);
+      setIsAuthenticated(Boolean(p));
+      setBalance(p?.user.mockBalance ?? 0);
+      setMarketPosition(p?.positions.find((pos) => pos.marketId === id) ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load market");
     } finally { setIsLoading(false); }
@@ -113,7 +113,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
                 {player.opponent && <span className="text-xs text-muted/60">vs {player.opponent}</span>}
                 <StatusBadge status={market.status} result={market.result} />
               </div>
-              <Link href={`/players/${player.id}` as Route} className="block">
+              <Link href={`/players/${player.id}?threshold=${market.threshold}` as Route} className="block">
                 <h1 className="text-2xl font-black text-frost hover:text-neon transition-colors leading-tight">{player.name}</h1>
               </Link>
               <p className="text-sm font-semibold text-muted mt-1">
@@ -204,6 +204,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
             balance={balance}
             position={marketPosition}
             onTradeComplete={() => { if (marketId) void load(marketId); }}
+            isAuthenticated={isAuthenticated}
           />
         </div>
         <div className="space-y-4">

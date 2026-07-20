@@ -104,6 +104,13 @@ enum BetaEventType {
   INVITE_COPY
 }
 
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  TWO_FACTOR_LOGIN
+  DESKTOP_LOGIN
+}
+
 model User {
   id              String             @id @default(cuid())
   name            String
@@ -112,6 +119,10 @@ model User {
   lastName        String             @default("") @map("last_name")
   displayName     String             @default("") @map("display_name")
   passwordHash    String             @default("") @map("password_hash")
+  emailVerifiedAt DateTime?          @map("email_verified_at")
+  twoFactorEnabled Boolean           @default(false) @map("two_factor_enabled")
+  twoFactorSecret String?            @map("two_factor_secret")
+  recoveryCodeHashes Json?           @map("recovery_code_hashes")
   role            UserRole           @default(TRADER)
   walletAddress   String?            @unique @map("wallet_address")
   isAdmin         Boolean            @default(false) @map("is_admin")
@@ -138,9 +149,72 @@ model User {
   watchedMarkets   WatchMarket[]
   betaEvents       BetaEvent[]         @relation("BetaEventUser")
   betaReferrals    BetaEvent[]         @relation("BetaEventReferrer")
+  authProviderAccounts AuthProviderAccount[]
+  authTokens       AuthToken[]
+  trustedDevices   TrustedDevice[]
 
   @@index([referredByUserId])
   @@map("users")
+}
+
+model AuthProviderAccount {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          String
+  providerAccountId String   @map("provider_account_id")
+  providerEmail     String?  @map("provider_email")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("auth_provider_accounts")
+}
+
+model AuthToken {
+  id         String        @id @default(cuid())
+  userId     String        @map("user_id")
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       AuthTokenType
+  tokenHash  String        @unique @map("token_hash")
+  expiresAt  DateTime      @map("expires_at")
+  consumedAt DateTime?     @map("consumed_at")
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@index([userId, type])
+  @@index([expiresAt])
+  @@map("auth_tokens")
+}
+
+model TrustedDevice {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique @map("token_hash")
+  label      String?
+  expiresAt  DateTime @map("expires_at")
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("trusted_devices")
+}
+
+model OAuthAttempt {
+  id           String   @id @default(cuid())
+  stateHash    String   @unique @map("state_hash")
+  provider     String
+  codeVerifier String?  @map("code_verifier")
+  nextPath     String   @default("/markets") @map("next_path")
+  referralCode String?  @map("referral_code")
+  desktop      Boolean  @default(false)
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@map("oauth_attempts")
 }
 
 model BetaEvent {

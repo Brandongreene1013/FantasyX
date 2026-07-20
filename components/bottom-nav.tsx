@@ -13,10 +13,12 @@ const TABS = [
   { href: "/leaderboard" as Route, label: "Leaders",     Icon: Trophy }
 ];
 
-export function BottomNav({ isLoggedIn }: { isLoggedIn: boolean }) {
+export function BottomNav({ isLoggedIn, isReady = true }: { isLoggedIn: boolean; isReady?: boolean }) {
   const pathname = usePathname();
 
-  if (!isLoggedIn) return null;
+  if (!isReady) return null;
+
+  const tabs = isLoggedIn ? TABS : TABS.map((tab) => tab.href === "/portfolio" ? { ...tab, href: "/account" as Route, label: "Account" } : tab);
 
   return (
     <nav
@@ -25,7 +27,7 @@ export function BottomNav({ isLoggedIn }: { isLoggedIn: boolean }) {
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <div className="grid grid-cols-5">
-        {TABS.map(({ href, label, Icon }) => {
+        {tabs.map(({ href, label, Icon }) => {
           const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
             <Link
