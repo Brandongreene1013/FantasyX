@@ -15,17 +15,22 @@ FantasyX/
 |   |-- leaderboard/
 |   |-- login/
 |   |-- markets/
+|   |-- players/
 |   |-- portfolio/
 |   |-- slate/
 |   |-- globals.css
 |   |-- layout.tsx
 |   `-- page.tsx
 |-- components/
+|   |-- player-market-chart.tsx
+|   |-- trade-launcher.tsx
+|   |-- trade-panel.tsx
 |-- lib/
 |-- prisma/
 |-- tests/
 |   |-- a11y/
-|   `-- money-market.test.ts
+|   |-- money-market.test.ts
+|   `-- player-market-api.test.ts
 |-- middleware.ts
 |-- docker-compose.yml
 |-- package.json
@@ -46,13 +51,15 @@ FantasyX/
 
 `app/api/trades/`, `portfolio/`, `settlements/`, `slate/`, and `leaderboard/` are the database-backed product APIs.
 
-`components/` contains reusable UI such as account bar, market cards, tabs, headings, and trade modal.
+`components/` contains reusable UI such as account bar, market cards, tabs, headings, the player market chart, and the shared trade ticket launcher/panel.
 
 `lib/` contains domain logic, Prisma client setup, auth helpers, AMM math, database transaction helpers, validation, API response utilities, formatting, and client fetch helpers.
 
 `prisma/` contains the database schema and seed script.
 
-`tests/money-market.test.ts` contains Vitest coverage for money, AMM, settlement, void, and session-user trade safeguards.
+`tests/money-market.test.ts` contains Vitest coverage for money, AMM, settlement, void, session-user trade safeguards, and trade-driven price-history snapshots.
+
+`tests/player-market-api.test.ts` covers the grouped player-market API payload for threshold markets, account balance, user positions, watch state, and sorted history.
 
 `tests/a11y/` contains Playwright + axe accessibility tests.
 

@@ -8,5 +8,7 @@ test-results
 playwright-report
 *.zip
 tsconfig.tsbuildinfo
+desktop/build
+desktop/dist
 
 .vercel

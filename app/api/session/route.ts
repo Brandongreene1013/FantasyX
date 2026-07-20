@@ -17,6 +17,8 @@ export async function GET(request: Request) {
       lastName: user.lastName,
       displayName: user.displayName || user.name,
       email: user.email,
+      emailVerified: Boolean(user.emailVerifiedAt),
+      twoFactorEnabled: user.twoFactorEnabled,
       role: user.role,
       isAdmin: user.role === "ADMIN" || user.isAdmin,
       mockBalance: toNumber(user.mockBalance),

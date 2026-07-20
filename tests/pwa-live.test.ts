@@ -16,7 +16,7 @@ describe("FX017 FantasyX OS PWA and Live Sunday", () => {
     };
 
     expect(manifest.name).toBe("FantasyX OS");
-    expect(manifest.start_url).toBe("/live");
+    expect(manifest.start_url).toBe("/");
     expect(manifest.display).toBe("standalone");
     expect(manifest.theme_color).toBe("#00D46A");
     expect(manifest.icons.some((icon) => icon.purpose === "maskable")).toBe(true);
@@ -30,9 +30,12 @@ describe("FX017 FantasyX OS PWA and Live Sunday", () => {
 
     expect(existsSync(serviceWorkerPath)).toBe(true);
     expect(existsSync(offlinePath)).toBe(true);
-    expect(shellSource).toContain("navigator.serviceWorker.register(\"/sw.js\")");
+    expect(shellSource).toContain("navigator.serviceWorker");
+    expect(shellSource).toContain(".register(\"/sw.js\"");
     expect(workerSource).toContain("/offline.html");
     expect(workerSource).toContain("/live");
+    expect(workerSource).toContain("/markets");
+    expect(workerSource).toContain('url.pathname.startsWith("/api/")');
     expect(workerSource).toContain("networkWithCacheFallback");
   });
 

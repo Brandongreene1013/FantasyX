@@ -18,6 +18,8 @@ const NAV_LINKS: Array<{ href: Route; label: string; Icon: React.ComponentType<{
   { href: "/account" as Route,         label: "Account",     Icon: UserRound }
 ];
 
+const GUEST_NAV_LINKS = NAV_LINKS.filter(({ href }) => href !== "/portfolio" && href !== "/account");
+
 export function SiteNav() {
   const [session, setSession] = useState<SessionResponse["user"] | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -97,6 +99,22 @@ export function SiteNav() {
           </>
         ) : hasLoaded ? (
           <>
+            {GUEST_NAV_LINKS.map(({ href, label, Icon }) => {
+              const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors ${isActive ? "bg-neon/10 text-neon" : "text-muted hover:bg-panel2 hover:text-frost"}`}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <Icon className="h-4 w-4" aria-hidden /> {label}
+                </Link>
+              );
+            })}
+            <Link href={"/account" as Route} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-muted hover:bg-panel2 hover:text-frost">
+              <UserRound className="h-4 w-4" aria-hidden /> Account
+            </Link>
             <Link href={"/login" as Route} className="inline-flex min-h-10 items-center rounded-lg px-4 text-sm font-semibold text-muted hover:text-frost transition-colors">
               Log in
             </Link>
@@ -116,20 +134,12 @@ export function SiteNav() {
       )}
 
       {/* Mobile bottom nav */}
-      <BottomNav isLoggedIn={hasLoaded && Boolean(session)} />
+      <BottomNav isLoggedIn={hasLoaded && Boolean(session)} isReady={hasLoaded} />
     </>
   );
 }
 
 function requiresAuthentication(pathname: string) {
-  return pathname === "/live"
-    || pathname === "/markets"
-    || pathname.startsWith("/markets/")
-    || pathname.startsWith("/players/")
-    || pathname === "/portfolio"
-    || pathname === "/history"
-    || pathname === "/account"
-    || pathname === "/settings"
-    || pathname === "/admin"
+  return pathname === "/admin"
     || pathname.startsWith("/admin/");
 }

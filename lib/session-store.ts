@@ -72,7 +72,11 @@ export function verifySessionToken(signedToken: string | null) {
     return null;
   }
 
-  const [token, signature] = signedToken.split(".");
+  const parts = signedToken.split(".");
+  if (parts.length !== 2) {
+    return null;
+  }
+  const [token, signature] = parts;
   if (!token || !signature) {
     return null;
   }
@@ -117,7 +121,13 @@ function parseCookieHeader(header: string | null) {
     if (!name) {
       continue;
     }
-    cookies[name] = decodeURIComponent(valueParts.join("="));
+    const rawValue = valueParts.join("=");
+    try {
+      cookies[name] = decodeURIComponent(rawValue);
+    } catch {
+      // A malformed cookie is untrusted input. Ignore it so public routes can
+      // continue as a guest instead of turning a bad client cookie into a 500.
+    }
   }
   return cookies;
 }

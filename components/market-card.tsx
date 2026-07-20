@@ -9,25 +9,29 @@ import type { Market, Player, Side } from "@/lib/types";
 import { PlayerAvatar } from "@/components/ui/player-avatar";
 import { ShareMarketButton } from "@/components/share-market-button";
 import { getPositionColor } from "@/lib/team-colors";
+import { PlayerThresholdSelector } from "@/components/player-market-controls";
 
 export function MarketCard({
   market,
   player,
   onTrade,
   onWatch,
-  isWatched
+  isWatched,
+  marketOptions,
+  onSelectMarket
 }: {
   market: Market;
   player: Player;
   onTrade: (market: Market, side: Side) => void;
   onWatch?: (marketId: string) => void;
   isWatched?: boolean;
+  marketOptions?: Market[];
+  onSelectMarket?: (market: Market) => void;
 }) {
   const yesPrice = getYesPrice(market);
   const noPrice  = getNoPrice(market);
   const isOpen   = market.status === "OPEN";
   const posColor = getPositionColor(player.position);
-
   // Kickoff time display
   const extMarket = market as Market & { kickoffTime?: string; volume?: number; openInterest?: number };
   const kickoff = extMarket.kickoffTime ? new Date(extMarket.kickoffTime) : null;
@@ -44,7 +48,7 @@ export function MarketCard({
       <div className="p-4 space-y-3 flex-1">
         {/* Header: player + badges */}
         <div className="flex items-start gap-3">
-          <Link href={`/players/${player.id}` as Route} aria-label={`View ${player.name} stats`}>
+          <Link href={`/players/${player.id}?threshold=${market.threshold}` as Route} aria-label={`View ${player.name} market`}>
             <PlayerAvatar name={player.name} team={player.team} position={player.position} size="md" />
           </Link>
 
@@ -61,7 +65,7 @@ export function MarketCard({
               {isHot && <Flame className="h-3 w-3 text-amber" aria-label="High volume" />}
               {isLockingSoon && <Clock className="h-3 w-3 text-amber animate-pulse-slow" aria-label="Locking soon" />}
             </div>
-            <Link href={`/players/${player.id}` as Route} className="block mt-0.5">
+            <Link href={`/players/${player.id}?threshold=${market.threshold}` as Route} className="block mt-0.5">
               <h2 className="font-black text-frost leading-tight text-base truncate hover:text-neon transition-colors">
                 {player.name}
               </h2>
@@ -85,6 +89,16 @@ export function MarketCard({
         <p className="text-xs font-semibold text-muted leading-relaxed">
           Will {player.name} finish <span className="text-frost font-black">{thresholdLabel(market.threshold)}</span> at {player.position} this week?
         </p>
+
+        {marketOptions && marketOptions.length > 1 && onSelectMarket ? (
+          <PlayerThresholdSelector
+            playerName={player.name}
+            markets={marketOptions}
+            activeThreshold={market.threshold}
+            onChange={onSelectMarket}
+            compact
+          />
+        ) : null}
 
         {/* YES/NO prices */}
         <div className="grid grid-cols-2 gap-2">
@@ -125,11 +139,11 @@ export function MarketCard({
             </span>
           ) : kickoff ? (
             <span className={`text-[10px] font-bold ${isLockingSoon ? "text-amber" : "text-muted"}`}>
-              {kickoff.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+              {kickoff.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
             </span>
           ) : null}
           <Link
-            href={`/markets/${market.id}` as Route}
+            href={`/players/${player.id}?threshold=${market.threshold}` as Route}
             className="text-[10px] font-bold text-field hover:text-neon transition-colors"
             aria-label={`Details for ${player.name} ${thresholdLabel(market.threshold)}`}
           >

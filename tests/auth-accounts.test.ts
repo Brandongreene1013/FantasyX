@@ -4,6 +4,7 @@ import { GET as getSession } from "@/app/api/session/route";
 import { POST as login } from "@/app/api/auth/login/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
 import { POST as signup } from "@/app/api/auth/signup/route";
+import { POST as verifyEmail } from "@/app/api/auth/verify-email/route";
 import { GET as getAccount } from "@/app/api/account/route";
 import { PATCH as patchSettings } from "@/app/api/settings/route";
 import { POST as trade } from "@/app/api/trades/route";
@@ -13,6 +14,7 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { createSession } from "@/lib/session-store";
 import { sessionCookieName } from "@/lib/session";
 import { csrfTokenForRequest } from "@/lib/csrf";
+import { resetRateLimiterForTests } from "@/lib/rate-limit-config";
 
 const prisma = new PrismaClient();
 const weekId = "test_week_auth_accounts";
@@ -22,6 +24,7 @@ const marketId = "test_market_auth_accounts_top_5";
 
 describe("FX009 real account auth", () => {
   beforeEach(async () => {
+    resetRateLimiterForTests();
     await resetTestData();
     await createMarketData();
   });
@@ -31,11 +34,10 @@ describe("FX009 real account auth", () => {
     await prisma.$disconnect();
   });
 
-  it("signs up a user, hashes the password, creates a seed ledger entry, and persists a session", async () => {
+  it("signs up a pending user, hashes the password, and creates a session only after email verification", async () => {
     const response = await signup(signupRequest("casey@example.com"));
     expect(response.status).toBe(201);
-    const cookie = getCookie(response);
-    expect(cookie).toContain(sessionCookieName);
+    expect(response.headers.get("set-cookie")).toBeNull();
 
     const user = await prisma.user.findUniqueOrThrow({ where: { email: "casey@example.com" } });
     expect(user.passwordHash).not.toBe("SuperSecret123!");
@@ -45,6 +47,10 @@ describe("FX009 real account auth", () => {
     const ledger = await prisma.accountLedgerEntry.findMany({ where: { userId: user.id, type: "SEED_GRANT" } });
     expect(ledger).toHaveLength(1);
 
+    expect(user.emailVerifiedAt).toBeNull();
+    const cookie = await verifySignupResponse(response);
+    const verified = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(verified.emailVerifiedAt).not.toBeNull();
     const sessionResponse = await getSession(new Request("http://localhost/api/session", { headers: { cookie } }));
     expect(sessionResponse.status).toBe(200);
   });
@@ -96,7 +102,7 @@ describe("FX009 real account auth", () => {
   });
 
   it("logs in with valid credentials and rejects invalid credentials generically", async () => {
-    await signup(signupRequest("login@example.com"));
+    await signupAndVerifyCookie("login@example.com");
 
     const good = await login(jsonRequest("/api/auth/login", { email: "login@example.com", password: "SuperSecret123!" }));
     expect(good.status).toBe(200);
@@ -108,8 +114,7 @@ describe("FX009 real account auth", () => {
   });
 
   it("destroys sessions on logout", async () => {
-    const signupResponse = await signup(signupRequest("logout@example.com"));
-    const cookie = getCookie(signupResponse);
+    const cookie = await signupAndVerifyCookie("logout@example.com");
 
     const logoutResponse = await logout(new Request("http://localhost/api/auth/logout", { method: "POST", headers: csrfHeaders(cookie) }));
     expect(logoutResponse.status).toBe(200);
@@ -131,7 +136,7 @@ describe("FX009 real account auth", () => {
   });
 
   it("requires authentication for trading and executes trades as the session user", async () => {
-    const userCookie = getCookie(await signup(signupRequest("trader@example.com")));
+    const userCookie = await signupAndVerifyCookie("trader@example.com");
 
     const unauthorized = await trade(jsonRequest("/api/trades", { marketId, side: "YES", spend: 25 }));
     expect(unauthorized.status).toBe(401);
@@ -145,8 +150,8 @@ describe("FX009 real account auth", () => {
   });
 
   it("isolates portfolio data between users", async () => {
-    const firstCookie = getCookie(await signup(signupRequest("first@example.com")));
-    const secondCookie = getCookie(await signup(signupRequest("second@example.com")));
+    const firstCookie = await signupAndVerifyCookie("first@example.com");
+    const secondCookie = await signupAndVerifyCookie("second@example.com");
 
     expect((await trade(jsonRequest("/api/trades", { marketId, side: "NO", spend: 30 }, firstCookie))).status).toBe(200);
 
@@ -158,7 +163,7 @@ describe("FX009 real account auth", () => {
   });
 
   it("enforces admin permissions from the authenticated session", async () => {
-    const traderCookie = getCookie(await signup(signupRequest("not-admin@example.com")));
+    const traderCookie = await signupAndVerifyCookie("not-admin@example.com");
     const admin = await prisma.user.create({
       data: {
         id: "test_auth_admin",
@@ -213,6 +218,20 @@ function getCookie(response: Response) {
     throw new Error("Missing set-cookie header");
   }
   return header.split(";")[0];
+}
+
+async function signupAndVerifyCookie(email: string) {
+  return verifySignupResponse(await signup(signupRequest(email)));
+}
+
+async function verifySignupResponse(response: Response) {
+  const body = await response.json() as { verificationPreviewUrl?: string };
+  if (!body.verificationPreviewUrl) throw new Error("Missing development verification URL");
+  const token = new URL(body.verificationPreviewUrl).searchParams.get("token");
+  if (!token) throw new Error("Missing verification token");
+  const verified = await verifyEmail(jsonRequest("/api/auth/verify-email", { token }));
+  expect(verified.status).toBe(200);
+  return getCookie(verified);
 }
 
 async function createMarketData() {

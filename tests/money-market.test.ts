@@ -10,6 +10,7 @@ import { GET as getPortfolio } from "@/app/api/portfolio/route";
 import { sessionCookieName } from "@/lib/session";
 import { createSession } from "@/lib/session-store";
 import { csrfTokenForRequest } from "@/lib/csrf";
+import { resetRateLimiterForTests } from "@/lib/rate-limit-config";
 import { applyLedgerBalanceChange, calculateLedgerBalance, reconcileUserLedger } from "@/lib/ledger-service";
 
 const prisma = new PrismaClient();
@@ -46,6 +47,7 @@ describe("ledger math", () => {
 
 describe("database-backed trading and settlement", () => {
   beforeEach(async () => {
+    resetRateLimiterForTests();
     await resetTestData();
     await createBaseData();
   });
@@ -350,6 +352,44 @@ describe("database-backed trading and settlement", () => {
     expect(await getUserBalance(userId)).toBeCloseTo(975);
   });
 
+  it("rejects idempotency-key reuse across users or changed trade payloads", async () => {
+    const idempotencyKey = "scoped_duplicate_buy_key";
+    const first = await postTrade(tradeRequest({
+      action: "BUY", marketId: marketId("TOP_10"), side: "YES", spend: 25, idempotencyKey
+    }));
+    expect(first.status).toBe(200);
+
+    const changedPayload = await postTrade(tradeRequest({
+      action: "BUY", marketId: marketId("TOP_10"), side: "YES", spend: 30, idempotencyKey
+    }));
+    expect(changedPayload.status).toBe(409);
+    expect(await changedPayload.json()).toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
+
+    const otherCookie = `${sessionCookieName}=${await createSession(otherUserId)}`;
+    const crossUser = await postTrade(new Request("http://localhost/api/trades", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...csrfHeaders(otherCookie) },
+      body: JSON.stringify({
+        action: "BUY", marketId: marketId("TOP_10"), side: "YES", spend: 25, idempotencyKey
+      })
+    }));
+    expect(crossUser.status).toBe(409);
+    expect(await crossUser.json()).toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
+    expect(await getUserBalance(otherUserId)).toBeCloseTo(1000);
+  });
+
+  it("collapses simultaneous retries into one trade", async () => {
+    const body = {
+      action: "BUY", marketId: marketId("TOP_5"), side: "NO", spend: 40,
+      idempotencyKey: "concurrent_duplicate_buy_key"
+    };
+    const responses = await Promise.all(Array.from({ length: 5 }, () => postTrade(tradeRequest(body))));
+
+    expect(responses.every((response) => response.status === 200)).toBe(true);
+    expect(await prisma.trade.count({ where: { idempotencyKey: body.idempotencyKey } })).toBe(1);
+    expect(await getUserBalance(userId)).toBeCloseTo(960);
+  });
+
   it("returns authenticated trade history with execution details", async () => {
     await prisma.$transaction((tx) =>
       executeDbBuy(tx, {
@@ -523,6 +563,33 @@ describe("database-backed trading and settlement", () => {
     expect(events.map((event) => event.type)).toEqual(["TRADE", "PRICE_CHANGE"]);
     expect(toNumber(events[0].volume)).toBeCloseTo(40);
     expect(toNumber(events[1].priceAfter)).toBeGreaterThan(toNumber(events[1].priceBefore));
+  });
+
+  it("persists one market price-history snapshot for a successful idempotent trade", async () => {
+    const requestBody = {
+      action: "BUY",
+      marketId: marketId("TOP_10"),
+      side: "YES",
+      spend: 100,
+      idempotencyKey: "history_snapshot_buy_key"
+    };
+
+    const first = await postTrade(tradeRequest(requestBody));
+    const second = await postTrade(tradeRequest(requestBody));
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+
+    const snapshots = await prisma.marketPriceHistory.findMany({
+      where: { marketId: marketId("TOP_10") },
+      orderBy: { createdAt: "asc" }
+    });
+    const market = await prisma.market.findUniqueOrThrow({ where: { id: marketId("TOP_10") } });
+
+    expect(snapshots).toHaveLength(1);
+    expect(toNumber(snapshots[0].yesPrice)).toBeCloseTo(toNumber(market.yesPrice));
+    expect(toNumber(snapshots[0].volume)).toBeCloseTo(100);
+    expect(snapshots[0].source).toBe("TRADE");
   });
 
   it("creates immutable-style admin audit records for lock and unlock actions", async () => {

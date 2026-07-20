@@ -5,10 +5,10 @@ import { safeInternalPath } from "@/lib/redirects";
 import { sessionCookieName } from "@/lib/session";
 
 describe("FX009.5 auth routing", () => {
-  it("redirects logged-out protected routes to login with a safe next path", () => {
-    const response = middleware(new NextRequest("http://localhost/account?tab=summary"));
+  it("redirects logged-out admin routes to login with a safe next path", () => {
+    const response = middleware(new NextRequest("http://localhost/admin?tab=summary"));
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://localhost/login?next=%2Faccount%3Ftab%3Dsummary");
+    expect(response.headers.get("location")).toBe("http://localhost/login?next=%2Fadmin%3Ftab%3Dsummary");
   });
 
   it("allows protected routes when a session cookie is present", () => {
@@ -19,7 +19,7 @@ describe("FX009.5 auth routing", () => {
     expect(response.headers.get("location")).toBeNull();
   });
 
-  it("redirects logged-in users away from login and signup", () => {
+  it("keeps login and signup reachable when a stale or forged cookie is present", () => {
     const loginResponse = middleware(new NextRequest("http://localhost/login", {
       headers: { cookie: `${sessionCookieName}=signed-session-token` }
     }));
@@ -27,8 +27,10 @@ describe("FX009.5 auth routing", () => {
       headers: { cookie: `${sessionCookieName}=signed-session-token` }
     }));
 
-    expect(loginResponse.headers.get("location")).toBe("http://localhost/markets");
-    expect(signupResponse.headers.get("location")).toBe("http://localhost/markets");
+    expect(loginResponse.status).toBe(200);
+    expect(signupResponse.status).toBe(200);
+    expect(loginResponse.headers.get("location")).toBeNull();
+    expect(signupResponse.headers.get("location")).toBeNull();
   });
 
   it("rejects external and protocol-relative next redirects", () => {
@@ -45,9 +47,19 @@ describe("FX009.5 auth routing", () => {
     expect(config.matcher).toContain("/signup");
   });
 
-  it("protects Live Sunday mode for logged-in users", () => {
-    const response = middleware(new NextRequest("http://localhost/live"));
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://localhost/login?next=%2Flive");
+  it("allows guest exploration and personal-page login prompts", () => {
+    for (const path of ["/live", "/markets", "/markets/board", "/players/p_josh_allen", "/account", "/portfolio", "/history", "/settings"]) {
+      const response = middleware(new NextRequest(`http://localhost${path}`));
+      expect(response.status, path).toBe(200);
+      expect(response.headers.get("location"), path).toBeNull();
+    }
+  });
+
+  it("keeps player discovery public while protecting account data", () => {
+    const marketsResponse = middleware(new NextRequest("http://localhost/markets"));
+    const playerResponse = middleware(new NextRequest("http://localhost/players/p_josh_allen?threshold=TOP_5"));
+
+    expect(marketsResponse.status).toBe(200);
+    expect(playerResponse.status).toBe(200);
   });
 });

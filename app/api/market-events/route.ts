@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-response";
-import { requireSessionUser } from "@/lib/auth";
 import { toNumber } from "@/lib/db-serialization";
 
 export async function GET(request: Request) {
   try {
-    await requireSessionUser(request);
     const params = new URL(request.url).searchParams;
     const marketId = params.get("marketId") ?? undefined;
     const weekId = params.get("weekId") ?? undefined;

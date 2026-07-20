@@ -2,7 +2,7 @@
 
 ## Current Sprint
 
-FX024.5 - Beta Launch Hardening (durable rate limiting, verify script, E2E smoke test).
+FX026 - Unified Player Markets and Trading Experience.
 
 ## Product State
 
@@ -30,10 +30,14 @@ FantasyX is a free-play NFL prediction market with real user accounts, mock cred
 - Added pricing research note.
 - Deterministic demo referral codes in seed data.
 - Fantasy Intelligence Engine from FX019 remains active across `/live`, `/markets/board`, and `/markets/[marketId]`.
+- `/players/[playerId]?threshold=TOP_5` is now the canonical individual player market page with URL-synced Top 3, Top 5, and Top 10 submarkets.
+- Player-market payloads now include account balance, authenticated positions, watch state, persisted price history, and market activity in one API response.
+- Successful trades now persist material `MarketPriceHistory` snapshots inside the existing serializable trade transaction.
+- `/markets` uses the shared dark trade ticket launcher instead of the older buy-only modal.
 
 ## Production Readiness
 
-The application remains architected for Vercel and PostgreSQL through Prisma. FX020 added beta referrals. FX021 added conversion/share surfaces. FX022 added a first-party beta event table and admin dashboard. FX023 updated seed/player/pricing logic. FX024.5 added durable rate limiting (set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Vercel before launch), a verify pipeline, and an E2E smoke test; it does not change AMM math, settlement logic, or ledger semantics.
+The application remains architected for Vercel and PostgreSQL through Prisma. FX020 added beta referrals. FX021 added conversion/share surfaces. FX022 added a first-party beta event table and admin dashboard. FX023 updated seed/player/pricing logic. FX024.5 added durable rate limiting (set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Vercel before launch), a verify pipeline, and an E2E smoke test. FX026 did not change AMM math, settlement logic, schema, or ledger semantics; it adds selected-player market UX and durable price-history writes during successful trades.
 
 ## Guardrails
 
@@ -48,10 +52,9 @@ FantasyX remains entirely free-play:
 
 ## Next Recommended Sprint
 
-FX024 should focus on provider-ready projection ingestion:
+Finish the remaining FX026 verification and polish with a running local database:
 
-- Projection source abstraction
-- Projection metadata/source/date tracking
-- Admin projection import preview before market generation
-- ADP fallback only when projections are unavailable
-- Remaining hardening afterward: structured observability/metrics, production load testing, CI pipeline
+- Browser-verified buy, partial sell, MAX sell, refresh, and mobile checks.
+- Playwright coverage for player-market threshold persistence and trading.
+- Retire legacy `TradeModal` after all remaining surfaces are confirmed on the shared ticket.
+- Add a focused market-board player identity link while preserving `/markets/[marketId]` deep links.

@@ -1,9 +1,10 @@
-import type { Prisma, TradeSide } from "@prisma/client";
+import type { Prisma, Trade, TradeSide } from "@prisma/client";
 import { executeBuy, executeSell } from "@/lib/amm";
 import type { Market as ClientMarket, Side } from "@/lib/types";
 import { toNumber } from "@/lib/db-serialization";
 import { applyLedgerBalanceChange } from "@/lib/ledger-service";
 import { emitTradeEvents } from "@/lib/market-event.service";
+import { recordMarketPriceSnapshot } from "@/lib/market-analytics.service";
 import { DomainError } from "@/lib/domain-errors";
 
 export async function executeDbBuy(
@@ -19,6 +20,7 @@ export async function executeDbBuy(
   if (input.idempotencyKey) {
     const existing = await tx.trade.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
     if (existing) {
+      assertIdempotentTradeReplay(existing, { ...input, action: "BUY" });
       return existing;
     }
   }
@@ -127,6 +129,17 @@ export async function executeDbBuy(
     }
   });
 
+  await recordMarketPriceSnapshot(tx, {
+    marketId: input.marketId,
+    yesPrice,
+    noPrice,
+    yesPool: nextMarket.yesPool,
+    noPool: nextMarket.noPool,
+    volume: nextVolume,
+    openInterest: nextOpenInterest,
+    source: "TRADE"
+  });
+
   const currentPosition = await tx.position.findUnique({
     where: {
       userId_marketId: { userId: input.userId, marketId: input.marketId }
@@ -167,6 +180,7 @@ export async function executeDbSell(
   if (input.idempotencyKey) {
     const existing = await tx.trade.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
     if (existing) {
+      assertIdempotentTradeReplay(existing, { ...input, action: "SELL" });
       return existing;
     }
   }
@@ -267,6 +281,17 @@ export async function executeDbSell(
     }
   });
 
+  await recordMarketPriceSnapshot(tx, {
+    marketId: input.marketId,
+    yesPrice,
+    noPrice,
+    yesPool: nextMarket.yesPool,
+    noPool: nextMarket.noPool,
+    volume: nextVolume,
+    openInterest: nextOpenInterest,
+    source: "TRADE"
+  });
+
   const yesShares = Math.max(0, toNumber(position.yesShares) - (input.side === "YES" ? input.shares : 0));
   const noShares = Math.max(0, toNumber(position.noShares) - (input.side === "NO" ? input.shares : 0));
   const totalSharesBefore = toNumber(position.yesShares) + toNumber(position.noShares);
@@ -283,6 +308,36 @@ export async function executeDbSell(
   });
 
   return trade;
+}
+
+type TradeReplayInput =
+  | { action: "BUY"; userId: string; marketId: string; side: TradeSide; spend: number }
+  | { action: "SELL"; userId: string; marketId: string; side: TradeSide; shares: number };
+
+export function assertIdempotentTradeReplay(
+  existing: Pick<Trade, "userId" | "marketId" | "action" | "side" | "spend" | "shares">,
+  input: TradeReplayInput
+) {
+  const sameTrade =
+    existing.userId === input.userId &&
+    existing.marketId === input.marketId &&
+    existing.action === input.action &&
+    existing.side === input.side &&
+    (input.action === "BUY"
+      ? nearlyEqual(toNumber(existing.spend), input.spend)
+      : nearlyEqual(toNumber(existing.shares), input.shares));
+
+  if (!sameTrade) {
+    throw new DomainError(
+      "IDEMPOTENCY_CONFLICT",
+      "Idempotency key was already used for a different trade",
+      409
+    );
+  }
+}
+
+function nearlyEqual(left: number, right: number) {
+  return Math.abs(left - right) <= 0.000001;
 }
 
 async function lockUserAndMarket(tx: Prisma.TransactionClient, userId: string, marketId: string) {

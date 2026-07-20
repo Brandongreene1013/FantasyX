@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { serializeMarket, serializePlayerFromMarket, toNumber } from "@/lib/db-serialization";
 import { apiError } from "@/lib/api-response";
-import { requireSessionUser } from "@/lib/auth";
 import { DomainError } from "@/lib/domain-errors";
 import { getMarketAnalytics } from "@/lib/market-analytics.service";
 import { getMarketIntelligence } from "@/lib/fantasy-intelligence.service";
@@ -12,7 +11,6 @@ export async function GET(
   { params }: { params: Promise<{ marketId: string }> }
 ) {
   try {
-    await requireSessionUser(request);
     const { marketId } = await params;
 
     const market = await prisma.market.findUnique({
