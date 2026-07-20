@@ -1,6 +1,6 @@
 const { app, BrowserWindow, shell } = require("electron");
 
-const APP_URL = "https://fantasy-x.vercel.app/markets?release=guest-explore-v2";
+const APP_URL = "https://fantasyxmarkets.com/markets";
 const APP_ORIGIN = new URL(APP_URL).origin;
 const PROTOCOL = "fantasyx";
 let mainWindow = null;
