@@ -7,7 +7,7 @@ import type { FeedEvent, ExchangeStatus, LiveExchangeState } from "@/lib/live-ty
 const POLL_INTERVAL_MS = 12000;
 
 function empty(): LiveExchangeState {
-  return { markets: [], players: [], games: [], feed: [], leaderboard: [], status: null, isConnected: false };
+  return { markets: [], players: [], games: [], liveScores: [], feed: [], leaderboard: [], status: null, isConnected: false };
 }
 
 export function useLiveExchange(weekId: string): LiveExchangeState {
@@ -17,7 +17,7 @@ export function useLiveExchange(weekId: string): LiveExchangeState {
   const mounted  = useRef(true);
 
   const mergeSlate = useCallback((data: SlateResponse) => {
-    setState((prev) => ({ ...prev, markets: data.markets, players: data.players, games: data.games, isConnected: true }));
+    setState((prev) => ({ ...prev, markets: data.markets, players: data.players, games: data.games, liveScores: data.liveScores ?? [], isConnected: true }));
   }, []);
 
   const mergeFeed = useCallback((data: { events: FeedEvent[] }) => {
@@ -47,6 +47,7 @@ export function useLiveExchange(weekId: string): LiveExchangeState {
         markets: slate.markets,
         players: slate.players,
         games: slate.games,
+        liveScores: slate.liveScores ?? [],
         leaderboard: lb.entries,
         status: status ?? prev.status,
         isConnected: true

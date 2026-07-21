@@ -26,6 +26,12 @@ export type SlateResponse = {
   weekId: string;
   games: LiveGameSummary[];
   players: Player[];
+  liveScores: Array<{
+    playerId: string;
+    fantasyPoints: number;
+    source: string;
+    updatedAt: string;
+  }>;
   markets: Array<Market & { weekId: string; kickoffTime: string; yesPrice: number; noPrice: number; openingPrice: number; volume: number; openInterest: number }>;
 };
 

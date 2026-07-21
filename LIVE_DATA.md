@@ -2,11 +2,11 @@
 
 ## Provider
 
-FantasyX supports licensed SportsDataIO NFL data through the existing provider adapter. Production activation requires a commercial SportsDataIO agreement and an unscrambled production key.
+FantasyX supports API-Sports as its beta NFL data provider through the existing provider adapter. The integration covers schedules, live game state, and normalized player box scores. It must remain labeled beta until live-game reliability and permitted commercial use are confirmed.
 
 ```env
-NFL_DATA_PROVIDER="sportsdataio"
-NFL_DATA_API_KEY="server-side-production-key"
+NFL_DATA_PROVIDER="api-sports"
+NFL_DATA_API_KEY="server-side-api-sports-key"
 CRON_SECRET="random-secret-with-at-least-32-bytes"
 ```
 
@@ -18,7 +18,7 @@ Never place the provider key in a `NEXT_PUBLIC_*` variable, browser request, mob
 2. `/api/cron/sync-live` performs a lightweight score-state sync for the current or next database week.
 3. Both GET and POST live-sync requests require `Authorization: Bearer $CRON_SECRET` or `x-cron-secret`.
 4. Game state is normalized and stored before the public slate and SSE routes read it.
-5. The browser never calls SportsDataIO directly.
+5. The browser never calls API-Sports directly.
 
 Optional target override:
 
@@ -26,11 +26,13 @@ Optional target override:
 /api/cron/sync-live?season=2026&week=1
 ```
 
-During games, invoke the live endpoint every 15-30 seconds within the provider contract and hosting limits. Vercel Hobby cron is daily-only and cannot operate a live scoreboard. Use a compliant external scheduler or upgrade the execution environment before enabling frequent calls.
+During games, invoke the live endpoint every 30-60 seconds within the provider contract and hosting limits. Vercel Hobby cron is daily-only and cannot operate a live scoreboard. Use a compliant external scheduler or upgrade the execution environment before enabling frequent calls.
+
+Each live sync updates game state and, when supported by the configured provider, stores normalized half-PPR inputs in `live_player_scores`. A final game is fetched once on its transition to `FINAL`; routine settlement continues to use the reviewed settlement workflow rather than directly trusting a transient live update.
 
 ## Safety
 
-- Scores, period, clock, possession, and provider status are display data only.
+- Scores, period, clock, possession, provider status, and beta fantasy points are provisional display data only.
 - Live-score updates never settle FantasyX markets or write account ledgers.
 - Settlement continues through final player-stat imports and administrative approval.
 - Missing fields remain null and render as unavailable.
@@ -47,7 +49,7 @@ FantasyX does not ingest or display NFL, league, team, helmet, or uniform logos.
 - Confirm allowed polling frequency, caching, retention, attribution, and redistribution terms.
 - Confirm production data is accurate and unscrambled.
 - Add the three server-side variables in Vercel Production.
-- Run a SportsDataIO replay through scheduled, live, halftime, overtime, delayed, postponed, canceled, and final states.
+- Run an API-Sports replay through scheduled, live, halftime, overtime, postponed, canceled, and final states.
 - Trigger one manual `Sync Live Scores` operation in `/admin/data`.
 - Verify `/api/health?deep=1` using the cron bearer secret.
 - Keep provider invoices and license terms with company records.

@@ -30,6 +30,7 @@ export type LiveExchangeState = {
   markets: SlateResponse["markets"];
   players: SlateResponse["players"];
   games: SlateResponse["games"];
+  liveScores: SlateResponse["liveScores"];
   feed: FeedEvent[];
   leaderboard: LeaderboardResponse["entries"];
   status: ExchangeStatus | null;

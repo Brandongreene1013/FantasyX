@@ -260,6 +260,7 @@ model Player {
   updatedAt          DateTime       @updatedAt @map("updated_at")
   markets            Market[]
   playerScores       PlayerScore[]
+  livePlayerScores   LivePlayerScore[]
 
   @@map("players")
 }
@@ -278,6 +279,7 @@ model NflWeek {
   entries      LeaderboardEntry[]
   scoreImports ScoreImport[]
   playerScores PlayerScore[]
+  livePlayerScores LivePlayerScore[]
 
   @@unique([season, week])
   @@map("nfl_weeks")
@@ -302,6 +304,7 @@ model Game {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
   markets            Market[]
+  livePlayerScores   LivePlayerScore[]
 
   @@index([weekId])
   @@index([kickoffTime])
@@ -572,6 +575,35 @@ model PlayerScore {
   @@index([playerId])
   @@index([importId])
   @@map("player_scores")
+}
+
+model LivePlayerScore {
+  id             String   @id @default(cuid())
+  playerId       String   @map("player_id")
+  player         Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  weekId         String   @map("week_id")
+  week           NflWeek  @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  gameId         String   @map("game_id")
+  game           Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  source         String
+  fantasyPoints  Decimal  @default(0) @map("fantasy_points") @db.Decimal(8, 2)
+  passYards      Int      @default(0) @map("pass_yards")
+  passTDs        Int      @default(0) @map("pass_tds")
+  interceptions  Int      @default(0)
+  rushYards      Int      @default(0) @map("rush_yards")
+  rushTDs        Int      @default(0) @map("rush_tds")
+  receptions     Int      @default(0)
+  recYards       Int      @default(0) @map("rec_yards")
+  recTDs         Int      @default(0) @map("rec_tds")
+  fumbles        Int      @default(0)
+  twoPointConv   Int      @default(0) @map("two_point_conv")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([playerId, weekId])
+  @@index([weekId, fantasyPoints])
+  @@index([gameId])
+  @@map("live_player_scores")
 }
 
 model WatchMarket {

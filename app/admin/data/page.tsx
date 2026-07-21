@@ -218,7 +218,7 @@ export default function AdminDataPage() {
           </p>
           <div className="bg-gray-800 rounded-lg p-4 font-mono text-xs text-gray-300 space-y-1">
             <p><span className="text-yellow-400">NFL_DATA_PROVIDER</span>=sleeper</p>
-            <p className="text-gray-500"># or: sportsdataio (requires API key)</p>
+            <p className="text-gray-500"># beta provider: api-sports (requires API key)</p>
             <p><span className="text-yellow-400">NFL_DATA_API_KEY</span>=your-key-here</p>
             <p className="text-gray-500"># not required for Sleeper (free public API)</p>
             <p><span className="text-yellow-400">CRON_SECRET</span>=a-random-secret</p>
@@ -226,7 +226,7 @@ export default function AdminDataPage() {
           </div>
           <div className="text-xs text-gray-400 space-y-1">
             <p><strong className="text-white">Sleeper</strong> — Free, no API key. Provides active NFL players + current week state.</p>
-            <p><strong className="text-white">SportsData.io</strong> — Paid. Full schedule, kickoff times, injury reports, weekly stats.</p>
+            <p><strong className="text-white">API-Sports Beta</strong> — Schedules, live game state, and normalized player box scores.</p>
           </div>
         </div>
       )}
@@ -328,7 +328,7 @@ export default function AdminDataPage() {
           <p><strong className="text-white">Implementations:</strong></p>
           <p>• <code className="bg-gray-800 px-1 rounded">DemoNflDataProvider</code> — bundled static data (default)</p>
           <p>• <code className="bg-gray-800 px-1 rounded">SleeperNflDataProvider</code> — free Sleeper API (players + week state)</p>
-          <p>• <code className="bg-gray-800 px-1 rounded">SportsDataIoProvider</code> — SportsData.io (full schedule + stats, requires API key)</p>
+          <p>• <code className="bg-gray-800 px-1 rounded">ApiSportsNflProvider</code> — API-Sports beta (schedule + live player stats, requires API key)</p>
         </div>
       </div>
 

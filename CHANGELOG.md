@@ -1,5 +1,20 @@
 # Changelog
 
+## FX029 - API-Sports Beta Scoring
+
+Added:
+
+- API-Sports NFL adapter for teams, offensive rosters, schedules, live game state, and player game statistics.
+- Provider-neutral player-stat normalization and automatic half-PPR calculation.
+- Dedicated provisional `live_player_scores` storage with final-transition reconciliation.
+- Beta fantasy-point updates in slate JSON, SSE, polling, and Live game market cards.
+
+Guardrails:
+
+- Provider keys remain server-side and API-Sports media fields are ignored.
+- Beta scores remain provisional and do not directly settle markets or write account ledgers.
+- Missing credentials fall back to demo mode instead of breaking public browsing.
+
 ## FX028 - Licensed Live Score Pipeline
 
 Added:

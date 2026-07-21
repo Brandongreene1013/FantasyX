@@ -42,6 +42,7 @@ export default function LivePage() {
   }, [live.games, selectedGameId]);
 
   const players = useMemo(() => new Map(live.players.map((player) => [player.id, player])), [live.players]);
+  const liveScores = useMemo(() => new Map(live.liveScores.map((score) => [score.playerId, score])), [live.liveScores]);
   const positions = useMemo(() => new Map((portfolio?.positions ?? []).map((position) => [position.marketId, position])), [portfolio]);
   const selectedGame = live.games.find((game) => game.id === selectedGameId) ?? null;
   const featuredMarkets = useMemo(() => {
@@ -103,6 +104,7 @@ export default function LivePage() {
                 const player = players.get(market.playerId);
                 if (!player) return null;
                 const position = positions.get(market.id);
+                const liveScore = liveScores.get(player.id);
                 const sellSide: Side = (position?.yesShares ?? 0) > 0 ? "YES" : "NO";
                 const hasShares = (position?.yesShares ?? 0) > 0 || (position?.noShares ?? 0) > 0;
                 return (
@@ -112,6 +114,7 @@ export default function LivePage() {
                       <div className="min-w-0 flex-1">
                         <Link href={`/players/${player.id}?threshold=${market.threshold}` as Route} className="block truncate text-sm font-black text-frost hover:text-neon">{player.name}</Link>
                         <p className="text-[10px] font-bold text-muted">{player.team} · {thresholdLabel(market.threshold)}</p>
+                        {liveScore ? <p className="mt-1 font-mono text-[10px] font-black text-amber">{liveScore.fantasyPoints.toFixed(1)} PTS · BETA</p> : null}
                       </div>
                       <div className="text-right"><p className="font-mono text-base font-black text-neon">{pct(market.yesPrice)}</p><p className="text-[9px] text-muted">YES</p></div>
                     </div>

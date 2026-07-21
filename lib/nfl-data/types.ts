@@ -51,6 +51,25 @@ export type NflSlateRecord = {
   players: NflPlayerSlateEntry[];
 };
 
+export type NflPlayerGameStats = {
+  gameExternalId: string;
+  playerExternalId: string;
+  playerName: string;
+  teamAbbreviation: string;
+  stats: {
+    passYards: number;
+    passTDs: number;
+    interceptions: number;
+    rushYards: number;
+    rushTDs: number;
+    receptions: number;
+    recYards: number;
+    recTDs: number;
+    fumbles: number;
+    twoPointConv: number;
+  };
+};
+
 export type NflSyncResult = {
   provider: string;
   season: number;

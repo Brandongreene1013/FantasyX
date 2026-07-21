@@ -76,6 +76,14 @@ describe("getProviderStatus()", () => {
     expect(status.mode).toBe("live");
     expect(status.hasApiKey).toBe(true);
   });
+
+  it("recognizes API-Sports as a keyed beta provider", async () => {
+    setEnv({ NFL_DATA_PROVIDER: "api-sports", NFL_DATA_API_KEY: "test-key" });
+    const { getProviderStatus, getConfiguredProvider } = await import("@/lib/nfl-data/provider-config");
+    const status = getProviderStatus();
+    expect(status).toMatchObject({ name: "API-Sports (Beta)", mode: "live", isConfigured: true, requiresApiKey: true, hasApiKey: true });
+    expect(getConfiguredProvider().name).toBe("API-Sports (Beta)");
+  });
 });
 
 describe("getConfiguredProvider()", () => {

@@ -2,6 +2,7 @@ import type { INflDataProvider } from "@/lib/nfl-data/provider";
 import { DemoNflDataProvider } from "@/lib/nfl-data/demo-provider";
 import { SleeperNflDataProvider } from "@/lib/nfl-data/providers/sleeper-provider";
 import { SportsDataIoProvider } from "@/lib/nfl-data/providers/sportsdata-provider";
+import { ApiSportsNflProvider } from "@/lib/nfl-data/providers/api-sports-provider";
 
 export type ProviderMode = "demo" | "live" | "disabled";
 
@@ -14,7 +15,7 @@ export interface ProviderStatus {
   warning?: string;
 }
 
-const PROVIDERS_REQUIRING_API_KEY = new Set(["sportsdataio", "sportsdata", "mysportsfeeds"]);
+const PROVIDERS_REQUIRING_API_KEY = new Set(["api-sports", "apisports", "sportsdataio", "sportsdata", "mysportsfeeds"]);
 const FREE_PROVIDERS = new Set(["sleeper"]);
 
 export function getProviderStatus(): ProviderStatus {
@@ -22,6 +23,7 @@ export function getProviderStatus(): ProviderStatus {
   const hasApiKey = Boolean(process.env.NFL_DATA_API_KEY?.trim());
   const requiresApiKey = PROVIDERS_REQUIRING_API_KEY.has(providerEnv);
   const isFree = FREE_PROVIDERS.has(providerEnv);
+  const displayName = providerEnv === "api-sports" || providerEnv === "apisports" ? "API-Sports (Beta)" : providerEnv;
 
   if (providerEnv === "disabled") {
     return { name: "disabled", mode: "disabled", isConfigured: false, requiresApiKey: false, hasApiKey: false };
@@ -33,7 +35,7 @@ export function getProviderStatus(): ProviderStatus {
 
   if (requiresApiKey && !hasApiKey) {
     return {
-      name: providerEnv,
+      name: displayName,
       mode: "demo",
       isConfigured: false,
       requiresApiKey: true,
@@ -43,7 +45,7 @@ export function getProviderStatus(): ProviderStatus {
   }
 
   return {
-    name: isFree ? "Sleeper" : providerEnv,
+    name: isFree ? "Sleeper" : displayName,
     mode: "live",
     isConfigured: true,
     requiresApiKey,
@@ -70,6 +72,11 @@ export function getConfiguredProvider(): INflDataProvider {
     case "sportsdata": {
       const key = process.env.NFL_DATA_API_KEY!;
       return new SportsDataIoProvider(key);
+    }
+    case "api-sports":
+    case "apisports": {
+      const key = process.env.NFL_DATA_API_KEY!;
+      return new ApiSportsNflProvider(key);
     }
     default:
       console.warn(`[FantasyX NFL Provider] Unknown provider '${providerEnv}', falling back to demo`);

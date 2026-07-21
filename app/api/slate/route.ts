@@ -9,19 +9,25 @@ export async function GET(request: Request) {
   try {
     const { weekId } = parseSearchParams(weekQuerySchema, request);
 
-    const markets = await prisma.market.findMany({
-      where: { weekId },
-      include: {
-        player: true,
-        game: true
-      },
-      orderBy: [
-        { position: "asc" },
-        { kickoffTime: "asc" },
-        { player: { name: "asc" } },
-        { thresholdType: "asc" }
-      ]
-    });
+    const [markets, liveScores] = await Promise.all([
+      prisma.market.findMany({
+        where: { weekId },
+        include: {
+          player: true,
+          game: true
+        },
+        orderBy: [
+          { position: "asc" },
+          { kickoffTime: "asc" },
+          { player: { name: "asc" } },
+          { thresholdType: "asc" }
+        ]
+      }),
+      prisma.livePlayerScore.findMany({
+        where: { weekId },
+        select: { playerId: true, fantasyPoints: true, source: true, updatedAt: true }
+      })
+    ]);
 
     const players = new Map(
       markets
@@ -34,6 +40,12 @@ export async function GET(request: Request) {
       weekId,
       games: summarizeGames(markets),
       players: Array.from(players.values()),
+      liveScores: liveScores.map((score) => ({
+        playerId: score.playerId,
+        fantasyPoints: Number(score.fantasyPoints),
+        source: score.source,
+        updatedAt: score.updatedAt.toISOString()
+      })),
       markets: markets.map(serializeMarket)
     });
   } catch (error) {

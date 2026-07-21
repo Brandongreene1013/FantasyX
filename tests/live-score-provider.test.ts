@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mapSportsDataGameStatus } from "@/lib/nfl-data/providers/sportsdata-provider";
-import { hasLiveGameData, parseDate } from "@/lib/live-score-sync.service";
+import { mapApiSportsGameStatus, normalizeApiSportsPlayerStats } from "@/lib/nfl-data/providers/api-sports-provider";
+import { hasLiveGameData, parseDate, shouldFetchPlayerStats } from "@/lib/live-score-sync.service";
 import { summarizeGames } from "@/lib/live-games";
 import { GET as syncLive } from "@/app/api/cron/sync-live/route";
 
@@ -18,6 +19,40 @@ describe("licensed live-score provider integration", () => {
     expect(mapSportsDataGameStatus("Suspended", 2)).toBe("DELAYED");
     expect(mapSportsDataGameStatus("Postponed", null)).toBe("POSTPONED");
     expect(mapSportsDataGameStatus("Canceled", null)).toBe("CANCELED");
+  });
+
+  it("normalizes API-Sports game states", () => {
+    expect(mapApiSportsGameStatus("NS")).toBe("SCHEDULED");
+    expect(mapApiSportsGameStatus("Q3")).toBe("LIVE");
+    expect(mapApiSportsGameStatus("HT")).toBe("HALFTIME");
+    expect(mapApiSportsGameStatus("AOT")).toBe("FINAL");
+    expect(mapApiSportsGameStatus("PST")).toBe("POSTPONED");
+    expect(mapApiSportsGameStatus("CANC")).toBe("CANCELED");
+  });
+
+  it("normalizes API-Sports player groups into half-PPR inputs", () => {
+    const records = normalizeApiSportsPlayerStats("game-1", [{
+      team: { id: 10, name: "Cincinnati Bengals" },
+      groups: [
+        { name: "Passing", players: [{ player: { id: 7, name: "Joe Burrow" }, statistics: [{ name: "yards", value: "275" }, { name: "passing touch downs", value: "2" }, { name: "interceptions", value: "1" }] }] },
+        { name: "Rushing", players: [{ player: { id: 7, name: "Joe Burrow" }, statistics: [{ name: "yards", value: "18" }, { name: "rushing touch downs", value: "1" }] }] },
+        { name: "Fumbles", players: [{ player: { id: 7, name: "Joe Burrow" }, statistics: [{ name: "fumbles lost", value: "1" }] }] }
+      ]
+    }], new Map([[10, "CIN"]]));
+
+    expect(records).toEqual([expect.objectContaining({
+      playerExternalId: "7",
+      teamAbbreviation: "CIN",
+      stats: expect.objectContaining({ passYards: 275, passTDs: 2, interceptions: 1, rushYards: 18, rushTDs: 1, fumbles: 1 })
+    })]);
+  });
+
+  it("fetches live stats continuously and final stats once", () => {
+    expect(shouldFetchPlayerStats("LIVE", "LIVE")).toBe(true);
+    expect(shouldFetchPlayerStats("HALFTIME", "LIVE")).toBe(true);
+    expect(shouldFetchPlayerStats("FINAL", "LIVE")).toBe(true);
+    expect(shouldFetchPlayerStats("FINAL", "FINAL")).toBe(false);
+    expect(shouldFetchPlayerStats("SCHEDULED", null)).toBe(false);
   });
 
   it("does not treat schedule-only providers as live score sources", () => {

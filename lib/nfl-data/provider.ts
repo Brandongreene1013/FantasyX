@@ -1,4 +1,4 @@
-import type { NflTeam, NflPlayerRecord, NflGameRecord, NflWeekRecord, NflSlateRecord } from "./types";
+import type { NflTeam, NflPlayerRecord, NflGameRecord, NflWeekRecord, NflSlateRecord, NflPlayerGameStats } from "./types";
 
 export interface INflDataProvider {
   readonly name: string;
@@ -7,4 +7,5 @@ export interface INflDataProvider {
   getGames(season: number, week: number): Promise<NflGameRecord[]>;
   getWeeks(season: number): Promise<NflWeekRecord[]>;
   getSlate(season: number, week: number): Promise<NflSlateRecord>;
+  getPlayerGameStats?(gameExternalId: string): Promise<NflPlayerGameStats[]>;
 }

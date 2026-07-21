@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { INflDataProvider } from "@/lib/nfl-data/provider";
 import type { NflGameRecord } from "@/lib/nfl-data/types";
+import { calculateHalfPpr } from "@/lib/scoring.service";
 
 export type LiveScoreSyncResult = {
   provider: string;
@@ -9,12 +10,27 @@ export type LiveScoreSyncResult = {
   received: number;
   updated: number;
   skipped: number;
+  playerStats: {
+    gamesFetched: number;
+    received: number;
+    updated: number;
+    unknownPlayers: number;
+  };
 };
 
 export async function syncLiveGameScores(provider: INflDataProvider, season: number, week: number): Promise<LiveScoreSyncResult> {
   const records = await provider.getGames(season, week);
-  const result: LiveScoreSyncResult = { provider: provider.name, season, week, received: records.length, updated: 0, skipped: 0 };
+  const result: LiveScoreSyncResult = {
+    provider: provider.name,
+    season,
+    week,
+    received: records.length,
+    updated: 0,
+    skipped: 0,
+    playerStats: { gamesFetched: 0, received: 0, updated: 0, unknownPlayers: 0 }
+  };
   const weekId = `nfl_${season}_w${week}`;
+  const statCandidates: Array<{ record: NflGameRecord; gameId: string }> = [];
 
   for (const record of records) {
     if (!hasLiveGameData(record)) {
@@ -26,6 +42,10 @@ export async function syncLiveGameScores(provider: INflDataProvider, season: num
     if (!game) {
       result.skipped++;
       continue;
+    }
+
+    if (shouldFetchPlayerStats(record.status, game.providerStatus)) {
+      statCandidates.push({ record, gameId: game.id });
     }
 
     await prisma.game.update({
@@ -46,7 +66,57 @@ export async function syncLiveGameScores(provider: INflDataProvider, season: num
     result.updated++;
   }
 
+
+  if (provider.getPlayerGameStats) {
+    for (const candidate of statCandidates) {
+      const stats = await provider.getPlayerGameStats(candidate.record.externalId);
+      result.playerStats.gamesFetched++;
+      result.playerStats.received += stats.length;
+
+      for (const playerStats of stats) {
+        const player = await prisma.player.findFirst({
+          where: {
+            OR: [
+              { externalProviderId: playerStats.playerExternalId },
+              { name: playerStats.playerName, team: playerStats.teamAbbreviation }
+            ]
+          },
+          select: { id: true }
+        });
+        if (!player) {
+          result.playerStats.unknownPlayers++;
+          continue;
+        }
+
+        const fantasyPoints = calculateHalfPpr(playerStats.stats);
+        await prisma.livePlayerScore.upsert({
+          where: { playerId_weekId: { playerId: player.id, weekId } },
+          create: {
+            playerId: player.id,
+            weekId,
+            gameId: candidate.gameId,
+            source: provider.name,
+            fantasyPoints,
+            ...playerStats.stats
+          },
+          update: {
+            gameId: candidate.gameId,
+            source: provider.name,
+            fantasyPoints,
+            ...playerStats.stats
+          }
+        });
+        result.playerStats.updated++;
+      }
+    }
+  }
+
   return result;
+}
+
+export function shouldFetchPlayerStats(nextStatus: NflGameRecord["status"], previousStatus: string | null | undefined) {
+  if (nextStatus === "LIVE" || nextStatus === "HALFTIME") return true;
+  return nextStatus === "FINAL" && previousStatus !== "FINAL";
 }
 
 async function findGame(weekId: string, record: NflGameRecord) {

@@ -12,15 +12,27 @@ function sseChunk(encoder: TextEncoder, event: string, data: unknown): Uint8Arra
 }
 
 async function fetchSlate(weekId: string) {
-  const markets = await prisma.market.findMany({
-    where: { weekId },
-    include: { player: true, game: true },
-    orderBy: [{ position: "asc" }, { kickoffTime: "asc" }]
-  });
+  const [markets, liveScores] = await Promise.all([
+    prisma.market.findMany({
+      where: { weekId },
+      include: { player: true, game: true },
+      orderBy: [{ position: "asc" }, { kickoffTime: "asc" }]
+    }),
+    prisma.livePlayerScore.findMany({
+      where: { weekId },
+      select: { playerId: true, fantasyPoints: true, source: true, updatedAt: true }
+    })
+  ]);
   const players = new Map(
     markets.map(serializePlayerFromMarket).filter(Boolean).map((p) => [p!.id, p!])
   );
-  return { weekId, players: Array.from(players.values()), games: summarizeGames(markets), markets: markets.map(serializeMarket) };
+  return {
+    weekId,
+    players: Array.from(players.values()),
+    games: summarizeGames(markets),
+    liveScores: liveScores.map((score) => ({ playerId: score.playerId, fantasyPoints: toNumber(score.fantasyPoints), source: score.source, updatedAt: score.updatedAt.toISOString() })),
+    markets: markets.map(serializeMarket)
+  };
 }
 
 async function fetchFeed(weekId: string) {

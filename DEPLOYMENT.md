@@ -11,7 +11,7 @@ Production URL: https://fantasy-x.vercel.app
 - Required for social login: the credentials for each enabled Google, Microsoft, or Apple provider
 - Seed-only admin vars: `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME`
 - Required for scheduled jobs: `CRON_SECRET`
-- Required for licensed live scores: `NFL_DATA_PROVIDER=sportsdataio` and `NFL_DATA_API_KEY`
+- Required for beta API-Sports data: `NFL_DATA_PROVIDER=api-sports` and `NFL_DATA_API_KEY`
 - Recommended beta env vars: `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`, or Vercel's `KV_REST_API_URL`/`KV_REST_API_TOKEN` aliases
 
 ## Local Development
@@ -109,8 +109,8 @@ For a fresh production database:
 7. Add `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, and `ADMIN_LAST_NAME` only if the seed operation will provision an administrator.
 8. Add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` before beta launch so rate limits are durable across Vercel instances.
 9. Add a cryptographically random `CRON_SECRET` so Vercel can authenticate scheduled jobs and deep health checks.
-10. After signing a SportsDataIO commercial agreement, add `NFL_DATA_PROVIDER=sportsdataio` and the production `NFL_DATA_API_KEY`. A trial key may return scrambled data and must not be presented as real scores.
-11. Configure an external scheduler to call `GET /api/cron/sync-live` with `Authorization: Bearer $CRON_SECRET` every 15-30 seconds during games. Vercel Hobby cron runs only daily and is not suitable for live scores; use a compliant paid scheduler/runtime before activation.
+10. Add `NFL_DATA_PROVIDER=api-sports` and the server-side API-Sports key as `NFL_DATA_API_KEY`. Keep the experience labeled beta until live NFL validation and permitted use are confirmed.
+11. Configure an external scheduler to call `GET /api/cron/sync-live` with `Authorization: Bearer $CRON_SECRET` every 30-60 seconds during games. Vercel Hobby cron runs only daily and is not suitable for live scores; use a compliant scheduler/runtime before activation.
 12. Deploy to Vercel. Vercel runs `prisma migrate deploy` automatically.
 13. Seed manually only when intentionally resetting market/account seed data:
 
