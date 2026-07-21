@@ -76,3 +76,11 @@ export function getConfiguredProvider(): INflDataProvider {
       return new DemoNflDataProvider();
   }
 }
+
+export function requireConfiguredLiveProvider(): INflDataProvider {
+  const status = getProviderStatus();
+  if (status.mode !== "live" || !status.isConfigured) {
+    throw new Error(status.warning ?? "A licensed live NFL data provider is not configured.");
+  }
+  return getConfiguredProvider();
+}

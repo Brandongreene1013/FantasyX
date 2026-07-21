@@ -5,7 +5,8 @@ import type {
   NflGameRecord,
   NflWeekRecord,
   NflSlateRecord,
-  NflPlayerStatus
+  NflPlayerStatus,
+  NflProviderGameStatus
 } from "@/lib/nfl-data/types";
 
 const BASE = "https://api.sportsdata.io/v3/nfl";
@@ -44,10 +45,18 @@ interface SdPlayer {
   IsUndraftedFreeAgent: boolean;
 }
 interface SdGame {
-  GameKey: string;
+  GameKey: string | number;
   HomeTeam: string;
   AwayTeam: string;
   Date: string;
+  DateTimeUTC?: string | null;
+  Status?: string | null;
+  HomeScore?: number | null;
+  AwayScore?: number | null;
+  Quarter?: string | number | null;
+  TimeRemaining?: string | null;
+  Possession?: string | null;
+  LastUpdated?: string | null;
 }
 interface SdWeek { Week: number; Season: number; SeasonType: number }
 
@@ -60,6 +69,20 @@ function mapStatus(status: string, injuryStatus: string | null): NflPlayerStatus
 }
 
 const VALID_POS = new Set(["QB", "RB", "WR", "TE"]);
+
+export function mapSportsDataGameStatus(status: string | null | undefined, period: string | number | null | undefined): NflProviderGameStatus {
+  const normalized = status?.trim().toLowerCase();
+  const normalizedPeriod = String(period ?? "").trim().toLowerCase();
+  if (normalized === "final" || normalized === "f/ot" || normalized === "forfeit") return "FINAL";
+  if (normalized === "suspended" || normalized === "delayed") return "DELAYED";
+  if (normalized === "postponed") return "POSTPONED";
+  if (normalized === "canceled" || normalized === "cancelled") return "CANCELED";
+  if (normalized === "inprogress" || normalized === "in progress") {
+    return normalizedPeriod === "half" || normalizedPeriod === "halftime" ? "HALFTIME" : "LIVE";
+  }
+  if (normalized === "scheduled") return "SCHEDULED";
+  return "UNKNOWN";
+}
 
 /**
  * SportsData.io NFL provider (requires NFL_DATA_API_KEY).
@@ -97,10 +120,17 @@ export class SportsDataIoProvider implements INflDataProvider {
   async getGames(season: number, week: number): Promise<NflGameRecord[]> {
     const raw = await sdFetch<SdGame[]>(`/scores/json/ScoresByWeek/${season}/${week}`, this.apiKey);
     return raw.map((g) => ({
-      externalId: g.GameKey,
+      externalId: String(g.GameKey),
       homeTeam: g.HomeTeam,
       awayTeam: g.AwayTeam,
-      kickoffTime: g.Date
+      kickoffTime: g.DateTimeUTC ?? g.Date,
+      status: g.Status === null || g.Status === undefined ? undefined : mapSportsDataGameStatus(g.Status, g.Quarter),
+      homeScore: g.HomeScore ?? null,
+      awayScore: g.AwayScore ?? null,
+      period: g.Quarter === null || g.Quarter === undefined ? null : String(g.Quarter),
+      clock: g.TimeRemaining ?? null,
+      possession: g.Possession ?? null,
+      updatedAt: g.LastUpdated ?? null
     }));
   }
 

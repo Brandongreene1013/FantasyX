@@ -1,5 +1,28 @@
 # Changelog
 
+## FX028 - Licensed Live Score Pipeline
+
+Added:
+
+- SportsDataIO live score, period, clock, possession, and game-state normalization.
+- Persisted provider game state with source and last-successful-sync timestamps.
+- Protected lightweight `/api/cron/sync-live` endpoint and manual admin live-score sync.
+- Halftime, overtime-final, delayed, postponed, canceled, unknown, and stale-feed handling.
+- Deep-health and admin visibility for live provider configuration and sync status.
+- `LIVE_DATA.md` provider activation, operations, and legal-asset policy.
+
+Changed:
+
+- Live game summaries now prefer licensed provider state over kickoff-time inference.
+- The scoreboard displays provider data when present and marks live updates delayed after 90 seconds.
+- Full NFL sync persists live game fields without changing market settlement authority.
+
+Guardrails:
+
+- Live scores remain display-only and cannot settle markets or write account ledgers.
+- No NFL, league, team, helmet, or uniform logos are ingested or displayed.
+- Missing or unlicensed data remains unavailable rather than being fabricated.
+
 ## FX027 - Unified Markets, Complete Trading, and Live Scoreboard
 
 Added:

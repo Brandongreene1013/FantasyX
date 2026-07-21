@@ -15,6 +15,8 @@ interface ProviderStatus {
     cronSecretSet: boolean;
     lastSync: { at: string; durationMs: number | null } | null;
     lastSyncFailed: { at: string; error: string | null } | null;
+    lastLiveSync: { at: string; durationMs: number | null } | null;
+    lastLiveSyncFailed: { at: string; error: string | null } | null;
     lastKickoffLock: { at: string } | null;
   };
 }
@@ -27,6 +29,9 @@ interface SyncResult {
   markets?: { created: number; skipped: number };
   teams?:   { total: number };
   errors?:  string[];
+  received?: number;
+  updated?: number;
+  skipped?: number;
 }
 
 interface SyncLog {
@@ -121,6 +126,7 @@ export default function AdminDataPage() {
     { id: "players",   label: "Sync Players",     desc: "Pull active players + statuses" },
     { id: "schedule",  label: "Sync Schedule",    desc: "Pull games + kickoff times" },
     { id: "week",      label: "Sync Current Week",desc: "Sync current week metadata" },
+    { id: "live",      label: "Sync Live Scores", desc: "Update score, clock, possession, and game status" },
     { id: "everything",label: "Sync Everything",  desc: "Full sync: teams, players, games, markets" }
   ];
 
@@ -170,7 +176,7 @@ export default function AdminDataPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-400">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs text-gray-400">
             <div>
               <p className="text-gray-500">Last successful sync</p>
               <p className="text-white mt-0.5">
@@ -181,6 +187,16 @@ export default function AdminDataPage() {
               <p className="text-gray-500">Last failed sync</p>
               <p className={providerStatus.cron.lastSyncFailed ? "text-red-400 mt-0.5" : "text-white mt-0.5"}>
                 {providerStatus.cron.lastSyncFailed ? new Date(providerStatus.cron.lastSyncFailed.at ?? "").toLocaleString() : "None"}
+              </p>
+            </div>
+            <div>
+              <p className="text-gray-500">Last live-score sync</p>
+              <p className={providerStatus.cron.lastLiveSyncFailed ? "text-red-400 mt-0.5" : "text-white mt-0.5"}>
+                {providerStatus.cron.lastLiveSync
+                  ? new Date(providerStatus.cron.lastLiveSync.at ?? "").toLocaleString()
+                  : providerStatus.cron.lastLiveSyncFailed
+                    ? "Failed"
+                    : "Never"}
               </p>
             </div>
             <div>

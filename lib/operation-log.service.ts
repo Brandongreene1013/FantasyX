@@ -11,6 +11,7 @@ export type OperationType =
   | "SCORE_IMPORT"
   | "SETTLEMENT_BATCH"
   | "CRON_SYNC_NFL"
+  | "CRON_SYNC_LIVE"
   | "CRON_LOCK_MARKETS";
 
 export type OperationStatus = "RUNNING" | "SUCCESS" | "FAILED" | "PARTIAL";

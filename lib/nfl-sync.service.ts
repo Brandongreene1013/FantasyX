@@ -71,6 +71,14 @@ export async function syncNflData(
         data: {
           kickoffTime: new Date(gr.kickoffTime),
           externalProviderId: gr.externalId,
+          providerStatus: gr.status,
+          homeScore: gr.homeScore,
+          awayScore: gr.awayScore,
+          period: gr.period,
+          gameClock: gr.clock,
+          possession: gr.possession,
+          scoreProvider: hasLiveGameData(gr) ? provider.name : undefined,
+          scoreUpdatedAt: hasLiveGameData(gr) ? new Date() : undefined,
         },
       });
       gameIdMap.set(gr.externalId, existing.id);
@@ -86,6 +94,14 @@ export async function syncNflData(
           awayTeam: gr.awayTeam,
           kickoffTime: new Date(gr.kickoffTime),
           externalProviderId: gr.externalId,
+          providerStatus: gr.status,
+          homeScore: gr.homeScore,
+          awayScore: gr.awayScore,
+          period: gr.period,
+          gameClock: gr.clock,
+          possession: gr.possession,
+          scoreProvider: hasLiveGameData(gr) ? provider.name : undefined,
+          scoreUpdatedAt: hasLiveGameData(gr) ? new Date() : undefined,
         },
       });
       gameIdMap.set(gr.externalId, created.id);
@@ -206,6 +222,10 @@ export async function syncNflData(
   }
 
   return result;
+}
+
+function hasLiveGameData(game: { status?: string; homeScore?: number | null; awayScore?: number | null }) {
+  return game.status !== undefined || game.homeScore !== undefined || game.awayScore !== undefined;
 }
 
 function calcInitialYesPrice(projection: number, threshold: (typeof THRESHOLDS)[number]): number {

@@ -7,6 +7,7 @@ export type NflTeam = {
 };
 
 export type NflPlayerStatus = "ACTIVE" | "QUESTIONABLE" | "DOUBTFUL" | "OUT";
+export type NflProviderGameStatus = "SCHEDULED" | "LIVE" | "HALFTIME" | "FINAL" | "DELAYED" | "POSTPONED" | "CANCELED" | "UNKNOWN";
 
 export type NflPlayerRecord = {
   externalId: string;
@@ -22,6 +23,13 @@ export type NflGameRecord = {
   homeTeam: string;
   awayTeam: string;
   kickoffTime: string;
+  status?: NflProviderGameStatus;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  period?: string | null;
+  clock?: string | null;
+  possession?: string | null;
+  updatedAt?: string | null;
 };
 
 export type NflWeekRecord = {

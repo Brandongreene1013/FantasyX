@@ -291,6 +291,14 @@ model Game {
   awayTeam           String   @map("away_team")
   kickoffTime        DateTime @map("kickoff_time")
   externalProviderId String?  @unique @map("external_provider_id")
+  providerStatus     String?  @map("provider_status")
+  homeScore          Int?     @map("home_score")
+  awayScore          Int?     @map("away_score")
+  period             String?
+  gameClock          String?  @map("game_clock")
+  possession         String?
+  scoreProvider      String?  @map("score_provider")
+  scoreUpdatedAt     DateTime? @map("score_updated_at")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
   markets            Market[]

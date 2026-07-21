@@ -2,7 +2,7 @@
 
 ## Current Sprint
 
-FX027 - Unified Markets, Complete Trading, and Live Scoreboard.
+FX028 - Licensed Live Score Pipeline.
 
 ## Product State
 
@@ -40,10 +40,14 @@ FantasyX is a free-play NFL prediction market with real user accounts, mock cred
 - Trade requests include expected-price bounds and reject stale quotes before changing balances or positions.
 - Live groups linked games into LIVE, UPCOMING, and FINAL and never invents scores, clocks, or possession.
 - Primary navigation is Markets, Live, Portfolio, and Leaderboard, with public browsing preserved for guests.
+- SportsDataIO live game state is normalized into persisted score, period, clock, possession, and status fields.
+- `/api/cron/sync-live` provides a secret-protected lightweight score refresh without re-syncing players or markets.
+- Live score freshness, delayed updates, halftime, overtime, postponement, cancellation, and missing data are represented explicitly.
+- Official league and team logos are intentionally excluded; Live uses original FantasyX abbreviation markers.
 
 ## Production Readiness
 
-The application remains architected for Vercel and PostgreSQL through Prisma. FX020 added beta referrals. FX021 added conversion/share surfaces. FX022 added a first-party beta event table and admin dashboard. FX023 updated seed/player/pricing logic. FX024.5 added durable rate limiting (set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Vercel before launch), a verify pipeline, and an E2E smoke test. FX026 added selected-player market UX and durable price-history writes. FX027 unifies market presentation and live game discovery while retaining the existing transaction, ledger, pricing, settlement, and authentication architecture.
+The application remains architected for Vercel and PostgreSQL through Prisma. FX020 added beta referrals. FX021 added conversion/share surfaces. FX022 added a first-party beta event table and admin dashboard. FX023 updated seed/player/pricing logic. FX024.5 added durable rate limiting, a verify pipeline, and an E2E smoke test. FX026 added selected-player market UX and durable price-history writes. FX027 unified market presentation and live game discovery. FX028 extends the existing provider architecture with licensed live display data while retaining the existing transaction, ledger, pricing, settlement, and authentication boundaries.
 
 ## Guardrails
 
@@ -58,9 +62,11 @@ FantasyX remains entirely free-play:
 
 ## Next Recommended Sprint
 
-Finish the remaining FX027 integration verification with a running local database and a real score provider:
+Activate and verify FX028 after obtaining licensed production data:
 
 - Browser-verified buy, partial sell, MAX sell, refresh, and mobile checks.
 - Playwright coverage for player-market threshold persistence and trading.
 - Retire legacy `TradeModal` after all remaining surfaces are confirmed on the shared ticket.
-- Map official team logo assets and provider-backed score, clock, period, possession, delayed, and overtime fields into `LiveGameSummary`.
+- Sign the SportsDataIO commercial agreement and add an unscrambled production key.
+- Configure a compliant 15-30 second scheduler during game windows; Vercel Hobby cron is daily-only.
+- Run SportsDataIO replay verification before the first live NFL slate.

@@ -51,8 +51,8 @@ export default function LivePage() {
   }, [live.markets, selectedGame]);
 
   const groups = [
-    { label: "LIVE", statuses: ["LIVE"] as GameStatus[] },
-    { label: "UPCOMING", statuses: ["UPCOMING", "DELAYED", "POSTPONED", "UNKNOWN"] as GameStatus[] },
+    { label: "LIVE", statuses: ["LIVE", "HALFTIME"] as GameStatus[] },
+    { label: "UPCOMING", statuses: ["UPCOMING", "DELAYED", "POSTPONED", "CANCELED", "UNKNOWN"] as GameStatus[] },
     { label: "FINAL", statuses: ["FINAL"] as GameStatus[] }
   ];
 
@@ -145,7 +145,8 @@ function GameCard({ game, selected, onSelect }: { game: LiveGameSummary; selecte
       <div className="flex items-center justify-between gap-3"><StatusBadge status={game.status} /><span className="text-[10px] font-bold text-muted">{gameTime(game)}</span></div>
       <TeamScore team={game.awayTeam} score={game.awayScore} possession={game.possession === game.awayTeam} />
       <TeamScore team={game.homeTeam} score={game.homeScore} possession={game.possession === game.homeTeam} />
-      {!hasScore && game.status === "LIVE" ? <p className="mt-2 text-[10px] font-semibold text-amber">Score unavailable</p> : null}
+      {!hasScore && (game.status === "LIVE" || game.status === "HALFTIME") ? <p className="mt-2 text-[10px] font-semibold text-amber">Score unavailable</p> : null}
+      {game.isDataStale ? <p className="mt-2 text-[10px] font-semibold text-amber" role="status">Updates delayed</p> : null}
     </button>
   );
 }
@@ -159,13 +160,14 @@ function TeamMark({ team }: { team: string }) {
 }
 
 function StatusBadge({ status }: { status: GameStatus }) {
-  const tone = status === "LIVE" ? "bg-neon/15 text-neon" : status === "FINAL" ? "bg-panel2 text-muted" : status === "DELAYED" || status === "POSTPONED" ? "bg-crimson/15 text-crimson" : "bg-amber/15 text-amber";
-  const Icon = status === "FINAL" ? Trophy : status === "LIVE" ? Radio : CalendarClock;
+  const tone = status === "LIVE" || status === "HALFTIME" ? "bg-neon/15 text-neon" : status === "FINAL" ? "bg-panel2 text-muted" : status === "DELAYED" || status === "POSTPONED" || status === "CANCELED" ? "bg-crimson/15 text-crimson" : "bg-amber/15 text-amber";
+  const Icon = status === "FINAL" ? Trophy : status === "LIVE" || status === "HALFTIME" ? Radio : CalendarClock;
   return <span className={`inline-flex items-center gap-1 rounded px-2 py-1 font-mono text-[9px] font-black ${tone}`}><Icon className="h-3 w-3" aria-hidden />{status}</span>;
 }
 
 function gameTime(game: LiveGameSummary) {
   if (game.status === "FINAL") return "Final";
+  if (game.status === "HALFTIME") return "Halftime";
   if (game.status === "LIVE") return [game.period, game.clock].filter(Boolean).join(" · ") || "In progress";
   return new Date(game.kickoffTime).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
 }

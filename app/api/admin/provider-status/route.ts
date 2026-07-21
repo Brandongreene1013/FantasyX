@@ -10,10 +10,12 @@ export async function GET(request: Request) {
 
     const status = getProviderStatus();
 
-    const [lastSync, lastSyncFailed, lastLock] = await Promise.all([
+    const [lastSync, lastSyncFailed, lastLiveSync, lastLiveSyncFailed, lastLock] = await Promise.all([
       getLastSuccessfulOperation("SYNC_EVERYTHING").catch(() => null) ??
         getLastSuccessfulOperation("SYNC_PLAYERS").catch(() => null),
       getLastOperation("CRON_SYNC_NFL").then((r) => (r?.status === "FAILED" ? r : null)).catch(() => null),
+      getLastSuccessfulOperation("CRON_SYNC_LIVE").catch(() => null),
+      getLastOperation("CRON_SYNC_LIVE").then((r) => (r?.status === "FAILED" ? r : null)).catch(() => null),
       getLastSuccessfulOperation("CRON_LOCK_MARKETS").catch(() => null) ??
         getLastSuccessfulOperation("KICKOFF_LOCK").catch(() => null)
     ]);
@@ -31,6 +33,8 @@ export async function GET(request: Request) {
         cronSecretSet: Boolean(process.env.CRON_SECRET?.trim()),
         lastSync: lastSync ? { at: lastSync.finishedAt, durationMs: lastSync.durationMs } : null,
         lastSyncFailed: lastSyncFailed ? { at: lastSyncFailed.finishedAt, error: lastSyncFailed.error } : null,
+        lastLiveSync: lastLiveSync ? { at: lastLiveSync.finishedAt, durationMs: lastLiveSync.durationMs } : null,
+        lastLiveSyncFailed: lastLiveSyncFailed ? { at: lastLiveSyncFailed.finishedAt, error: lastLiveSyncFailed.error } : null,
         lastKickoffLock: lastLock ? { at: lastLock.finishedAt } : null
       }
     });
