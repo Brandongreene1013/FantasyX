@@ -10,7 +10,8 @@ Production URL: https://fantasy-x.vercel.app
 - Required for email authentication: `RESEND_API_KEY` and `AUTH_EMAIL_FROM`
 - Required for social login: the credentials for each enabled Google, Microsoft, or Apple provider
 - Seed-only admin vars: `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME`
-- Recommended beta env vars: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
+- Required for scheduled jobs: `CRON_SECRET`
+- Recommended beta env vars: `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`, or Vercel's `KV_REST_API_URL`/`KV_REST_API_TOKEN` aliases
 
 ## Local Development
 
@@ -106,8 +107,9 @@ For a fresh production database:
 6. Add credentials and registered callback URLs for each enabled OAuth provider. Apple web callbacks require a registered HTTPS domain.
 7. Add `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, and `ADMIN_LAST_NAME` only if the seed operation will provision an administrator.
 8. Add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` before beta launch so rate limits are durable across Vercel instances.
-9. Deploy to Vercel. Vercel runs `prisma migrate deploy` automatically.
-10. Seed manually only when intentionally resetting market/account seed data:
+9. Add a cryptographically random `CRON_SECRET` so Vercel can authenticate scheduled jobs and deep health checks.
+10. Deploy to Vercel. Vercel runs `prisma migrate deploy` automatically.
+11. Seed manually only when intentionally resetting market/account seed data:
 
 ```powershell
 npx vercel env run --environment=production -- npm run prisma:seed
@@ -131,6 +133,13 @@ Check:
 
 - `GET https://fantasy-x.vercel.app/login`
 - `GET https://fantasy-x.vercel.app/api/analytics/dashboard?weekId=nfl_2026_w1`
+- `GET https://fantasy-x.vercel.app/api/health`
+
+Run the bounded, read-only load check with:
+
+```powershell
+$env:LOAD_TEST_URL="https://fantasyxmarkets.com"; npm run test:load
+```
 
 Then manually verify:
 

@@ -8,7 +8,7 @@ FX024 - Provider-Ready Projection Ingestion.
 2. Add projection metadata/source/date tracking.
 3. Add admin projection import preview before market generation.
 4. Keep ADP as fallback pricing context only.
-5. Remaining hardening follow-ups: structured observability/metrics, production load testing, CI pipeline.
+5. Remaining hardening follow-up: choose an external log drain and paging policy when beta traffic justifies it.
 
 ## Completed - FX-024.5 Beta Launch Hardening
 

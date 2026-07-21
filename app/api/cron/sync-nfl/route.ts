@@ -2,24 +2,14 @@ import { NextResponse } from "next/server";
 import { getConfiguredProvider } from "@/lib/nfl-data/provider-config";
 import { syncNflData } from "@/lib/nfl-sync.service";
 import { runTracked } from "@/lib/operation-log.service";
+import { hasValidCronSecret } from "@/lib/cron-auth";
 
 const SYSTEM_ACTOR = "SYSTEM_CRON";
 const DEMO_SEASON = 2026;
 const DEMO_WEEK = 1;
 
-function validateCronSecret(request: Request): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return false;
-
-  const authHeader = request.headers.get("authorization") ?? "";
-  if (authHeader === `Bearer ${cronSecret}`) return true;
-
-  const altHeader = request.headers.get("x-cron-secret") ?? "";
-  return altHeader === cronSecret;
-}
-
 export async function POST(request: Request) {
-  if (!validateCronSecret(request)) {
+  if (!hasValidCronSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -53,7 +43,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  if (!validateCronSecret(request)) {
+  if (!hasValidCronSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return NextResponse.json({ ok: true, endpoint: "sync-nfl" });

@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const user = await prisma.user.findUnique({
       where: { id: sessionUser.id },
       include: {
-        positions: true,
+        positions: { include: { market: { select: { status: true } } } },
         trades: true,
         referrals: { select: { id: true } },
         referredBy: { select: { displayName: true, name: true } }
@@ -24,6 +24,12 @@ export async function GET(request: Request) {
 
     const referralCode = await ensureUserReferralCode(prisma, user.id, user.referralCode);
     const origin = new URL(request.url).origin;
+    const closedPositions = user.positions.filter(
+      (position) => position.market.status === "SETTLED" || position.market.status === "VOID"
+    );
+    const wins = closedPositions.filter(
+      (position) => toNumber(position.realizedPayout) - toNumber(position.costBasis) > 0
+    ).length;
 
     return NextResponse.json({
       account: {
@@ -40,6 +46,7 @@ export async function GET(request: Request) {
         openPositions: user.positions.filter((position) => toNumber(position.yesShares) + toNumber(position.noShares) > 0).length,
         totalTrades: user.trades.length,
         portfolioPnl: toNumber(user.mockBalance) - toNumber(user.startingBalance),
+        winRate: closedPositions.length > 0 ? wins / closedPositions.length : 0,
         referralCode,
         referralUrl: `${origin}/signup?ref=${encodeURIComponent(referralCode)}`,
         referralCount: user.referrals.length,

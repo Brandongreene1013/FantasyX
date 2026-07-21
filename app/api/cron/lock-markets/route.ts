@@ -1,25 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { runTracked } from "@/lib/operation-log.service";
+import { hasValidCronSecret } from "@/lib/cron-auth";
 import type { AdminAuditAction } from "@prisma/client";
 
 const SYSTEM_ACTOR = "SYSTEM_CRON";
 
-function validateCronSecret(request: Request): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return false;
-
-  const authHeader = request.headers.get("authorization") ?? "";
-  // Vercel cron sends: Authorization: Bearer {CRON_SECRET}
-  if (authHeader === `Bearer ${cronSecret}`) return true;
-
-  // Alternative: x-cron-secret header for local testing
-  const altHeader = request.headers.get("x-cron-secret") ?? "";
-  return altHeader === cronSecret;
-}
-
 export async function POST(request: Request) {
-  if (!validateCronSecret(request)) {
+  if (!hasValidCronSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -75,7 +63,7 @@ export async function POST(request: Request) {
 
 // Allow Vercel cron GET pings for health checks
 export async function GET(request: Request) {
-  if (!validateCronSecret(request)) {
+  if (!hasValidCronSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return NextResponse.json({ ok: true, endpoint: "lock-markets" });

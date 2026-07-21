@@ -12,9 +12,9 @@ Date: 2026-06-28 (updated after FX-017)
    - FX010 added session-bound CSRF tokens for authenticated state-changing routes.
    - Future hardening can rotate tokens periodically or per form if needed.
 
-3. Rate limiting is in-memory.
-   - Middleware rate limits are per runtime instance.
-   - Use durable/shared rate limiting before broader public usage.
+3. Middleware rate limiting remains per-instance, while sensitive route limits are durable.
+   - Trades, login, signup, and beta events use the connected Upstash Redis database.
+   - The middleware bucket remains a coarse first layer only.
 
 4. Seed resets seeded market/account data.
    - `npm run prisma:seed` is idempotent in the sense that it does not duplicate data.
@@ -31,17 +31,14 @@ Date: 2026-06-28 (updated after FX-017)
 7. Browser notifications are permission/local-preference scaffolding.
    - True push notifications still require Web Push subscription persistence, a delivery service, and notification audit policy.
 
-8. Production observability is minimal.
-   - FX008 added structured server error logging and request IDs.
-   - There is no external log drain, alerting, or metrics dashboard yet.
+8. Production observability has structured errors, request IDs, and health checks.
+   - `/api/health` is public and shallow; `/api/health?deep=1` requires `CRON_SECRET` and checks database/rate-limiter readiness.
+   - An external log drain and paging policy still require selecting an operations provider.
 
-9. npm audit reports 2 moderate findings.
-   - `npm install` completed successfully but reported moderate vulnerabilities.
-   - No `npm audit fix --force` was run because it may introduce breaking dependency changes.
+9. Dependency advisories are enforced in CI.
+   - CI runs `npm audit --audit-level=high` and `npm run verify:fast` on pushes and pull requests.
 
-10. Account page win rate is not yet returned by `/api/account`.
-    - The `winRate` field is optional on the client type and defaults to 0.
-    - The "Sharp" achievement will never earn until the API is extended.
+10. Account win rate is calculated from settled and void positions by `/api/account`.
 
 11. Home page "Locking Soon" requires `kickoffTime` on market data from the slate API.
     - If `kickoffTime` is absent or not included in the slate response, the section is silently hidden.
