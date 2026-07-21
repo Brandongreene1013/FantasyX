@@ -5,7 +5,7 @@ import { UpstashRateLimitAdapter } from "@/lib/rate-limit-upstash";
  * Rate limiter selection, mirroring the provider factory pattern in
  * `lib/nfl-data/provider-config.ts`.
  *
- * When UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are set, limits are
+ * When either the Upstash or Vercel KV REST credentials are set, limits are
  * enforced durably across all serverless instances. Otherwise we fall back to
  * the per-process in-memory adapter (fine for local dev, near-zero enforcement
  * on Vercel) and warn once.
@@ -36,11 +36,15 @@ export const RATE_LIMITS = {
 let cachedAdapter: RateLimitAdapter | null = null;
 let warnedFallback = false;
 
-export function getRateLimiterStatus(): RateLimiterStatus {
-  const restUrl = process.env.UPSTASH_REDIS_REST_URL?.trim();
-  const restToken = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+function getRedisCredentials(): { url: string; token: string } | null {
+  const url = (process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL)?.trim();
+  const token = (process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN)?.trim();
 
-  if (restUrl && restToken) {
+  return url && token ? { url, token } : null;
+}
+
+export function getRateLimiterStatus(): RateLimiterStatus {
+  if (getRedisCredentials()) {
     return { name: "Upstash Redis", mode: "durable", isConfigured: true };
   }
 
@@ -49,7 +53,7 @@ export function getRateLimiterStatus(): RateLimiterStatus {
     mode: "memory",
     isConfigured: false,
     warning:
-      "UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are not set. Rate limits are per-process only — configure Upstash before production."
+      "Upstash REST credentials are not set. Rate limits are per-process only; configure Upstash before production."
   };
 }
 
@@ -61,10 +65,8 @@ export function getConfiguredRateLimiter(): RateLimitAdapter {
   const status = getRateLimiterStatus();
 
   if (status.mode === "durable") {
-    cachedAdapter = new UpstashRateLimitAdapter(
-      process.env.UPSTASH_REDIS_REST_URL!.trim(),
-      process.env.UPSTASH_REDIS_REST_TOKEN!.trim()
-    );
+    const credentials = getRedisCredentials()!;
+    cachedAdapter = new UpstashRateLimitAdapter(credentials.url, credentials.token);
     return cachedAdapter;
   }
 

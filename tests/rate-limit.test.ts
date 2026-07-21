@@ -110,6 +110,17 @@ describe("rate limiter factory", () => {
     expect(getConfiguredRateLimiter()).toBeInstanceOf(UpstashRateLimitAdapter);
   });
 
+  it("selects the Upstash adapter for Vercel KV integration credentials", () => {
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+    vi.stubEnv("KV_REST_API_URL", REST_URL);
+    vi.stubEnv("KV_REST_API_TOKEN", REST_TOKEN);
+    resetRateLimiterForTests();
+
+    expect(getRateLimiterStatus().mode).toBe("durable");
+    expect(getConfiguredRateLimiter()).toBeInstanceOf(UpstashRateLimitAdapter);
+  });
+
   it("falls back to the in-memory adapter with a single warning when env vars are absent", () => {
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
     vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
