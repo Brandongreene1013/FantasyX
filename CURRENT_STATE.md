@@ -2,11 +2,11 @@
 
 ## Current Sprint
 
-FX026 - Unified Player Markets and Trading Experience.
+FX027 - Unified Markets, Complete Trading, and Live Scoreboard.
 
 ## Product State
 
-FantasyX is a free-play NFL prediction market with real user accounts, mock credits, protected sessions, trading, portfolio, leaderboard, admin market operations, settlement, live exchange updates, PWA installation, a Live Sunday command center, terminal-style market board, and now a Fantasy Intelligence layer.
+FantasyX is a free-play NFL prediction market with real user accounts, mock credits, protected sessions, trading, portfolio, leaderboard, admin market operations, settlement, live exchange updates, PWA installation, a unified Markets experience, an honest game scoreboard, and a Fantasy Intelligence layer.
 
 ## Latest Additions
 
@@ -34,10 +34,16 @@ FantasyX is a free-play NFL prediction market with real user accounts, mock cred
 - Player-market payloads now include account balance, authenticated positions, watch state, persisted price history, and market activity in one API response.
 - Successful trades now persist material `MarketPriceHistory` snapshots inside the existing serializable trade transaction.
 - `/markets` uses the shared dark trade ticket launcher instead of the older buy-only modal.
+- `/markets` now owns both dense Board and visual Market modes over one live dataset, filter set, watchlist, and trade engine.
+- `/markets/board` is a compatibility redirect to `/markets?view=board`.
+- Buy and Sell tickets are available from Markets, Live, Portfolio, player pages, and market details.
+- Trade requests include expected-price bounds and reject stale quotes before changing balances or positions.
+- Live groups linked games into LIVE, UPCOMING, and FINAL and never invents scores, clocks, or possession.
+- Primary navigation is Markets, Live, Portfolio, and Leaderboard, with public browsing preserved for guests.
 
 ## Production Readiness
 
-The application remains architected for Vercel and PostgreSQL through Prisma. FX020 added beta referrals. FX021 added conversion/share surfaces. FX022 added a first-party beta event table and admin dashboard. FX023 updated seed/player/pricing logic. FX024.5 added durable rate limiting (set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Vercel before launch), a verify pipeline, and an E2E smoke test. FX026 did not change AMM math, settlement logic, schema, or ledger semantics; it adds selected-player market UX and durable price-history writes during successful trades.
+The application remains architected for Vercel and PostgreSQL through Prisma. FX020 added beta referrals. FX021 added conversion/share surfaces. FX022 added a first-party beta event table and admin dashboard. FX023 updated seed/player/pricing logic. FX024.5 added durable rate limiting (set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Vercel before launch), a verify pipeline, and an E2E smoke test. FX026 added selected-player market UX and durable price-history writes. FX027 unifies market presentation and live game discovery while retaining the existing transaction, ledger, pricing, settlement, and authentication architecture.
 
 ## Guardrails
 
@@ -52,9 +58,9 @@ FantasyX remains entirely free-play:
 
 ## Next Recommended Sprint
 
-Finish the remaining FX026 verification and polish with a running local database:
+Finish the remaining FX027 integration verification with a running local database and a real score provider:
 
 - Browser-verified buy, partial sell, MAX sell, refresh, and mobile checks.
 - Playwright coverage for player-market threshold persistence and trading.
 - Retire legacy `TradeModal` after all remaining surfaces are confirmed on the shared ticket.
-- Add a focused market-board player identity link while preserving `/markets/[marketId]` deep links.
+- Map official team logo assets and provider-backed score, clock, period, possession, delayed, and overtime fields into `LiveGameSummary`.

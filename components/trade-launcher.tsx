@@ -9,6 +9,7 @@ export function TradeLauncher({
   market,
   player,
   initialSide = "YES",
+  initialAction = "BUY",
   balance,
   position,
   open,
@@ -16,11 +17,13 @@ export function TradeLauncher({
   onTradeComplete,
   isAuthenticated = true,
   buttonLabel = "Trade",
-  showButton = true
+  showButton = true,
+  returnTo
 }: {
   market: Market;
   player: Player;
   initialSide?: Side;
+  initialAction?: "BUY" | "SELL";
   balance: number;
   position?: { yesShares: number; noShares: number; currentValue: number } | null;
   open: boolean;
@@ -29,6 +32,7 @@ export function TradeLauncher({
   isAuthenticated?: boolean;
   buttonLabel?: string;
   showButton?: boolean;
+  returnTo?: string;
 }) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -107,8 +111,10 @@ export function TradeLauncher({
               balance={balance}
               position={position}
               initialSide={initialSide}
+              initialAction={initialAction}
               onTradeComplete={onTradeComplete}
               isAuthenticated={isAuthenticated}
+              returnTo={returnTo}
             />
           </div>
         </div>

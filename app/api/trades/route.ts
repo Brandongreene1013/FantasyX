@@ -24,6 +24,8 @@ export async function POST(request: Request) {
             marketId: body.marketId,
             side: body.side,
             shares: body.shares!,
+            expectedPrice: body.expectedPrice,
+            maxSlippageBps: body.maxSlippageBps,
             idempotencyKey: body.idempotencyKey
           });
         }
@@ -32,6 +34,8 @@ export async function POST(request: Request) {
           marketId: body.marketId,
           side: body.side,
           spend: body.spend!,
+          expectedPrice: body.expectedPrice,
+          maxSlippageBps: body.maxSlippageBps,
           idempotencyKey: body.idempotencyKey
         });
       });

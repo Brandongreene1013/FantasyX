@@ -10,6 +10,11 @@ import { PlayerAvatar } from "@/components/ui/player-avatar";
 import { LoadingFeed } from "@/components/ui/loading-skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { AuthRequiredState } from "@/components/auth-required-state";
+import { TradeLauncher } from "@/components/trade-launcher";
+import type { Side } from "@/lib/types";
+
+type PortfolioPosition = PortfolioResponse["positions"][number];
+type PortfolioTicket = { position: PortfolioPosition; side: Side; action: "BUY" | "SELL" };
 
 function signedCredits(v: number) {
   return `${v >= 0 ? "+" : ""}${credits(v)}`;
@@ -21,6 +26,7 @@ export default function PortfolioPage() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"open" | "closed">("open");
   const [isGuest, setIsGuest] = useState(false);
+  const [ticket, setTicket] = useState<PortfolioTicket | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true); setError(null);
@@ -123,6 +129,7 @@ export default function PortfolioPage() {
             <PositionCard
               key={pos.id}
               position={pos}
+              onTrade={(side, action) => setTicket({ position: pos, side, action })}
             />
           ))}
         </section>
@@ -137,6 +144,41 @@ export default function PortfolioPage() {
           ))}
         </section>
       )}
+
+      {ticket && portfolio ? (
+        <TradeLauncher
+          market={{
+            id: ticket.position.marketId,
+            playerId: ticket.position.playerId,
+            week: ticket.position.week,
+            position: ticket.position.position,
+            threshold: ticket.position.thresholdType,
+            yesPool: ticket.position.yesPool,
+            noPool: ticket.position.noPool,
+            liquidity: ticket.position.liquidity,
+            status: ticket.position.status,
+            result: ticket.position.result
+          }}
+          player={{
+            id: ticket.position.playerId,
+            name: ticket.position.playerName,
+            team: ticket.position.team,
+            opponent: ticket.position.opponent,
+            position: ticket.position.position,
+            kickoff: ticket.position.kickoffTime,
+            projection: 0
+          }}
+          initialSide={ticket.side}
+          initialAction={ticket.action}
+          balance={portfolio.user.mockBalance}
+          position={ticket.position}
+          open
+          showButton={false}
+          onOpenChange={(open) => { if (!open) setTicket(null); }}
+          onTradeComplete={() => void load()}
+          returnTo="/portfolio"
+        />
+      ) : null}
     </div>
   );
 }
@@ -161,8 +203,9 @@ function AnalyticsCard({ label, value, tone }: { label: string; value: string; t
   );
 }
 
-function PositionCard({ position: pos }: {
-  position: PortfolioResponse["positions"][0];
+function PositionCard({ position: pos, onTrade }: {
+  position: PortfolioPosition;
+  onTrade?: (side: Side, action: "BUY" | "SELL") => void;
 }) {
   const side  = pos.yesShares > 0 ? "YES" : "NO";
   const shares = side === "YES" ? pos.yesShares : pos.noShares;
@@ -208,12 +251,14 @@ function PositionCard({ position: pos }: {
           <span>Cost {credits(pos.costBasis)}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/players/${pos.playerId}?threshold=${pos.thresholdType}`}
-            className="rounded-lg bg-panel2 border border-rim px-3 py-1 text-xs font-black text-frost hover:border-neon/40 hover:text-neon transition-colors"
-          >
-            Trade
-          </Link>
+          {onTrade && pos.status === "OPEN" ? (
+            <>
+              <button type="button" onClick={() => onTrade(side, "BUY")} className="min-h-9 rounded-lg border border-neon/25 bg-neon/10 px-3 text-xs font-black text-neon hover:bg-neon/20">Buy</button>
+              <button type="button" onClick={() => onTrade(side, "SELL")} className="min-h-9 rounded-lg border border-rim bg-panel2 px-3 text-xs font-black text-frost hover:border-neon/40">Sell</button>
+            </>
+          ) : (
+            <Link href={`/players/${pos.playerId}?threshold=${pos.thresholdType}`} className="rounded-lg border border-rim bg-panel2 px-3 py-2 text-xs font-black text-frost hover:border-neon/40 hover:text-neon">View</Link>
+          )}
           <Link
             href={`/markets/${pos.marketId}`}
             className="text-xs font-bold text-field hover:text-neon transition-colors"

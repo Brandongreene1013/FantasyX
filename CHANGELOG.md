@@ -1,5 +1,28 @@
 # Changelog
 
+## FX027 - Unified Markets, Complete Trading, and Live Scoreboard
+
+Added:
+
+- Board and Market presentation modes on the canonical `/markets` route, with URL override and saved local preference.
+- Dense player comparison rows with Top 3, Top 5, and Top 10 quotes plus Buy, Sell, and watchlist actions.
+- Game summaries in the slate and SSE payloads for honest LIVE, UPCOMING, and FINAL grouping.
+- Stale-quote protection using bounded expected-price checks before trade execution.
+- Direct Buy and Sell tickets from Portfolio and Live game markets.
+
+Changed:
+
+- Primary navigation is now Markets, Live, Portfolio, and Leaderboard; account and administrative actions remain utilities.
+- `/markets/board` redirects to `/markets?view=board` to preserve old links without maintaining a duplicate page.
+- Live now progressively reveals markets for a selected game and leaves unavailable score data blank instead of fabricating it.
+- Successful trades trigger immediate shared-data refreshes for markets and portfolio overlays.
+- Logged-out visitors can browse public exchange surfaces and are returned to their exact context after authentication.
+
+Unchanged:
+
+- Trade execution still uses the existing serializable transaction, AMM pricing, append-only ledger, idempotency, settlement, and authorization systems.
+- FantasyX remains free-play with mock credits only.
+
 ## FX026 - Unified Player Markets and Trading Experience
 
 Added:

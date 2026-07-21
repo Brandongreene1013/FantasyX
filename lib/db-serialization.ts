@@ -4,6 +4,7 @@ type DbMarket = {
   id: string;
   playerId: string;
   weekId: string;
+  gameId?: string | null;
   position: "QB" | "RB" | "WR" | "TE";
   thresholdType: "TOP_3" | "TOP_5" | "TOP_10";
   yesPrice: unknown;
@@ -31,6 +32,7 @@ type DbMarket = {
 export function serializeMarket(market: DbMarket): Market & { weekId: string; kickoffTime: string; yesPrice: number; noPrice: number; openingPrice: number; volume: number; openInterest: number } {
   return {
     id: market.id,
+    gameId: market.gameId ?? null,
     playerId: market.playerId,
     weekId: market.weekId,
     week: Number(market.weekId.match(/w(\d+)$/)?.[1] ?? 1),

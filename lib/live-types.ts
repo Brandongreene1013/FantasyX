@@ -29,6 +29,7 @@ export type ExchangeStatus = {
 export type LiveExchangeState = {
   markets: SlateResponse["markets"];
   players: SlateResponse["players"];
+  games: SlateResponse["games"];
   feed: FeedEvent[];
   leaderboard: LeaderboardResponse["entries"];
   status: ExchangeStatus | null;

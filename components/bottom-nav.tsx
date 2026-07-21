@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, TrendingUp, BarChart2, Trophy, Radio } from "lucide-react";
+import { TrendingUp, BarChart2, Trophy, Radio } from "lucide-react";
 import type { Route } from "next";
 
 const TABS = [
-  { href: "/" as Route,            label: "Home",        Icon: Home },
-  { href: "/live" as Route,        label: "Live",        Icon: Radio },
   { href: "/markets" as Route,     label: "Markets",     Icon: TrendingUp },
+  { href: "/live" as Route,        label: "Live",        Icon: Radio },
   { href: "/portfolio" as Route,   label: "Portfolio",   Icon: BarChart2 },
-  { href: "/leaderboard" as Route, label: "Leaders",     Icon: Trophy }
+  { href: "/leaderboard" as Route, label: "Leaderboard", Icon: Trophy }
 ];
 
 export function BottomNav({ isLoggedIn, isReady = true }: { isLoggedIn: boolean; isReady?: boolean }) {
@@ -18,7 +17,7 @@ export function BottomNav({ isLoggedIn, isReady = true }: { isLoggedIn: boolean;
 
   if (!isReady) return null;
 
-  const tabs = isLoggedIn ? TABS : TABS.map((tab) => tab.href === "/portfolio" ? { ...tab, href: "/account" as Route, label: "Account" } : tab);
+  const tabs = isLoggedIn ? TABS : TABS.map((tab) => tab.href === "/portfolio" ? { ...tab, href: "/login?next=%2Fportfolio" as Route } : tab);
 
   return (
     <nav
@@ -26,9 +25,9 @@ export function BottomNav({ isLoggedIn, isReady = true }: { isLoggedIn: boolean;
       aria-label="Mobile navigation"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-4">
         {tabs.map(({ href, label, Icon }) => {
-          const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const isActive = label === "Portfolio" ? pathname === "/portfolio" : pathname.startsWith(href.split("?")[0]);
           return (
             <Link
               key={href}

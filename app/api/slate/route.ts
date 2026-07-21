@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { serializeMarket, serializePlayerFromMarket } from "@/lib/db-serialization";
 import { apiError } from "@/lib/api-response";
 import { parseSearchParams, weekQuerySchema } from "@/lib/api-validation";
+import { summarizeGames } from "@/lib/live-games";
 
 export async function GET(request: Request) {
   try {
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       weekId,
+      games: summarizeGames(markets),
       players: Array.from(players.values()),
       markets: markets.map(serializeMarket)
     });

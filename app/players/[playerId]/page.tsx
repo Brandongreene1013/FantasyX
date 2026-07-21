@@ -163,6 +163,7 @@ export default function PlayerPage({ params }: { params: Promise<{ playerId: str
                 position={selectedMarket.position}
                 onTradeComplete={() => { if (playerId) void load(playerId); }}
                 isAuthenticated={account.isAuthenticated}
+                returnTo={`/players/${player.id}?threshold=${selectedMarket.threshold}`}
               />
             </aside>
           </div>

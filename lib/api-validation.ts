@@ -10,6 +10,8 @@ export const tradeSchema = z.object({
   side: z.enum(["YES", "NO"]),
   spend: z.number().positive().optional(),
   shares: z.number().positive().optional(),
+  expectedPrice: z.number().min(0.01).max(0.99).optional(),
+  maxSlippageBps: z.number().int().min(1).max(1000).default(200),
   idempotencyKey: z.string().min(8).max(120).optional()
 }).superRefine((value, ctx) => {
   if (value.action === "BUY" && typeof value.spend !== "number") {

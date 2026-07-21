@@ -1,345 +1,246 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import type { Route } from "next";
-import { Search, SlidersHorizontal, X, Radio } from "lucide-react";
-import { MarketCard } from "@/components/market-card";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { LayoutGrid, Radio, Search, SlidersHorizontal, TableProperties, TrendingUp, X } from "lucide-react";
 import { FirstTradeCoach } from "@/components/first-trade-coach";
+import { MarketCard } from "@/components/market-card";
+import { MarketBoardView } from "@/components/markets/market-board-view";
 import { TradeLauncher } from "@/components/trade-launcher";
-import { LoadingFeed } from "@/components/ui/loading-skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { LiveBadge } from "@/components/ui/live-badge";
+import { LoadingFeed } from "@/components/ui/loading-skeleton";
 import { useLiveExchange } from "@/hooks/use-live-exchange";
 import { apiGet, apiPost, defaultWeekId, type PortfolioResponse } from "@/lib/client-api";
-import type { Market, Player, Position, Side, Threshold, MarketStatus } from "@/lib/types";
-import { TrendingUp } from "lucide-react";
+import {
+  MARKET_VIEW_STORAGE_KEY,
+  THRESHOLD_ORDER,
+  marketsViewUrl,
+  resolveMarketView,
+  type ExtendedMarket,
+  type MarketView,
+  type PlayerMarketRow,
+  type TradeAction
+} from "@/lib/market-view";
+import type { MarketStatus, Player, Position, Side, Threshold } from "@/lib/types";
 
-type Ticket = { market: Market; player: Player; side: Side };
+type Ticket = { market: ExtendedMarket; player: Player; side: Side; action: TradeAction };
 type SortKey = "kickoff" | "yes-asc" | "yes-desc" | "liquidity" | "volume";
-type ExtMarket = Market & { weekId: string; kickoffTime: string; yesPrice: number; noPrice: number; openingPrice: number; volume: number; openInterest: number };
-type PlayerMarketRow = { player: Player; markets: ExtMarket[]; selectedMarket: ExtMarket };
 
 const POSITIONS: Array<{ value: Position | "ALL"; label: string }> = [
-  { value: "ALL", label: "All" },
-  { value: "QB", label: "QB" },
-  { value: "RB", label: "RB" },
-  { value: "WR", label: "WR" },
-  { value: "TE", label: "TE" }
+  { value: "ALL", label: "All" }, { value: "QB", label: "QB" }, { value: "RB", label: "RB" },
+  { value: "WR", label: "WR" }, { value: "TE", label: "TE" }
 ];
-
 const THRESHOLDS: Array<{ value: Threshold | "ALL"; label: string }> = [
-  { value: "ALL", label: "All" },
-  { value: "TOP_3", label: "Top 3" },
-  { value: "TOP_5", label: "Top 5" },
-  { value: "TOP_10", label: "Top 10" }
+  { value: "ALL", label: "All" }, { value: "TOP_3", label: "Top 3" },
+  { value: "TOP_5", label: "Top 5" }, { value: "TOP_10", label: "Top 10" }
 ];
-
 const PLAYER_MARKET_DEFAULTS: Threshold[] = ["TOP_5", "TOP_10", "TOP_3"];
-const THRESHOLD_ORDER: Threshold[] = ["TOP_3", "TOP_5", "TOP_10"];
-
 const SORT_OPTIONS = [
-  { value: "kickoff",  label: "Kickoff" },
-  { value: "volume",   label: "Volume ↓" },
-  { value: "yes-desc", label: "YES ↓" },
-  { value: "yes-asc",  label: "YES ↑" },
-  { value: "liquidity",label: "Liquidity" }
+  { value: "kickoff", label: "Kickoff" }, { value: "volume", label: "Volume" },
+  { value: "yes-desc", label: "YES high" }, { value: "yes-asc", label: "YES low" },
+  { value: "liquidity", label: "Liquidity" }
 ];
 
 export default function MarketsPage() {
   const live = useLiveExchange(defaultWeekId);
-
+  const [view, setView] = useState<MarketView>("market");
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [error, setError]         = useState<string | null>(null);
-  const [liveMsg, setLiveMsg]     = useState("");
+  const [error] = useState<string | null>(null);
+  const [liveMsg, setLiveMsg] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [ticket, setTicket]       = useState<Ticket | null>(null);
+  const [ticket, setTicket] = useState<Ticket | null>(null);
   const [showCoach, setShowCoach] = useState(false);
-
-  const [search,      setSearch]      = useState("");
-  const [position,    setPosition]    = useState<Position | "ALL">("ALL");
-  const [threshold,   setThreshold]   = useState<Threshold | "ALL">("ALL");
-  const [team,        setTeam]        = useState("ALL");
-  const [statusFilter,setStatusFilter]= useState<MarketStatus | "ALL">("ALL");
-  const [sortBy,      setSortBy]      = useState<SortKey>("kickoff");
+  const [search, setSearch] = useState("");
+  const [position, setPosition] = useState<Position | "ALL">("ALL");
+  const [threshold, setThreshold] = useState<Threshold | "ALL">("ALL");
+  const [team, setTeam] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState<MarketStatus | "ALL">("ALL");
+  const [sortBy, setSortBy] = useState<SortKey>("kickoff");
   const [selectedMarketByPlayer, setSelectedMarketByPlayer] = useState<Record<string, Threshold>>({});
 
-  // Portfolio and watchlist are personalized overlays. Market discovery stays public.
-  useEffect(() => {
-    apiGet<PortfolioResponse>("/api/portfolio")
-      .then((p) => {
-        setPortfolio(p);
-        setIsAuthenticated(true);
-        return apiGet<{ marketIds: string[] }>("/api/watchlist");
-      })
-      .then((wl) => setWatchlist(new Set(wl.marketIds)))
-      .catch(() => {
-        setPortfolio(null);
-        setIsAuthenticated(false);
-        setWatchlist(new Set());
-      })
-      .finally(() => setHasLoaded(true));
+  const loadPersonalization = useCallback(async () => {
+    try {
+      const nextPortfolio = await apiGet<PortfolioResponse>("/api/portfolio");
+      setPortfolio(nextPortfolio);
+      setIsAuthenticated(true);
+      const nextWatchlist = await apiGet<{ marketIds: string[] }>("/api/watchlist").catch(() => ({ marketIds: [] }));
+      setWatchlist(new Set(nextWatchlist.marketIds));
+    } catch {
+      setPortfolio(null);
+      setIsAuthenticated(false);
+      setWatchlist(new Set());
+    } finally {
+      setHasLoaded(true);
+    }
   }, []);
 
+  useEffect(() => { void loadPersonalization(); }, [loadPersonalization]);
   useEffect(() => {
-    setShowCoach(new URLSearchParams(window.location.search).get("coach") === "first-trade");
+    const params = new URLSearchParams(window.location.search);
+    const nextView = resolveMarketView(params.get("view"), window.localStorage.getItem(MARKET_VIEW_STORAGE_KEY));
+    setView(nextView);
+    window.localStorage.setItem(MARKET_VIEW_STORAGE_KEY, nextView);
+    setShowCoach(params.get("coach") === "first-trade");
   }, []);
+  useEffect(() => { if (live.markets.length > 0) setHasLoaded(true); }, [live.markets.length]);
 
-  // Mark loaded once SSE delivers first slate
-  useEffect(() => {
-    if (live.markets.length > 0) setHasLoaded(true);
-  }, [live.markets.length]);
-
-  const playerMap = useMemo(() => new Map(live.players.map((p) => [p.id, p])), [live.players]);
-  const positionMap = useMemo(() => new Map((portfolio?.positions ?? []).map((p) => [p.marketId, p])), [portfolio]);
-  const teams = useMemo(() => {
-    const s = new Set<string>();
-    for (const p of live.players) s.add(p.team);
-    return Array.from(s).sort();
-  }, [live.players]);
+  const playerMap = useMemo(() => new Map(live.players.map((player) => [player.id, player])), [live.players]);
+  const positionMap = useMemo(() => new Map((portfolio?.positions ?? []).map((item) => [item.marketId, item])), [portfolio]);
+  const teams = useMemo(() => Array.from(new Set(live.players.map((player) => player.team))).sort(), [live.players]);
 
   const playerRows = useMemo<PlayerMarketRow[]>(() => {
-    const q = search.trim().toLowerCase();
-    const grouped = new Map<string, { player: Player; markets: ExtMarket[] }>();
-
-    for (const market of live.markets as ExtMarket[]) {
+    const query = search.trim().toLowerCase();
+    const grouped = new Map<string, { player: Player; markets: ExtendedMarket[] }>();
+    for (const market of live.markets as ExtendedMarket[]) {
       const player = playerMap.get(market.playerId);
       if (!player) continue;
       if (position !== "ALL" && market.position !== position) continue;
       if (team !== "ALL" && player.team !== team) continue;
       if (statusFilter !== "ALL" && market.status !== statusFilter) continue;
-      if (q && !player.name.toLowerCase().includes(q)) continue;
-
+      if (query && !`${player.name} ${player.team} ${player.opponent}`.toLowerCase().includes(query)) continue;
       const existing = grouped.get(market.playerId);
-      if (existing) {
-        existing.markets.push(market);
-      } else {
-        grouped.set(market.playerId, { player, markets: [market] });
-      }
+      if (existing) existing.markets.push(market);
+      else grouped.set(market.playerId, { player, markets: [market] });
     }
 
-    return Array.from(grouped.values())
-      .map(({ player, markets }) => {
-        const orderedMarkets = [...markets].sort((a, b) => THRESHOLD_ORDER.indexOf(a.threshold) - THRESHOLD_ORDER.indexOf(b.threshold));
-        const preferredThreshold = threshold !== "ALL" ? threshold : selectedMarketByPlayer[player.id];
-        const selectedMarket =
-          orderedMarkets.find((market) => market.threshold === preferredThreshold) ??
-          PLAYER_MARKET_DEFAULTS.map((candidate) => orderedMarkets.find((market) => market.threshold === candidate)).find(Boolean) ??
-          orderedMarkets[0];
-
-        return selectedMarket ? { player, markets: orderedMarkets, selectedMarket } : null;
-      })
-      .filter((row): row is PlayerMarketRow => Boolean(row))
+    return Array.from(grouped.values()).map(({ player, markets }) => {
+      const orderedMarkets = [...markets].sort((a, b) => THRESHOLD_ORDER.indexOf(a.threshold) - THRESHOLD_ORDER.indexOf(b.threshold));
+      const preferred = threshold !== "ALL" ? threshold : selectedMarketByPlayer[player.id];
+      const selectedMarket = orderedMarkets.find((market) => market.threshold === preferred)
+        ?? PLAYER_MARKET_DEFAULTS.map((candidate) => orderedMarkets.find((market) => market.threshold === candidate)).find(Boolean)
+        ?? orderedMarkets[0];
+      return selectedMarket ? { player, markets: orderedMarkets, selectedMarket } : null;
+    }).filter((row): row is PlayerMarketRow => Boolean(row))
       .filter((row) => threshold === "ALL" || row.markets.some((market) => market.threshold === threshold))
-      .sort((a, b) => {
-        const marketA = a.selectedMarket;
-        const marketB = b.selectedMarket;
-        if (sortBy === "kickoff")  return marketA.kickoffTime.localeCompare(marketB.kickoffTime);
-        if (sortBy === "yes-asc")  return marketA.yesPrice - marketB.yesPrice;
-        if (sortBy === "yes-desc") return marketB.yesPrice - marketA.yesPrice;
-        if (sortBy === "liquidity")return marketB.liquidity - marketA.liquidity;
-        if (sortBy === "volume")   return marketB.volume - marketA.volume;
-        return 0;
-      });
-  }, [live.markets, playerMap, position, threshold, team, statusFilter, search, sortBy, selectedMarketByPlayer]);
+      .sort((a, b) => compareMarkets(a.selectedMarket, b.selectedMarket, sortBy));
+  }, [live.markets, playerMap, position, search, selectedMarketByPlayer, sortBy, statusFilter, team, threshold]);
+
+  function changeView(nextView: MarketView) {
+    setView(nextView);
+    window.localStorage.setItem(MARKET_VIEW_STORAGE_KEY, nextView);
+    window.history.replaceState(window.history.state, "", marketsViewUrl(nextView, window.location.search));
+    setLiveMsg(`${nextView === "board" ? "Board" : "Market"} view selected.`);
+  }
 
   async function toggleWatch(marketId: string) {
     if (!isAuthenticated) {
-      setLiveMsg("Log in to add markets to your watchlist.");
+      window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
       return;
     }
-    const isWatched = watchlist.has(marketId);
-    setWatchlist((prev) => { const n = new Set(prev); isWatched ? n.delete(marketId) : n.add(marketId); return n; });
+    const watched = watchlist.has(marketId);
+    setWatchlist((previous) => updateSet(previous, marketId, !watched));
     try {
-      await apiPost(`/api/watchlist/${marketId}`, { action: isWatched ? "remove" : "add" });
+      await apiPost(`/api/watchlist/${marketId}`, { action: watched ? "remove" : "add" });
     } catch {
-      setWatchlist((prev) => { const n = new Set(prev); isWatched ? n.add(marketId) : n.delete(marketId); return n; });
+      setWatchlist((previous) => updateSet(previous, marketId, watched));
     }
   }
 
-  const activeFiltersCount = [
-    position !== "ALL", threshold !== "ALL", team !== "ALL", statusFilter !== "ALL", search !== ""
-  ].filter(Boolean).length;
+  function clearFilters() {
+    setPosition("ALL"); setThreshold("ALL"); setTeam("ALL"); setStatusFilter("ALL"); setSearch(""); setSelectedMarketByPlayer({});
+  }
 
+  const activeFiltersCount = [position !== "ALL", threshold !== "ALL", team !== "ALL", statusFilter !== "ALL", search !== ""].filter(Boolean).length;
   const isLoading = !hasLoaded && live.markets.length === 0;
+  const returnTo = typeof window === "undefined" ? "/markets" : `${window.location.pathname}${window.location.search}`;
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black text-frost flex items-center gap-2">
-            Markets
-            <LiveBadge isLive={live.isConnected} />
-          </h1>
-          <p className="text-xs font-semibold text-muted flex items-center gap-1.5 mt-0.5">
-            <Radio className="h-3 w-3" aria-hidden />
-            Week 1 · {playerRows.length} players · live
-          </p>
+          <h1 className="flex items-center gap-2 text-xl font-black text-frost">Markets <LiveBadge isLive={live.isConnected} /></h1>
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-muted"><Radio className="h-3 w-3" aria-hidden />Week 1 · {playerRows.length} players</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden overflow-hidden rounded-xl border border-rim bg-panel sm:flex">
-            <span className="bg-neon/10 px-3 py-2 text-xs font-black text-neon">Feed View</span>
-            <Link href={"/markets/board" as Route} className="px-3 py-2 text-xs font-black text-muted transition-colors hover:bg-panel2 hover:text-frost">
-              Board View
-            </Link>
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="grid min-w-0 flex-1 grid-cols-2 overflow-hidden rounded-lg border border-rim bg-panel sm:flex-none" role="group" aria-label="Market presentation">
+            <ViewButton active={view === "board"} onClick={() => changeView("board")} icon={<TableProperties className="h-3.5 w-3.5" />}>Board</ViewButton>
+            <ViewButton active={view === "market"} onClick={() => changeView("market")} icon={<LayoutGrid className="h-3.5 w-3.5" />}>Market</ViewButton>
           </div>
-          <button
-            onClick={() => setShowFilters((v) => !v)}
-            className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
-              showFilters || activeFiltersCount > 0
-                ? "border-neon/40 bg-neon/10 text-neon"
-                : "border-rim bg-panel text-muted hover:text-frost"
-            }`}
-            type="button"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
-            Filters
-            {activeFiltersCount > 0 && (
-              <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-neon text-[9px] font-black text-surface">
-                {activeFiltersCount}
-              </span>
-            )}
+          <button onClick={() => setShowFilters((value) => !value)} type="button"
+            className={`flex min-h-10 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold ${showFilters || activeFiltersCount ? "border-neon/40 bg-neon/10 text-neon" : "border-rim bg-panel text-muted hover:text-frost"}`}>
+            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />Filters{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ""}
           </button>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-rim bg-panel sm:hidden">
-        <span className="bg-neon/10 px-3 py-2 text-center text-xs font-black text-neon">Feed View</span>
-        <Link href={"/markets/board" as Route} className="px-3 py-2 text-center text-xs font-black text-muted transition-colors hover:bg-panel2 hover:text-frost">
-          Board View
-        </Link>
       </div>
 
       <FirstTradeCoach visible={showCoach} onDismiss={() => setShowCoach(false)} />
 
-      {/* Search */}
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
-        <label htmlFor="market-search" className="sr-only">Search by player name</label>
-        <input
-          id="market-search"
-          type="search"
-          placeholder="Search player…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-11 w-full rounded-xl border border-rim bg-panel pl-9 pr-4 text-sm font-semibold text-frost placeholder:text-muted outline-none focus:border-neon/50 transition-colors"
-        />
-        {search && (
-          <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-frost" aria-label="Clear search" type="button">
-            <X className="h-4 w-4" aria-hidden />
-          </button>
-        )}
+        <label htmlFor="market-search" className="sr-only">Search players, teams, or opponents</label>
+        <input id="market-search" type="search" placeholder="Search player, team, or opponent" value={search} onChange={(event) => setSearch(event.target.value)}
+          className="h-11 w-full rounded-lg border border-rim bg-panel pl-9 pr-10 text-sm font-semibold text-frost outline-none placeholder:text-muted focus:border-neon/50" />
+        {search ? <button type="button" onClick={() => setSearch("")} className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center text-muted hover:text-frost" aria-label="Clear search"><X className="h-4 w-4" /></button> : null}
       </div>
 
-      {/* Position pills */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
-        {POSITIONS.map(({ value, label }) => (
-          <button key={value} onClick={() => setPosition(value)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-black transition-colors ${position === value ? "bg-neon text-surface" : "bg-panel2 text-muted hover:text-frost border border-rim"}`}
-            type="button">{label}</button>
-        ))}
-        <div className="w-4 shrink-0" />
+      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide" aria-label="Position filters">
+        {POSITIONS.map(({ value, label }) => <button key={value} type="button" onClick={() => setPosition(value)} aria-pressed={position === value}
+          className={`min-h-9 shrink-0 rounded-full px-3 text-xs font-black ${position === value ? "bg-neon text-surface" : "border border-rim bg-panel2 text-muted hover:text-frost"}`}>{label}</button>)}
       </div>
 
-      {/* Expanded filters */}
-      {showFilters && (
-        <div className="rounded-xl border border-rim bg-panel p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <FilterSelect id="threshold-filter" label="Threshold" value={threshold} onChange={(v) => setThreshold(v as Threshold | "ALL")} options={THRESHOLDS.map((t) => ({ value: t.value, label: t.label }))} />
-            <FilterSelect id="team-filter" label="Team" value={team} onChange={setTeam} options={[{ value: "ALL", label: "All teams" }, ...teams.map((t) => ({ value: t, label: t }))]} />
-            <FilterSelect id="status-filter" label="Status" value={statusFilter} onChange={(v) => setStatusFilter(v as MarketStatus | "ALL")} options={[{ value: "ALL", label: "All statuses" }, { value: "OPEN", label: "Open" }, { value: "LOCKED", label: "Locked" }, { value: "SETTLED", label: "Settled" }]} />
-            <FilterSelect id="sort-by" label="Sort" value={sortBy} onChange={(v) => setSortBy(v as SortKey)} options={SORT_OPTIONS} />
+      {showFilters ? (
+        <div className="space-y-3 rounded-lg border border-rim bg-panel p-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <FilterSelect label="Threshold" value={threshold} onChange={(value) => setThreshold(value as Threshold | "ALL")} options={THRESHOLDS.map(({ value, label }) => ({ value, label }))} />
+            <FilterSelect label="Team" value={team} onChange={setTeam} options={[{ value: "ALL", label: "All teams" }, ...teams.map((value) => ({ value, label: value }))]} />
+            <FilterSelect label="Status" value={statusFilter} onChange={(value) => setStatusFilter(value as MarketStatus | "ALL")} options={[{ value: "ALL", label: "All statuses" }, { value: "OPEN", label: "Open" }, { value: "LOCKED", label: "Locked" }, { value: "SETTLED", label: "Settled" }]} />
+            <FilterSelect label="Sort" value={sortBy} onChange={(value) => setSortBy(value as SortKey)} options={SORT_OPTIONS} />
           </div>
-          {activeFiltersCount > 0 && (
-            <button onClick={() => { setPosition("ALL"); setThreshold("ALL"); setTeam("ALL"); setStatusFilter("ALL"); setSearch(""); setSelectedMarketByPlayer({}); }}
-              className="text-xs font-bold text-muted hover:text-crimson transition-colors flex items-center gap-1" type="button">
-              <X className="h-3 w-3" aria-hidden /> Clear all filters
-            </button>
-          )}
+          {activeFiltersCount ? <button type="button" onClick={clearFilters} className="flex min-h-9 items-center gap-1 text-xs font-bold text-muted hover:text-crimson"><X className="h-3 w-3" />Clear filters</button> : null}
         </div>
-      )}
+      ) : null}
 
-      {/* Content */}
-      {isLoading && <LoadingFeed count={6} />}
-      {!isLoading && error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
-      {!isLoading && !error && playerRows.length === 0 && (
-        <EmptyState
-          icon={<TrendingUp className="h-6 w-6" />}
-          title="No players found"
-          description="Try adjusting your filters or search term."
-          action={
-            <button onClick={() => { setPosition("ALL"); setThreshold("ALL"); setTeam("ALL"); setStatusFilter("ALL"); setSearch(""); setSelectedMarketByPlayer({}); }}
-              className="rounded-xl bg-neon/10 border border-neon/20 px-4 py-2 text-sm font-black text-neon hover:bg-neon/20 transition" type="button">
-              Clear filters
-            </button>
-          }
-        />
-      )}
+      {isLoading ? <LoadingFeed count={6} /> : null}
+      {!isLoading && error ? <ErrorState message={error} onRetry={() => window.location.reload()} /> : null}
+      {!isLoading && !error && playerRows.length === 0 ? <EmptyState icon={<TrendingUp className="h-6 w-6" />} title="No players found" description="Try adjusting your filters or search." action={<button type="button" onClick={clearFilters} className="rounded-lg border border-neon/20 bg-neon/10 px-4 py-2 text-sm font-black text-neon">Clear filters</button>} /> : null}
 
-      {!isLoading && !error && playerRows.length > 0 && (
+      {!isLoading && !error && playerRows.length > 0 && view === "board" ? (
+        <MarketBoardView rows={playerRows} positions={positionMap} watchlist={watchlist} isAuthenticated={isAuthenticated}
+          onTrade={(market, player, side, action) => setTicket({ market, player, side, action })} onWatch={(marketId) => void toggleWatch(marketId)} />
+      ) : null}
+
+      {!isLoading && !error && playerRows.length > 0 && view === "market" ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {playerRows.map(({ player, markets, selectedMarket }) => {
-            return (
-              <MarketCard
-                key={player.id}
-                market={selectedMarket}
-                player={player}
-                onTrade={(m, side) => setTicket({ market: m, player, side })}
-                onWatch={isAuthenticated ? toggleWatch : undefined}
-                isWatched={watchlist.has(selectedMarket.id)}
-                marketOptions={markets}
-                onSelectMarket={(nextMarket) => {
-                  setThreshold("ALL");
-                  setSelectedMarketByPlayer((prev) => ({ ...prev, [player.id]: nextMarket.threshold }));
-                }}
-              />
-            );
-          })}
+          {playerRows.map(({ player, markets, selectedMarket }) => (
+            <MarketCard key={player.id} market={selectedMarket} player={player}
+              onTrade={(market, side, action) => setTicket({ market: market as ExtendedMarket, player, side, action })}
+              onWatch={(marketId) => void toggleWatch(marketId)} isWatched={watchlist.has(selectedMarket.id)}
+              marketOptions={markets} position={positionMap.get(selectedMarket.id)} isAuthenticated={isAuthenticated}
+              onSelectMarket={(nextMarket) => { setThreshold("ALL"); setSelectedMarketByPlayer((previous) => ({ ...previous, [player.id]: nextMarket.threshold })); }} />
+          ))}
         </div>
-      )}
+      ) : null}
 
-      {ticket && (
-        <TradeLauncher
-          market={ticket.market}
-          player={ticket.player}
-          initialSide={ticket.side}
-          balance={portfolio?.user.mockBalance ?? 0}
-          position={positionMap.get(ticket.market.id) ?? null}
-          open={Boolean(ticket)}
-          showButton={false}
-          onOpenChange={(nextOpen) => { if (!nextOpen) setTicket(null); }}
-          onTradeComplete={() => {
-            setLiveMsg("Trade confirmed.");
-            void apiGet<PortfolioResponse>("/api/portfolio").then((p) => {
-              setPortfolio(p);
-              setIsAuthenticated(true);
-            });
-            window.dispatchEvent(new Event("fantasyx:data-changed"));
-          }}
-          isAuthenticated={isAuthenticated}
-        />
-      )}
-
+      {ticket ? <TradeLauncher market={ticket.market} player={ticket.player} initialSide={ticket.side} initialAction={ticket.action}
+        balance={portfolio?.user.mockBalance ?? 0} position={positionMap.get(ticket.market.id) ?? null} open showButton={false}
+        onOpenChange={(open) => { if (!open) setTicket(null); }} onTradeComplete={() => { setLiveMsg("Trade confirmed."); void loadPersonalization(); }}
+        isAuthenticated={isAuthenticated} returnTo={returnTo} /> : null}
       <p className="sr-only" aria-live="polite" aria-atomic>{liveMsg}</p>
     </div>
   );
 }
 
-function FilterSelect({ id, label, value, onChange, options }: {
-  id: string; label: string; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="sr-only">{label}</label>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)}
-        className="h-10 w-full rounded-lg border border-rim bg-panel2 px-3 text-xs font-semibold text-frost outline-none focus:border-neon/50" aria-label={label}>
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
-  );
+function compareMarkets(a: ExtendedMarket, b: ExtendedMarket, sort: SortKey) {
+  if (sort === "kickoff") return a.kickoffTime.localeCompare(b.kickoffTime);
+  if (sort === "yes-asc") return a.yesPrice - b.yesPrice;
+  if (sort === "yes-desc") return b.yesPrice - a.yesPrice;
+  if (sort === "liquidity") return b.liquidity - a.liquidity;
+  return b.volume - a.volume;
+}
+
+function updateSet(previous: Set<string>, value: string, include: boolean) {
+  const next = new Set(previous);
+  if (include) next.add(value); else next.delete(value);
+  return next;
+}
+
+function ViewButton({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
+  return <button type="button" onClick={onClick} aria-pressed={active} className={`flex min-h-10 items-center justify-center gap-1.5 px-3 text-xs font-black ${active ? "bg-neon/10 text-neon" : "text-muted hover:bg-panel2 hover:text-frost"}`}>{icon}{children}</button>;
+}
+
+function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }> }) {
+  return <label className="text-[10px] font-black uppercase text-muted">{label}<select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-rim bg-panel2 px-3 text-xs font-semibold normal-case text-frost outline-none focus:border-neon/50">{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
 }

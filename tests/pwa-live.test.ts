@@ -39,19 +39,17 @@ describe("FX017 FantasyX OS PWA and Live Sunday", () => {
     expect(workerSource).toContain("networkWithCacheFallback");
   });
 
-  it("renders a Live Sunday command center with required sections", () => {
+  it("renders an honest scoreboard with game-scoped trading", () => {
     const liveSource = readFileSync(join(process.cwd(), "app", "live", "page.tsx"), "utf8");
 
-    expect(liveSource).toContain("Live Sunday Command Center");
-    expect(liveSource).toContain("LIVE GAMES");
-    expect(liveSource).toContain("LIVE MARKET BOARD");
-    expect(liveSource).toContain("TRADING TAPE");
-    expect(liveSource).toContain("PORTFOLIO");
-    expect(liveSource).toContain("TOP GAINERS");
-    expect(liveSource).toContain("TOP LOSERS");
-    expect(liveSource).toContain("LEADERBOARD");
-    expect(liveSource).toContain("PLAYER TRACKER");
-    expect(liveSource).toContain("WATCHLIST 2.0");
+    expect(liveSource).toContain("Live Games");
+    expect(liveSource).toContain('{ label: "LIVE"');
+    expect(liveSource).toContain('{ label: "UPCOMING"');
+    expect(liveSource).toContain('{ label: "FINAL"');
+    expect(liveSource).toContain("Selected game");
+    expect(liveSource).toContain("Score unavailable");
+    expect(liveSource).toContain("TradeLauncher");
+    expect(liveSource).not.toContain("buildLiveGames");
   });
 
   it("exposes Live Sunday and notification settings in navigation and settings", () => {

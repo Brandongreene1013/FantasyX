@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 
 import { prisma } from "@/lib/prisma";
 import { serializeMarket, serializePlayerFromMarket, toNumber } from "@/lib/db-serialization";
+import { summarizeGames } from "@/lib/live-games";
 
 const DEFAULT_WEEK = "nfl_2026_w1";
 
@@ -19,7 +20,7 @@ async function fetchSlate(weekId: string) {
   const players = new Map(
     markets.map(serializePlayerFromMarket).filter(Boolean).map((p) => [p!.id, p!])
   );
-  return { weekId, players: Array.from(players.values()), markets: markets.map(serializeMarket) };
+  return { weekId, players: Array.from(players.values()), games: summarizeGames(markets), markets: markets.map(serializeMarket) };
 }
 
 async function fetchFeed(weekId: string) {

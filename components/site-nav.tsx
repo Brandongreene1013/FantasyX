@@ -4,21 +4,20 @@ import { useEffect, useState } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, Home, TrendingUp, Trophy, UserRound, Settings, ShieldCheck, LogOut, Activity, Radio } from "lucide-react";
+import { BarChart2, TrendingUp, Trophy, UserRound, Settings, ShieldCheck, LogOut, Radio } from "lucide-react";
 import { apiGet, apiPost, type SessionResponse } from "@/lib/client-api";
 import { BottomNav } from "@/components/bottom-nav";
 
 const NAV_LINKS: Array<{ href: Route; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
-  { href: "/" as Route,                label: "Home",        Icon: Home },
-  { href: "/live" as Route,            label: "Live",        Icon: Radio },
   { href: "/markets" as Route,         label: "Markets",     Icon: TrendingUp },
-  { href: "/markets/board" as Route,   label: "Board",       Icon: Activity },
+  { href: "/live" as Route,            label: "Live",        Icon: Radio },
   { href: "/portfolio" as Route,       label: "Portfolio",   Icon: BarChart2 },
-  { href: "/leaderboard" as Route,     label: "Leaders",     Icon: Trophy },
-  { href: "/account" as Route,         label: "Account",     Icon: UserRound }
+  { href: "/leaderboard" as Route,     label: "Leaderboard", Icon: Trophy }
 ];
 
-const GUEST_NAV_LINKS = NAV_LINKS.filter(({ href }) => href !== "/portfolio" && href !== "/account");
+const GUEST_NAV_LINKS = NAV_LINKS.map((link) => link.href === "/portfolio"
+  ? { ...link, href: "/login?next=%2Fportfolio" as Route }
+  : link);
 
 export function SiteNav() {
   const [session, setSession] = useState<SessionResponse["user"] | null>(null);
@@ -82,6 +81,13 @@ export function SiteNav() {
               </Link>
             )}
             <Link
+              href={"/account" as Route}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-muted hover:bg-panel2 hover:text-frost transition-colors"
+              aria-label="Account"
+            >
+              <UserRound className="h-4 w-4" aria-hidden />
+            </Link>
+            <Link
               href={"/settings" as Route}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-muted hover:bg-panel2 hover:text-frost transition-colors"
               aria-label="Settings"
@@ -100,7 +106,7 @@ export function SiteNav() {
         ) : hasLoaded ? (
           <>
             {GUEST_NAV_LINKS.map(({ href, label, Icon }) => {
-              const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+              const isActive = label === "Portfolio" ? pathname === "/portfolio" : pathname.startsWith(href.split("?")[0]);
               return (
                 <Link
                   key={href}
@@ -112,9 +118,6 @@ export function SiteNav() {
                 </Link>
               );
             })}
-            <Link href={"/account" as Route} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-muted hover:bg-panel2 hover:text-frost">
-              <UserRound className="h-4 w-4" aria-hidden /> Account
-            </Link>
             <Link href={"/login" as Route} className="inline-flex min-h-10 items-center rounded-lg px-4 text-sm font-semibold text-muted hover:text-frost transition-colors">
               Log in
             </Link>

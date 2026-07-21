@@ -18,15 +18,19 @@ export function MarketCard({
   onWatch,
   isWatched,
   marketOptions,
-  onSelectMarket
+  onSelectMarket,
+  position,
+  isAuthenticated = false
 }: {
   market: Market;
   player: Player;
-  onTrade: (market: Market, side: Side) => void;
+  onTrade: (market: Market, side: Side, action: "BUY" | "SELL") => void;
   onWatch?: (marketId: string) => void;
   isWatched?: boolean;
   marketOptions?: Market[];
   onSelectMarket?: (market: Market) => void;
+  position?: { yesShares: number; noShares: number } | null;
+  isAuthenticated?: boolean;
 }) {
   const yesPrice = getYesPrice(market);
   const noPrice  = getNoPrice(market);
@@ -104,24 +108,43 @@ export function MarketCard({
         <div className="grid grid-cols-2 gap-2">
           <button
             className="flex flex-col items-center rounded-xl border border-neon/20 bg-neon/8 py-2 px-3 transition-all hover:bg-neon/15 hover:border-neon/40 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97]"
-            onClick={() => onTrade(market, "YES")}
+            onClick={() => onTrade(market, "YES", "BUY")}
             disabled={!isOpen}
             aria-label={`Buy YES — ${player.name} ${thresholdLabel(market.threshold)} at ${pct(yesPrice)}`}
             type="button"
           >
-            <span className="text-[10px] font-black text-neon/70 leading-none">YES</span>
+            <span className="text-[10px] font-black text-neon/70 leading-none">BUY YES</span>
             <span className="text-lg font-black text-neon leading-tight">{pct(yesPrice)}</span>
           </button>
           <button
             className="flex flex-col items-center rounded-xl border border-crimson/20 bg-crimson/8 py-2 px-3 transition-all hover:bg-crimson/15 hover:border-crimson/40 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97]"
-            onClick={() => onTrade(market, "NO")}
+            onClick={() => onTrade(market, "NO", "BUY")}
             disabled={!isOpen}
             aria-label={`Buy NO — ${player.name} ${thresholdLabel(market.threshold)} at ${pct(noPrice)}`}
             type="button"
           >
-            <span className="text-[10px] font-black text-crimson/70 leading-none">NO</span>
+            <span className="text-[10px] font-black text-crimson/70 leading-none">BUY NO</span>
             <span className="text-lg font-black text-crimson leading-tight">{pct(noPrice)}</span>
           </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {(["YES", "NO"] as const).map((side) => {
+            const shares = side === "YES" ? position?.yesShares ?? 0 : position?.noShares ?? 0;
+            const disabled = !isOpen || (isAuthenticated && shares <= 0);
+            return (
+              <button
+                key={side}
+                type="button"
+                onClick={() => onTrade(market, side, "SELL")}
+                disabled={disabled}
+                className="min-h-9 rounded-lg border border-rim bg-panel2 px-3 text-[10px] font-black text-muted transition-colors hover:border-frost/30 hover:text-frost disabled:cursor-not-allowed disabled:opacity-35"
+                aria-label={`Sell ${side} shares for ${player.name} ${thresholdLabel(market.threshold)}`}
+              >
+                Sell {side}{isAuthenticated && shares > 0 ? ` (${shares.toFixed(1)})` : ""}
+              </button>
+            );
+          })}
         </div>
       </div>
 

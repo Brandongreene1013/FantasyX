@@ -14,6 +14,8 @@ export async function executeDbBuy(
     marketId: string;
     side: TradeSide;
     spend: number;
+    expectedPrice?: number;
+    maxSlippageBps?: number;
     idempotencyKey?: string;
   }
 ) {
@@ -41,6 +43,7 @@ export async function executeDbBuy(
     throw new DomainError("MARKET_NOT_OPEN", "Market is not open", 400);
   }
   assertBeforeKickoff(market.kickoffTime);
+  assertQuoteFresh(market, input.side, input.expectedPrice, input.maxSlippageBps);
 
   const balance = toNumber(user.mockBalance);
   if (input.spend <= 0) {
@@ -174,6 +177,8 @@ export async function executeDbSell(
     marketId: string;
     side: TradeSide;
     shares: number;
+    expectedPrice?: number;
+    maxSlippageBps?: number;
     idempotencyKey?: string;
   }
 ) {
@@ -205,6 +210,7 @@ export async function executeDbSell(
     throw new DomainError("MARKET_NOT_OPEN", "Market is not open", 400);
   }
   assertBeforeKickoff(market.kickoffTime);
+  assertQuoteFresh(market, input.side, input.expectedPrice, input.maxSlippageBps);
   if (input.shares <= 0) {
     throw new DomainError("VALIDATION_ERROR", "Sell quantity must be positive", 400);
   }
@@ -348,6 +354,19 @@ async function lockUserAndMarket(tx: Prisma.TransactionClient, userId: string, m
 function assertBeforeKickoff(kickoffTime: Date) {
   if (kickoffTime.getTime() <= Date.now()) {
     throw new DomainError("MARKET_LOCKED", "Market is past kickoff", 400);
+  }
+}
+
+export function assertQuoteFresh(
+  market: { yesPrice: unknown; noPrice: unknown },
+  side: TradeSide,
+  expectedPrice?: number,
+  maxSlippageBps = 200
+) {
+  if (expectedPrice === undefined) return;
+  const currentPrice = toNumber(side === "YES" ? market.yesPrice : market.noPrice);
+  if (Math.abs(currentPrice - expectedPrice) * 10_000 > maxSlippageBps) {
+    throw new DomainError("STALE_QUOTE", "The market price moved. Review the updated quote and try again.", 409);
   }
 }
 

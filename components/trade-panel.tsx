@@ -14,12 +14,14 @@ const QUICK_AMOUNTS = [25, 50, 100, 250] as const;
 const SELL_PCTS = [25, 50, 75] as const;
 
 export function TradePanel({
-  market, player, balance, position, initialSide = "YES", onTradeComplete, isAuthenticated = true
+  market, player, balance, position, initialSide = "YES", initialAction = "BUY", onTradeComplete,
+  isAuthenticated = true, returnTo
 }: {
   market: Market; player: Player; balance: number;
-  position?: TradePosition | null; initialSide?: Side; onTradeComplete: () => void; isAuthenticated?: boolean;
+  position?: TradePosition | null; initialSide?: Side; initialAction?: "BUY" | "SELL";
+  onTradeComplete: () => void; isAuthenticated?: boolean; returnTo?: string;
 }) {
-  const [mode, setMode]         = useState<"BUY" | "SELL">("BUY");
+  const [mode, setMode]         = useState<"BUY" | "SELL">(initialAction);
   const [side, setSide]         = useState<Side>(initialSide);
   const [amount, setAmount]     = useState(50);
   const [sellShares, setSellShares] = useState(1);
@@ -47,12 +49,12 @@ export function TradePanel({
 
   useEffect(() => {
     setSide(initialSide);
-    setMode("BUY");
+    setMode(initialAction);
     setAmount(50);
     setSellShares(1);
     setError(null);
     setSuccess(false);
-  }, [market.id, initialSide]);
+  }, [market.id, initialAction, initialSide]);
 
   const inputError = mode === "SELL"
     ? (sellShares <= 0 ? "Must be > 0" : sellShares > ownedShares ? "Exceeds shares owned" : null)
@@ -66,10 +68,11 @@ export function TradePanel({
     setIsSubmitting(true); setError(null); setSuccess(false);
     try {
       await apiPost("/api/trades", mode === "SELL"
-        ? { action: "SELL", marketId: market.id, side, shares: sellShares, idempotencyKey: crypto.randomUUID() }
-        : { action: "BUY",  marketId: market.id, side, spend: amount,      idempotencyKey: crypto.randomUUID() });
+        ? { action: "SELL", marketId: market.id, side, shares: sellShares, expectedPrice: getSidePrice(market, side), maxSlippageBps: 200, idempotencyKey: crypto.randomUUID() }
+        : { action: "BUY",  marketId: market.id, side, spend: amount, expectedPrice: getSidePrice(market, side), maxSlippageBps: 200, idempotencyKey: crypto.randomUUID() });
       setSuccess(true);
       onTradeComplete();
+      window.dispatchEvent(new Event("fantasyx:data-changed"));
       setTimeout(() => { setSuccess(false); }, 1400);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Trade failed");
@@ -93,7 +96,7 @@ export function TradePanel({
         compact
         title="Log in to trade"
         description={`Explore ${player.name} ${thresholdLabel(market.threshold)} freely. Log in or create an account when you are ready to place a free-play trade.`}
-        next={`/players/${player.id}?threshold=${market.threshold}`}
+        next={returnTo ?? `/players/${player.id}?threshold=${market.threshold}`}
       />
     );
   }
@@ -122,13 +125,16 @@ export function TradePanel({
           <h2 className="text-sm font-black text-frost">Trade</h2>
         </div>
         <p className="text-[11px] font-semibold text-muted">
+          {player.team} vs {player.opponent || "TBD"} · Week {market.week}
+        </p>
+        <p className="text-[11px] font-semibold text-muted">
           {player.name} · {thresholdLabel(market.threshold)} · {player.position}
         </p>
       </div>
 
       {!isOpen && (
         <div className="mx-5 mt-4 rounded-xl bg-rim/40 px-4 py-3 text-sm font-semibold text-muted">
-          Market {market.status.toLowerCase()} — trading disabled.{market.result ? ` Result: ${market.result}.` : ""}
+          Market {market.status.toLowerCase()} - trading disabled.{market.result ? ` Result: ${market.result}.` : ""}
         </div>
       )}
 
@@ -280,8 +286,8 @@ export function TradePanel({
         {/* Metrics */}
         <div className="grid grid-cols-2 gap-2">
           <Metric label="Price" value={pct(getSidePrice(market, side))} />
-          <Metric label={mode === "SELL" ? "Est. proceeds" : "Est. shares"} value={mode === "SELL" ? credits(sellQuote.proceeds) : (estShares > 0 ? estShares.toFixed(3) : "—")} />
-          <Metric label={mode === "SELL" ? "Shares owned" : "Avg entry"} value={mode === "SELL" ? ownedShares.toFixed(3) : (avgEntry > 0 ? pct(avgEntry) : "—")} />
+          <Metric label={mode === "SELL" ? "Est. proceeds" : "Est. shares"} value={mode === "SELL" ? credits(sellQuote.proceeds) : (estShares > 0 ? estShares.toFixed(3) : "--")} />
+          <Metric label={mode === "SELL" ? "Shares owned" : "Avg entry"} value={mode === "SELL" ? ownedShares.toFixed(3) : (avgEntry > 0 ? pct(avgEntry) : "--")} />
           <Metric label="Price impact" value={pct(priceImpact)} />
           <Metric label={mode === "SELL" ? "Remaining" : "Max loss"} value={mode === "SELL" ? Math.max(0, ownedShares - sellShares).toFixed(3) : credits(maxLoss)} />
           <Metric label={mode === "SELL" ? "Position effect" : "Settle value"} value={mode === "SELL" ? credits(sellQuote.proceeds) : credits(potentialSettlement)} />

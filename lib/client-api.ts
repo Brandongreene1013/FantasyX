@@ -1,4 +1,5 @@
 import type { Market, Player, Side } from "@/lib/types";
+import type { LiveGameSummary } from "@/lib/live-games";
 
 export const defaultWeekId = "nfl_2026_w1";
 
@@ -23,6 +24,7 @@ export type SessionResponse = {
 
 export type SlateResponse = {
   weekId: string;
+  games: LiveGameSummary[];
   players: Player[];
   markets: Array<Market & { weekId: string; kickoffTime: string; yesPrice: number; noPrice: number; openingPrice: number; volume: number; openInterest: number }>;
 };
@@ -113,8 +115,16 @@ export type PortfolioResponse = {
     team: string;
     position: "QB" | "RB" | "WR" | "TE";
     thresholdType: "TOP_3" | "TOP_5" | "TOP_10";
+    week: number;
+    opponent: string;
+    kickoffTime: string;
     status: "OPEN" | "LOCKED" | "SETTLED" | "VOID";
     result: "YES" | "NO" | null;
+    yesPrice: number;
+    noPrice: number;
+    yesPool: number;
+    noPool: number;
+    liquidity: number;
     yesShares: number;
     noShares: number;
     costBasis: number;

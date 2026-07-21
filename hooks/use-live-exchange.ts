@@ -7,7 +7,7 @@ import type { FeedEvent, ExchangeStatus, LiveExchangeState } from "@/lib/live-ty
 const POLL_INTERVAL_MS = 12000;
 
 function empty(): LiveExchangeState {
-  return { markets: [], players: [], feed: [], leaderboard: [], status: null, isConnected: false };
+  return { markets: [], players: [], games: [], feed: [], leaderboard: [], status: null, isConnected: false };
 }
 
 export function useLiveExchange(weekId: string): LiveExchangeState {
@@ -17,7 +17,7 @@ export function useLiveExchange(weekId: string): LiveExchangeState {
   const mounted  = useRef(true);
 
   const mergeSlate = useCallback((data: SlateResponse) => {
-    setState((prev) => ({ ...prev, markets: data.markets, players: data.players, isConnected: true }));
+    setState((prev) => ({ ...prev, markets: data.markets, players: data.players, games: data.games, isConnected: true }));
   }, []);
 
   const mergeFeed = useCallback((data: { events: FeedEvent[] }) => {
@@ -46,6 +46,7 @@ export function useLiveExchange(weekId: string): LiveExchangeState {
         ...prev,
         markets: slate.markets,
         players: slate.players,
+        games: slate.games,
         leaderboard: lb.entries,
         status: status ?? prev.status,
         isConnected: true
@@ -106,10 +107,14 @@ export function useLiveExchange(weekId: string): LiveExchangeState {
       startPolling();
     }
 
+    const refresh = () => void poll();
+    window.addEventListener("fantasyx:data-changed", refresh);
+
     return () => {
       mounted.current = false;
       esRef.current?.close();
       if (timerRef.current) clearInterval(timerRef.current);
+      window.removeEventListener("fantasyx:data-changed", refresh);
     };
   }, [connect, poll, startPolling]);
 

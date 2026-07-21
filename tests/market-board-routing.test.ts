@@ -26,7 +26,7 @@ describe("FX016.5 market board routing", () => {
     await prisma.$disconnect();
   });
 
-  it("has a dedicated /markets/board page instead of relying on the dynamic market route", () => {
+  it("keeps /markets/board as a canonical redirect into the unified market experience", () => {
     const boardPath = join(process.cwd(), "app", "markets", "board", "page.tsx");
     const dynamicPath = join(process.cwd(), "app", "markets", "[marketId]", "page.tsx");
 
@@ -34,16 +34,7 @@ describe("FX016.5 market board routing", () => {
     expect(existsSync(dynamicPath)).toBe(true);
 
     const source = readFileSync(boardPath, "utf8");
-    expect(source).toContain("MARKET BOARD");
-    expect(source).toContain("YES price");
-    expect(source).toContain("NO price");
-    expect(source).toContain("Change %");
-    expect(source).toContain("Volume");
-    expect(source).toContain("Open interest");
-    expect(source).toContain("Last trade");
-    expect(source).toContain("Kickoff countdown");
-    expect(source).toContain("Status");
-    expect(source).toContain("Back to Market Feed");
+    expect(source).toContain('redirect("/markets?view=board")');
     expect(source).not.toContain("Market not found");
   });
 

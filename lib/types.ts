@@ -16,6 +16,7 @@ export type Player = {
 
 export type Market = {
   id: string;
+  gameId?: string | null;
   playerId: string;
   week: number;
   position: Position;

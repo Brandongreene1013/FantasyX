@@ -205,6 +205,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ marketI
             position={marketPosition}
             onTradeComplete={() => { if (marketId) void load(marketId); }}
             isAuthenticated={isAuthenticated}
+            returnTo={`/markets/${market.id}`}
           />
         </div>
         <div className="space-y-4">
