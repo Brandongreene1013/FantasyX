@@ -101,6 +101,7 @@ export function SiteNav() {
               aria-label="Log out"
             >
               <LogOut className="h-4 w-4" aria-hidden />
+              <span>Log out</span>
             </button>
           </>
         ) : hasLoaded ? (

@@ -5,7 +5,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import {
   TrendingUp, TrendingDown, Wallet, Trophy, Target, Zap,
-  Calendar, Star, Shield, BarChart2, ChevronRight, Copy, Users
+  Calendar, Star, Shield, BarChart2, ChevronRight, Copy, Users, LogOut
 } from "lucide-react";
 import { apiGet, apiPost } from "@/lib/client-api";
 import { credits, pct } from "@/lib/format";
@@ -87,6 +87,12 @@ export default function AccountPage() {
     } catch {
       setCopied(false);
     }
+  }
+
+  async function logout() {
+    await apiPost("/api/auth/logout", {});
+    window.dispatchEvent(new Event("fantasyx:data-changed"));
+    window.location.href = "/login";
   }
 
   return (
@@ -240,6 +246,18 @@ export default function AccountPage() {
             <ChevronRight className="h-4 w-4 text-muted group-hover:text-frost transition-colors" aria-hidden />
           </Link>
         ))}
+        <button
+          type="button"
+          onClick={logout}
+          className="flex w-full items-center gap-3 rounded-xl border border-crimson/25 bg-crimson/8 px-4 py-3 text-left transition-all hover:border-crimson/40 hover:bg-crimson/12"
+        >
+          <span className="text-crimson"><LogOut className="h-4 w-4" aria-hidden /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-black text-frost">Log out</span>
+            <span className="block text-[10px] font-semibold text-muted">End this session on this device</span>
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted" aria-hidden />
+        </button>
       </section>
     </div>
   );

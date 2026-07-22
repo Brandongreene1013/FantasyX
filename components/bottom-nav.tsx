@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { TrendingUp, BarChart2, Trophy, Radio } from "lucide-react";
+import { TrendingUp, BarChart2, Trophy, Radio, UserRound } from "lucide-react";
 import type { Route } from "next";
 
 const TABS = [
@@ -12,12 +12,19 @@ const TABS = [
   { href: "/leaderboard" as Route, label: "Leaderboard", Icon: Trophy }
 ];
 
+const AUTHENTICATED_TABS = [
+  ...TABS,
+  { href: "/account" as Route, label: "Account", Icon: UserRound }
+];
+
 export function BottomNav({ isLoggedIn, isReady = true }: { isLoggedIn: boolean; isReady?: boolean }) {
   const pathname = usePathname();
 
   if (!isReady) return null;
 
-  const tabs = isLoggedIn ? TABS : TABS.map((tab) => tab.href === "/portfolio" ? { ...tab, href: "/login?next=%2Fportfolio" as Route } : tab);
+  const tabs = isLoggedIn
+    ? AUTHENTICATED_TABS
+    : TABS.map((tab) => tab.href === "/portfolio" ? { ...tab, href: "/login?next=%2Fportfolio" as Route } : tab);
 
   return (
     <nav
@@ -25,7 +32,7 @@ export function BottomNav({ isLoggedIn, isReady = true }: { isLoggedIn: boolean;
       aria-label="Mobile navigation"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <div className="grid grid-cols-4">
+      <div className="grid" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
         {tabs.map(({ href, label, Icon }) => {
           const isActive = label === "Portfolio" ? pathname === "/portfolio" : pathname.startsWith(href.split("?")[0]);
           return (
