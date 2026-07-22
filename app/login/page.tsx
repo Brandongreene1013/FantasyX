@@ -20,7 +20,7 @@ function LoginContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(query.get("error") ? "Provider sign-in could not be completed. Please try again." : null);
+  const [error, setError] = useState<string | null>(oauthErrorMessage(query.get("error")));
 
   useEffect(() => { apiGet<SessionResponse>("/api/session").then((data) => { if (data.user) router.replace(next as Route); }).catch(() => undefined); }, [next, router]);
 
@@ -50,4 +50,13 @@ function LoginContent() {
       <p className="mt-4 text-center text-xs font-normal text-slate-500">FantasyX uses free mock credits. No deposits or real-money wagering.</p>
     </div>
   );
+}
+
+function oauthErrorMessage(code: string | null) {
+  if (!code) return null;
+  if (code === "oauth_cancelled") return "Provider sign-in was cancelled.";
+  if (code === "oauth_expired") return "That provider sign-in expired. Please try again.";
+  if (code === "oauth_unverified_email") return "Google did not return a verified email address for that account.";
+  if (code === "oauth_not_configured") return "Provider sign-in is not configured yet.";
+  return "Provider sign-in could not be completed. Please try again.";
 }

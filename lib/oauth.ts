@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { Apple, Google, MicrosoftEntraId, generateCodeVerifier, generateState } from "arctic";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashAuthToken } from "@/lib/auth-security";
 import { provisionAccount } from "@/lib/account-provisioning";
@@ -18,9 +19,9 @@ export function isOAuthProvider(value: string): value is OAuthProvider {
 
 export function configuredOAuthProviders() {
   return {
-    google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-    apple: Boolean(process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY),
-    microsoft: Boolean(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET)
+    google: hasEnv("GOOGLE_CLIENT_ID") && hasEnv("GOOGLE_CLIENT_SECRET"),
+    apple: hasEnv("APPLE_CLIENT_ID") && hasEnv("APPLE_TEAM_ID") && hasEnv("APPLE_KEY_ID") && hasEnv("APPLE_PRIVATE_KEY"),
+    microsoft: hasEnv("MICROSOFT_CLIENT_ID") && hasEnv("MICROSOFT_CLIENT_SECRET")
   } satisfies Record<OAuthProvider, boolean>;
 }
 
@@ -54,6 +55,10 @@ export async function beginOAuth(provider: OAuthProvider, request: Request, next
 
 export async function finishOAuth(provider: OAuthProvider, request: Request, form: URLSearchParams) {
   ensureConfigured(provider);
+  const providerError = form.get("error");
+  if (providerError) {
+    throw new DomainError("VALIDATION_ERROR", "Provider sign-in was cancelled or denied", 400);
+  }
   const state = form.get("state");
   const code = form.get("code");
   if (!state || !code) throw new DomainError("VALIDATION_ERROR", "Identity provider response was incomplete", 400);
@@ -75,22 +80,40 @@ export async function finishOAuth(provider: OAuthProvider, request: Request, for
 }
 
 async function findOrCreateOAuthUser(provider: OAuthProvider, profile: OAuthProfile, referralCode: string | null) {
+  const providerAccountId = profile.providerAccountId.trim();
+  const email = profile.email.trim().toLowerCase();
+  if (!providerAccountId) throw new DomainError("VALIDATION_ERROR", "The provider did not return an account identifier", 400);
   const linked = await prisma.authProviderAccount.findUnique({
-    where: { provider_providerAccountId: { provider, providerAccountId: profile.providerAccountId } }, include: { user: true }
+    where: { provider_providerAccountId: { provider, providerAccountId } }, include: { user: true }
   });
   if (linked) return linked.user;
-  if (!profile.email || !profile.emailVerified) throw new DomainError("VALIDATION_ERROR", "The provider did not return a verified email address", 400);
+  if (!email || !profile.emailVerified) throw new DomainError("VALIDATION_ERROR", "The provider did not return a verified email address", 400);
 
-  let user = await prisma.user.findUnique({ where: { email: profile.email } });
+  let user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    user = await provisionAccount({
-      firstName: profile.firstName, lastName: profile.lastName, email: profile.email,
-      emailVerified: true, referralCode: referralCode ?? undefined
-    });
+    try {
+      user = await provisionAccount({
+        firstName: profile.firstName, lastName: profile.lastName, email,
+        emailVerified: true, referralCode: referralCode ?? undefined
+      });
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      user = await prisma.user.findUnique({ where: { email } });
+      if (!user) throw error;
+    }
   }
-  await prisma.authProviderAccount.create({
-    data: { userId: user.id, provider, providerAccountId: profile.providerAccountId, providerEmail: profile.email }
-  });
+  try {
+    await prisma.authProviderAccount.create({
+      data: { userId: user.id, provider, providerAccountId, providerEmail: email }
+    });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error;
+    const racedLink = await prisma.authProviderAccount.findUnique({
+      where: { provider_providerAccountId: { provider, providerAccountId } }, include: { user: true }
+    });
+    if (racedLink) return racedLink.user;
+    throw error;
+  }
   if (!user.emailVerifiedAt) {
     user = await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
   }
@@ -121,7 +144,7 @@ async function providerProfile(provider: OAuthProvider, accessToken: string, idT
 function profileFromClaims(data: Record<string, unknown>, emailVerified: boolean): OAuthProfile {
   const fullName = String(data.name || "").trim().split(/\s+/);
   return {
-    providerAccountId: String(data.sub || ""), email: String(data.email || data.preferred_username || "").toLowerCase(),
+    providerAccountId: String(data.sub || "").trim(), email: String(data.email || data.preferred_username || "").trim().toLowerCase(),
     firstName: String(data.given_name || fullName[0] || ""), lastName: String(data.family_name || fullName.slice(1).join(" ") || ""),
     emailVerified
   };
@@ -145,6 +168,14 @@ function providerClient(provider: OAuthProvider, request: Request) {
 
 function ensureConfigured(provider: OAuthProvider) {
   if (!configuredOAuthProviders()[provider]) throw new DomainError("NOT_FOUND", `${provider} sign-in is not configured`, 404);
+}
+
+function hasEnv(name: string) {
+  return Boolean(process.env[name]?.trim());
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
 function authBaseUrl(request: Request) {
