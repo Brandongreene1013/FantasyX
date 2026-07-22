@@ -7,7 +7,7 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   {
-    ignores: [".next/**", "node_modules/**", "dist/**", "build/**", "*.config.js"]
+    ignores: [".next/**", ".next-protocol-build/**", "node_modules/**", "dist/**", "build/**", "*.config.js"]
   },
   ...compat.config(nextVitals)
 ];

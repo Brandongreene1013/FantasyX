@@ -1,5 +1,6 @@
 node_modules
 .next
+.next-*
 .local
 .env*
 *.log
@@ -12,3 +13,6 @@ desktop/build
 desktop/dist
 
 .vercel
+.anchor-keypairs
+.anchor-target
+target

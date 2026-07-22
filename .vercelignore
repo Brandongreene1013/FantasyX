@@ -1,8 +1,11 @@
 .next
+.next-*
 node_modules
+desktop
 test-results
 dev-*.log
 dev-*.err.log
+*.log
 *.tsbuildinfo
 *.zip
 .env

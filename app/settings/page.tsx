@@ -5,6 +5,7 @@ import { PageHeading } from "@/components/page-heading";
 import { apiGet, apiPatch, type SessionResponse } from "@/lib/client-api";
 import { AuthRequiredState } from "@/components/auth-required-state";
 import { SecuritySettings } from "@/components/auth/security-settings";
+import { WalletConnectionPanel } from "@/components/solana/wallet-connection-panel";
 
 const ALERT_PREFS = [
   { key: "marketAlerts", label: "Market Alerts", description: "Price alerts, locking soon, and board movement." },
@@ -130,6 +131,7 @@ export default function SettingsPage() {
       </section>
 
       {!isLoading ? <SecuritySettings /> : null}
+      {!isLoading ? <WalletConnectionPanel /> : null}
 
       <section className="mx-auto mt-5 max-w-2xl rounded border border-rim bg-panel p-5" aria-labelledby="notification-heading">
         <div className="flex flex-wrap items-start justify-between gap-3">

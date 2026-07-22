@@ -12,6 +12,7 @@ export const securityHeaders = [
 
 const nextConfig: NextConfig = {
   typedRoutes: true,
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   }

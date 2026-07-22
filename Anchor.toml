@@ -1,0 +1,19 @@
+[features]
+seeds = false
+skip-lint = false
+
+[programs.localnet]
+fantasyx_market = "BKzkJqjSWh5GBofAQRR5cUsNr2GsF5j9FwJT1L3FvhcW"
+
+[programs.devnet]
+fantasyx_market = "BKzkJqjSWh5GBofAQRR5cUsNr2GsF5j9FwJT1L3FvhcW"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "npm run test -- --run tests/solana"

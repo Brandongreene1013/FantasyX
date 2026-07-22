@@ -111,6 +111,80 @@ enum AuthTokenType {
   DESKTOP_LOGIN
 }
 
+enum BlockchainCluster {
+  LOCALNET
+  DEVNET
+  MAINNET_BETA
+}
+
+enum BlockchainWalletStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum WalletChallengeStatus {
+  PENDING
+  VERIFIED
+  EXPIRED
+  CONSUMED
+}
+
+enum BlockchainTransactionKind {
+  WALLET_VERIFICATION
+  DEVNET_MEMO
+  DEVNET_AIRDROP
+  FUTURE_COLLATERAL_DEPOSIT
+  FUTURE_MARKET_ESCROW
+  FUTURE_SETTLEMENT
+  FUTURE_WITHDRAWAL
+}
+
+enum BlockchainTransactionStatus {
+  CREATED
+  SIGNATURE_COLLECTED
+  SUBMITTED
+  CONFIRMED
+  FINALIZED
+  FAILED
+  EXPIRED
+}
+
+enum OnChainMarketStatus {
+  REGISTERED
+  COLLATERALIZED
+  TRADING
+  LOCKED
+  RESULT_PROPOSED
+  RESOLVED
+  CANCELLED
+}
+
+enum OnChainMarketResult {
+  UNRESOLVED
+  YES
+  NO
+  CANCELLED
+}
+
+enum OnChainQuoteAction {
+  BUY
+  SELL
+}
+
+enum OnChainQuoteStatus {
+  ISSUED
+  SUBMITTED
+  CONSUMED
+  EXPIRED
+  REJECTED
+}
+
+enum ReconciliationStatus {
+  PASS
+  FAIL
+  PARTIAL
+}
+
 model User {
   id              String             @id @default(cuid())
   name            String
@@ -152,6 +226,11 @@ model User {
   authProviderAccounts AuthProviderAccount[]
   authTokens       AuthToken[]
   trustedDevices   TrustedDevice[]
+  blockchainWallets BlockchainWallet[]
+  walletChallenges WalletChallenge[]
+  blockchainTransactions BlockchainTransaction[]
+  onChainPositions OnChainPosition[]
+  onChainQuoteIntents OnChainQuoteIntent[]
 
   @@index([referredByUserId])
   @@map("users")
@@ -215,6 +294,179 @@ model OAuthAttempt {
 
   @@index([expiresAt])
   @@map("oauth_attempts")
+}
+
+model BlockchainWallet {
+  id                String                 @id @default(cuid())
+  userId            String                 @map("user_id")
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cluster           BlockchainCluster      @default(DEVNET)
+  address           String
+  status            BlockchainWalletStatus @default(ACTIVE)
+  verifiedAt        DateTime               @map("verified_at")
+  revokedAt         DateTime?              @map("revoked_at")
+  verificationMessage String               @map("verification_message")
+  verificationSignature String             @map("verification_signature")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  transactions      BlockchainTransaction[]
+
+  @@unique([cluster, address])
+  @@index([userId, status])
+  @@map("blockchain_wallets")
+}
+
+model WalletChallenge {
+  id          String                @id @default(cuid())
+  userId      String                @map("user_id")
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cluster     BlockchainCluster     @default(DEVNET)
+  address     String
+  nonceHash   String                @unique @map("nonce_hash")
+  message     String
+  status      WalletChallengeStatus @default(PENDING)
+  expiresAt   DateTime              @map("expires_at")
+  verifiedAt  DateTime?             @map("verified_at")
+  createdAt   DateTime              @default(now()) @map("created_at")
+
+  @@index([userId, status, expiresAt])
+  @@index([address, cluster])
+  @@map("wallet_challenges")
+}
+
+model BlockchainTransaction {
+  id               String                      @id @default(cuid())
+  userId           String                      @map("user_id")
+  user             User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletId         String?                     @map("wallet_id")
+  wallet           BlockchainWallet?           @relation(fields: [walletId], references: [id], onDelete: SetNull)
+  cluster          BlockchainCluster           @default(DEVNET)
+  kind             BlockchainTransactionKind
+  status           BlockchainTransactionStatus @default(CREATED)
+  signature        String?                     @unique
+  referenceId      String?                     @map("reference_id")
+  idempotencyKey   String                      @unique @map("idempotency_key")
+  slot             BigInt?
+  error            String?
+  metadata         Json?
+  createdAt        DateTime                    @default(now()) @map("created_at")
+  updatedAt        DateTime                    @updatedAt @map("updated_at")
+  submittedAt      DateTime?                   @map("submitted_at")
+  confirmedAt      DateTime?                   @map("confirmed_at")
+
+  @@index([userId, createdAt])
+  @@index([cluster, status, createdAt])
+  @@index([kind, createdAt])
+  @@map("blockchain_transactions")
+}
+
+model OnChainMarket {
+  id                  String              @id @default(cuid())
+  marketId            String?             @map("market_id")
+  market              Market?             @relation(fields: [marketId], references: [id], onDelete: SetNull)
+  cluster             BlockchainCluster   @default(DEVNET)
+  programId           String              @map("program_id")
+  marketPda           String              @unique @map("market_pda")
+  escrowTokenAccount  String              @map("escrow_token_account")
+  collateralMint      String              @map("collateral_mint")
+  liquidityProvider   String              @map("liquidity_provider")
+  status              OnChainMarketStatus @default(REGISTERED)
+  result              OnChainMarketResult @default(UNRESOLVED)
+  lockTime            DateTime            @map("lock_time")
+  yesLiability        BigInt              @default(0) @map("yes_liability")
+  noLiability         BigInt              @default(0) @map("no_liability")
+  collateralEscrowed  BigInt              @default(0) @map("collateral_escrowed")
+  feesAccrued         BigInt              @default(0) @map("fees_accrued")
+  lastSignature       String?             @map("last_signature")
+  lastSlot            BigInt?             @map("last_slot")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  positions           OnChainPosition[]
+  events              OnChainEvent[]
+  quoteIntents        OnChainQuoteIntent[]
+  reconciliations     OnChainReconciliationRun[]
+
+  @@unique([cluster, programId, marketPda])
+  @@index([marketId])
+  @@index([cluster, status, lockTime])
+  @@map("on_chain_markets")
+}
+
+model OnChainPosition {
+  id              String            @id @default(cuid())
+  userId          String?           @map("user_id")
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  onChainMarketId String            @map("on_chain_market_id")
+  onChainMarket   OnChainMarket     @relation(fields: [onChainMarketId], references: [id], onDelete: Cascade)
+  ownerAddress    String            @map("owner_address")
+  positionPda     String            @unique @map("position_pda")
+  yesShares       BigInt            @default(0) @map("yes_shares")
+  noShares        BigInt            @default(0) @map("no_shares")
+  claimed         Boolean           @default(false)
+  lastSignature   String?           @map("last_signature")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  @@unique([onChainMarketId, ownerAddress])
+  @@index([userId])
+  @@index([ownerAddress])
+  @@map("on_chain_positions")
+}
+
+model OnChainEvent {
+  id              String          @id @default(cuid())
+  onChainMarketId String?         @map("on_chain_market_id")
+  onChainMarket   OnChainMarket?  @relation(fields: [onChainMarketId], references: [id], onDelete: SetNull)
+  cluster         BlockchainCluster @default(DEVNET)
+  signature       String
+  slot            BigInt?
+  eventType       String          @map("event_type")
+  payload         Json
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  @@unique([signature, eventType])
+  @@index([onChainMarketId, createdAt])
+  @@index([cluster, eventType, createdAt])
+  @@map("on_chain_events")
+}
+
+model OnChainQuoteIntent {
+  id              String             @id @default(cuid())
+  userId          String             @map("user_id")
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  onChainMarketId String             @map("on_chain_market_id")
+  onChainMarket   OnChainMarket      @relation(fields: [onChainMarketId], references: [id], onDelete: Cascade)
+  quoteId         String             @map("quote_id")
+  action          OnChainQuoteAction
+  side            TradeSide
+  shares          BigInt
+  costOrProceeds  BigInt             @map("cost_or_proceeds")
+  slippageBound   BigInt             @map("slippage_bound")
+  status          OnChainQuoteStatus @default(ISSUED)
+  expiresAt       DateTime           @map("expires_at")
+  signature       String?
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  @@unique([onChainMarketId, userId, quoteId])
+  @@index([userId, createdAt])
+  @@index([status, expiresAt])
+  @@map("on_chain_quote_intents")
+}
+
+model OnChainReconciliationRun {
+  id              String               @id @default(cuid())
+  onChainMarketId String?              @map("on_chain_market_id")
+  onChainMarket   OnChainMarket?       @relation(fields: [onChainMarketId], references: [id], onDelete: SetNull)
+  cluster         BlockchainCluster    @default(DEVNET)
+  status          ReconciliationStatus
+  checkedAt       DateTime             @default(now()) @map("checked_at")
+  summary         Json
+  error           String?
+
+  @@index([onChainMarketId, checkedAt])
+  @@index([cluster, status, checkedAt])
+  @@map("on_chain_reconciliation_runs")
 }
 
 model BetaEvent {
@@ -341,6 +593,7 @@ model Market {
   priceHistory  MarketPriceHistory[]
   auditLogs     AdminAuditLog[]
   watchedBy     WatchMarket[]
+  onChainMarkets OnChainMarket[]
 
   @@unique([playerId, weekId, thresholdType])
   @@index([weekId, position])
