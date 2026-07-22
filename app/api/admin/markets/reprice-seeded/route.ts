@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { repriceSeededMarkets } from "@/lib/seeded-market-repricing.service";
+import { enforceThresholdOrdering } from "@/lib/seeded-market-repricing.service";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,12 +14,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await repriceSeededMarkets(prisma, { apply: true });
+  const result = await enforceThresholdOrdering(prisma);
   return NextResponse.json({
     ok: true,
-    checked: result.checked,
-    changed: result.changed,
-    skipped: result.skipped,
+    checked: result.checkedPlayers,
+    changed: result.changedMarkets,
+    skipped: result.skippedPlayers,
     sample: result.updates.slice(0, 10)
   }, {
     headers: { "Cache-Control": "no-store" }
