@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LayoutGrid, Radio, Search, SlidersHorizontal, TableProperties, TrendingUp, X } from "lucide-react";
+import { Radio, Search, SlidersHorizontal, TrendingUp, X } from "lucide-react";
 import { FirstTradeCoach } from "@/components/first-trade-coach";
 import { MarketCard } from "@/components/market-card";
-import { MarketBoardView } from "@/components/markets/market-board-view";
 import { TradeLauncher } from "@/components/trade-launcher";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { LiveBadge } from "@/components/ui/live-badge";
@@ -12,13 +11,9 @@ import { LoadingFeed } from "@/components/ui/loading-skeleton";
 import { useLiveExchange } from "@/hooks/use-live-exchange";
 import { apiGet, apiPost, defaultWeekId, type PortfolioResponse } from "@/lib/client-api";
 import {
-  MARKET_VIEW_STORAGE_KEY,
   THRESHOLD_ORDER,
-  marketsViewUrl,
-  resolveMarketView,
   type ExtendedMarket,
   type MarketSortKey,
-  type MarketView,
   type PlayerMarketRow,
   type TradeAction
 } from "@/lib/market-view";
@@ -45,14 +40,13 @@ const SORT_OPTIONS = [
 
 export default function MarketsPage() {
   const live = useLiveExchange(defaultWeekId);
-  const [view, setView] = useState<MarketView>("market");
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error] = useState<string | null>(null);
   const [liveMsg, setLiveMsg] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [showCoach, setShowCoach] = useState(false);
   const [search, setSearch] = useState("");
@@ -82,9 +76,6 @@ export default function MarketsPage() {
   useEffect(() => { void loadPersonalization(); }, [loadPersonalization]);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const nextView = resolveMarketView(params.get("view"), window.localStorage.getItem(MARKET_VIEW_STORAGE_KEY));
-    setView(nextView);
-    window.localStorage.setItem(MARKET_VIEW_STORAGE_KEY, nextView);
     setShowCoach(params.get("coach") === "first-trade");
   }, []);
   useEffect(() => { if (live.markets.length > 0) setHasLoaded(true); }, [live.markets.length]);
@@ -120,13 +111,6 @@ export default function MarketsPage() {
       .sort((a, b) => comparePlayerRows(a, b, sortBy));
   }, [live.markets, playerMap, position, search, selectedMarketByPlayer, sortBy, statusFilter, team, threshold]);
 
-  function changeView(nextView: MarketView) {
-    setView(nextView);
-    window.localStorage.setItem(MARKET_VIEW_STORAGE_KEY, nextView);
-    window.history.replaceState(window.history.state, "", marketsViewUrl(nextView, window.location.search));
-    setLiveMsg(`${nextView === "board" ? "Board" : "Market"} view selected.`);
-  }
-
   async function toggleWatch(marketId: string) {
     if (!isAuthenticated) {
       window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
@@ -157,10 +141,6 @@ export default function MarketsPage() {
           <p className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-muted"><Radio className="h-3 w-3" aria-hidden />Week 1 · {playerRows.length} players</p>
         </div>
         <div className="flex w-full items-center gap-2 sm:w-auto">
-          <div className="grid min-w-0 flex-1 grid-cols-2 overflow-hidden rounded-lg border border-rim bg-panel sm:flex-none" role="group" aria-label="Market presentation">
-            <ViewButton active={view === "board"} onClick={() => changeView("board")} icon={<TableProperties className="h-3.5 w-3.5" />}>Board</ViewButton>
-            <ViewButton active={view === "market"} onClick={() => changeView("market")} icon={<LayoutGrid className="h-3.5 w-3.5" />}>Market</ViewButton>
-          </div>
           <button onClick={() => setShowFilters((value) => !value)} type="button"
             className={`flex min-h-10 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold ${showFilters || activeFiltersCount ? "border-neon/40 bg-neon/10 text-neon" : "border-rim bg-panel text-muted hover:text-frost"}`}>
             <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />Filters{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ""}
@@ -199,13 +179,7 @@ export default function MarketsPage() {
       {!isLoading && error ? <ErrorState message={error} onRetry={() => window.location.reload()} /> : null}
       {!isLoading && !error && playerRows.length === 0 ? <EmptyState icon={<TrendingUp className="h-6 w-6" />} title="No players found" description="Try adjusting your filters or search." action={<button type="button" onClick={clearFilters} className="rounded-lg border border-neon/20 bg-neon/10 px-4 py-2 text-sm font-black text-neon">Clear filters</button>} /> : null}
 
-      {!isLoading && !error && playerRows.length > 0 && view === "board" ? (
-        <MarketBoardView rows={playerRows} positions={positionMap} watchlist={watchlist} isAuthenticated={isAuthenticated}
-          teams={teams} team={team} sortBy={sortBy} onTeamChange={setTeam} onSortChange={setSortBy}
-          onTrade={(market, player, side, action) => setTicket({ market, player, side, action })} onWatch={(marketId) => void toggleWatch(marketId)} />
-      ) : null}
-
-      {!isLoading && !error && playerRows.length > 0 && view === "market" ? (
+      {!isLoading && !error && playerRows.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {playerRows.map(({ player, markets, selectedMarket }) => (
             <MarketCard key={player.id} market={selectedMarket} player={player}
@@ -253,10 +227,6 @@ function updateSet(previous: Set<string>, value: string, include: boolean) {
   const next = new Set(previous);
   if (include) next.add(value); else next.delete(value);
   return next;
-}
-
-function ViewButton({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
-  return <button type="button" onClick={onClick} aria-pressed={active} className={`flex min-h-10 items-center justify-center gap-1.5 px-3 text-xs font-black ${active ? "bg-neon/10 text-neon" : "text-muted hover:bg-panel2 hover:text-frost"}`}>{icon}{children}</button>;
 }
 
 function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }> }) {

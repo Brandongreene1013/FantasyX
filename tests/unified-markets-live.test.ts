@@ -3,17 +3,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { tradeSchema } from "@/lib/api-validation";
 import { summarizeGames } from "@/lib/live-games";
-import { marketsViewUrl, resolveMarketView } from "@/lib/market-view";
 import { assertQuoteFresh } from "@/lib/trade.service";
 
 describe("unified markets and live experience", () => {
-  it("lets an explicit query override the saved view and handles invalid values", () => {
-    expect(resolveMarketView("board", "market")).toBe("board");
-    expect(resolveMarketView(null, "board")).toBe("board");
-    expect(resolveMarketView("invalid", "also-invalid")).toBe("market");
-    expect(marketsViewUrl("board", "position=QB&view=market")).toBe("/markets?position=QB&view=board");
-  });
-
   it("groups markets into honest game states without manufacturing scores", () => {
     const now = new Date("2026-09-10T18:00:00.000Z");
     const games = summarizeGames([
@@ -44,13 +36,14 @@ describe("unified markets and live experience", () => {
     expect(() => assertQuoteFresh({ yesPrice: 0.56, noPrice: 0.44 }, "YES", 0.55, 200)).not.toThrow();
   });
 
-  it("keeps one live data owner and exposes both unified market views", () => {
+  it("keeps one live data owner and one designated market-card view", () => {
     const markets = source("app", "markets", "page.tsx");
     const redirect = source("app", "markets", "board", "page.tsx");
-    expect(markets).toContain("MARKET_VIEW_STORAGE_KEY");
-    expect(markets).toContain("MarketBoardView");
+    expect(markets).toContain("MarketCard");
+    expect(markets).not.toContain("MarketBoardView");
+    expect(markets).not.toContain("Market presentation");
     expect(markets.match(/useLiveExchange\(/g)).toHaveLength(1);
-    expect(redirect).toContain('redirect("/markets?view=board")');
+    expect(redirect).toContain('redirect("/markets")');
   });
 
   it("keeps primary navigation focused and trade tickets action-aware", () => {
