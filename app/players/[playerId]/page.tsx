@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, BarChart2, Clock, ShieldCheck, AlertTriangle, Target, TrendingUp, Zap } from "lucide-react";
 import { MarketTimeline } from "@/components/market-timeline";
+import { AmmOrderBook } from "@/components/amm-order-book";
 import { PlayerMarketChart } from "@/components/player-market-chart";
 import { MarketTimeRangeSelector, PlayerThresholdSelector, type MarketTimeRange } from "@/components/player-market-controls";
 import { TradePanel } from "@/components/trade-panel";
@@ -155,7 +156,8 @@ export default function PlayerPage({ params }: { params: Promise<{ playerId: str
               </section>
             </main>
 
-            <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+            <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
+              <AmmOrderBook market={selectedMarket} />
               <TradePanel
                 market={selectedMarket}
                 player={{ ...player, projection: intelligence.projectedPoints }}
