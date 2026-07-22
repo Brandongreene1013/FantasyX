@@ -1,4 +1,4 @@
-export function safeInternalPath(value: string | null | undefined, fallback = "/markets") {
+export function safeInternalPath(value: string | null | undefined, fallback = "/") {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {
     return fallback;
   }

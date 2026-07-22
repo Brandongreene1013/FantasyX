@@ -11,7 +11,7 @@ const providerMeta = {
   microsoft: { label: "Continue with Microsoft", Icon: Grid2X2 }
 } satisfies Record<Provider, { label: string; Icon: typeof Chrome }>;
 
-export function SocialAuthButtons({ next = "/markets", referralCode }: { next?: string; referralCode?: string }) {
+export function SocialAuthButtons({ next = "/", referralCode }: { next?: string; referralCode?: string }) {
   const [providers, setProviders] = useState<Record<Provider, boolean> | null>(null);
   useEffect(() => {
     apiGet<{ providers: Record<Provider, boolean> }>("/api/auth/providers").then((data) => setProviders(data.providers)).catch(() => setProviders(null));

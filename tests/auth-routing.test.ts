@@ -34,8 +34,9 @@ describe("FX009.5 auth routing", () => {
   });
 
   it("rejects external and protocol-relative next redirects", () => {
-    expect(safeInternalPath("https://evil.example/phish")).toBe("/markets");
-    expect(safeInternalPath("//evil.example/phish")).toBe("/markets");
+    expect(safeInternalPath(null)).toBe("/");
+    expect(safeInternalPath("https://evil.example/phish")).toBe("/");
+    expect(safeInternalPath("//evil.example/phish")).toBe("/");
     expect(safeInternalPath("/portfolio?view=open")).toBe("/portfolio?view=open");
   });
 

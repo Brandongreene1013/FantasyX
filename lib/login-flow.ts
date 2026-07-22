@@ -12,7 +12,7 @@ import {
 
 type LoginUser = Pick<User, "id" | "twoFactorEnabled">;
 
-export async function completeJsonLogin(user: LoginUser, request: Request, next = "/markets") {
+export async function completeJsonLogin(user: LoginUser, request: Request, next = "/") {
   if (await needsTwoFactor(user, request)) {
     const response = NextResponse.json({ requiresTwoFactor: true, next }, { status: 202 });
     await attachTwoFactorChallenge(response, user.id);

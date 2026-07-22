@@ -17,7 +17,7 @@ export default function SignupPage() {
   const [referralCode, setReferralCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { apiGet<SessionResponse>("/api/session").then((d) => { if (d.user) router.replace("/markets" as Route); }).catch(() => undefined); const ref = new URLSearchParams(window.location.search).get("ref"); if (ref) setReferralCode(ref.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 24)); }, [router]);
+  useEffect(() => { apiGet<SessionResponse>("/api/session").then((d) => { if (d.user) router.replace("/" as Route); }).catch(() => undefined); const ref = new URLSearchParams(window.location.search).get("ref"); if (ref) setReferralCode(ref.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 24)); }, [router]);
   function update(key: keyof typeof form, value: string) { setForm((current) => ({ ...current, [key]: value })); }
   async function submit(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setError(null);

@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { TrendingUp, BarChart2, Trophy, Radio, UserRound } from "lucide-react";
+import { Home, TrendingUp, BarChart2, Trophy, Radio, UserRound } from "lucide-react";
 import type { Route } from "next";
 
 const TABS = [
+  { href: "/" as Route,            label: "Home",        Icon: Home },
   { href: "/markets" as Route,     label: "Markets",     Icon: TrendingUp },
   { href: "/live" as Route,        label: "Live",        Icon: Radio },
   { href: "/portfolio" as Route,   label: "Portfolio",   Icon: BarChart2 },
@@ -34,7 +35,10 @@ export function BottomNav({ isLoggedIn, isReady = true }: { isLoggedIn: boolean;
     >
       <div className="grid" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
         {tabs.map(({ href, label, Icon }) => {
-          const isActive = label === "Portfolio" ? pathname === "/portfolio" : pathname.startsWith(href.split("?")[0]);
+          const destination = href.split("?")[0];
+          const isActive = destination === "/"
+            ? pathname === "/"
+            : label === "Portfolio" ? pathname === "/portfolio" : pathname.startsWith(destination);
           return (
             <Link
               key={href}

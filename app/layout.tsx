@@ -10,6 +10,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "FantasyX OS - NFL Fantasy Prediction Markets",
   description: "Installable free-play NFL fantasy prediction market command center. No deposits, withdrawals, crypto, or real-money wagering.",
+  alternates: { canonical: "/" },
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.svg",
