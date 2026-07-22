@@ -1,7 +1,11 @@
 .next
 .next-*
+.anchor-keypairs
+.anchor-target
 node_modules
 desktop
+target
+programs/**/target
 test-results
 dev-*.log
 dev-*.err.log
