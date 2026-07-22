@@ -84,6 +84,20 @@ describe("seed fantasy market universe", () => {
     }
   });
 
+  it("keeps wider thresholds strictly more expensive than harder thresholds", () => {
+    for (const player of seededPlayers()) {
+      const [top3, top5, top10] = thresholds.map((threshold) =>
+        calcOpeningYesPrice(player.projection, player.position, threshold, "ACTIVE", {
+          adpRank: player.adpRank,
+          matchupAdjustment: player.matchupAdjustment
+        })
+      );
+
+      expect(toBasisPoints(top5 - top3)).toBeGreaterThanOrEqual(200);
+      expect(toBasisPoints(top10 - top5)).toBeGreaterThanOrEqual(250);
+    }
+  });
+
   it("prices elite projections above depth projections within each position", () => {
     const players = seededPlayers();
 
@@ -105,3 +119,7 @@ describe("seed fantasy market universe", () => {
     }
   });
 });
+
+function toBasisPoints(value: number) {
+  return Math.round(value * 10_000);
+}

@@ -10,7 +10,8 @@
  *    position-specific projection curve (elite → rank 1, avg starter → rank ~12).
  *  - Probability is a logistic-style decay centered on the threshold rank.
  *  - Status penalties reduce the price if player is questionable/doubtful/out.
- *  - Final price is clamped to [0.05, 0.95].
+ *  - Final price uses threshold-specific floors/caps so easier contracts do not
+ *    collapse to the same displayed price as harder contracts.
  */
 
 export type PlayerStatus = "ACTIVE" | "QUESTIONABLE" | "DOUBTFUL" | "OUT";
@@ -63,7 +64,7 @@ function projectionToRank(projection: number, position: Position): number {
   const safeProj = clamp(projection, 0, elite);
   // rank 1 at elite, rank poolSize at floor
   const t = clamp((safeProj - floor) / (elite - floor), 0, 1);
-  return Math.round(poolSize - t * (poolSize - 1));
+  return poolSize - t * (poolSize - 1);
 }
 
 /**
@@ -90,8 +91,20 @@ export function calcOpeningYesPrice(
   const expectedRank = projectionToRank(projection + (context.matchupAdjustment ?? 0), position);
   const baseProb = rankToProb(expectedRank, threshold);
   const statusAdj = (baseProb + adpConfidenceAdjustment(context.adpRank, threshold)) * STATUS_MULTIPLIER[status];
-  return round6(clamp(statusAdj, 0.05, 0.95));
+  return round6(clamp(statusAdj, MIN_PRICE[threshold], MAX_PRICE[threshold]));
 }
+
+const MIN_PRICE: Record<ThresholdType, number> = {
+  TOP_3: 0.01,
+  TOP_5: 0.03,
+  TOP_10: 0.06,
+};
+
+const MAX_PRICE: Record<ThresholdType, number> = {
+  TOP_3: 0.92,
+  TOP_5: 0.96,
+  TOP_10: 0.98,
+};
 
 function adpConfidenceAdjustment(adpRank: number | undefined, threshold: ThresholdType) {
   if (!adpRank || adpRank <= 0) return 0;

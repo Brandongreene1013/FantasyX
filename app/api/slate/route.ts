@@ -5,6 +5,9 @@ import { apiError } from "@/lib/api-response";
 import { parseSearchParams, weekQuerySchema } from "@/lib/api-validation";
 import { summarizeGames } from "@/lib/live-games";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function GET(request: Request) {
   try {
     const { weekId } = parseSearchParams(weekQuerySchema, request);
@@ -47,6 +50,8 @@ export async function GET(request: Request) {
         updatedAt: score.updatedAt.toISOString()
       })),
       markets: markets.map(serializeMarket)
+    }, {
+      headers: { "Cache-Control": "no-store" }
     });
   } catch (error) {
     return apiError(error, "Could not load slate", undefined, request);

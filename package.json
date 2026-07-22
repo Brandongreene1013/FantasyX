@@ -21,6 +21,7 @@
     "db:check": "node scripts/db-check.mjs",
     "db:migrate": "prisma migrate deploy",
     "db:prepare": "npm run db:migrate && npm run prisma:seed",
+    "markets:reprice": "tsx scripts/reprice-seeded-markets.ts",
     "solana:local-validator": "solana-test-validator --reset",
     "solana:build": "anchor build",
     "solana:test": "anchor test --skip-local-validator",
