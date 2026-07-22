@@ -2,6 +2,17 @@ import type { Market, Player, Threshold } from "@/lib/types";
 
 export type MarketView = "board" | "market";
 export type TradeAction = "BUY" | "SELL";
+export type MarketSortKey =
+  | "popular"
+  | "gainers"
+  | "losers"
+  | "kickoff"
+  | "yes-asc"
+  | "yes-desc"
+  | "liquidity"
+  | "volume"
+  | "team"
+  | "alpha";
 export type ExtendedMarket = Market & {
   weekId: string;
   kickoffTime: string;

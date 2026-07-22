@@ -17,6 +17,7 @@ import {
   marketsViewUrl,
   resolveMarketView,
   type ExtendedMarket,
+  type MarketSortKey,
   type MarketView,
   type PlayerMarketRow,
   type TradeAction
@@ -24,7 +25,6 @@ import {
 import type { MarketStatus, Player, Position, Side, Threshold } from "@/lib/types";
 
 type Ticket = { market: ExtendedMarket; player: Player; side: Side; action: TradeAction };
-type SortKey = "kickoff" | "yes-asc" | "yes-desc" | "liquidity" | "volume";
 
 const POSITIONS: Array<{ value: Position | "ALL"; label: string }> = [
   { value: "ALL", label: "All" }, { value: "QB", label: "QB" }, { value: "RB", label: "RB" },
@@ -36,9 +36,11 @@ const THRESHOLDS: Array<{ value: Threshold | "ALL"; label: string }> = [
 ];
 const PLAYER_MARKET_DEFAULTS: Threshold[] = ["TOP_5", "TOP_10", "TOP_3"];
 const SORT_OPTIONS = [
-  { value: "kickoff", label: "Kickoff" }, { value: "volume", label: "Volume" },
+  { value: "popular", label: "Popular" }, { value: "gainers", label: "Hot movers" },
+  { value: "losers", label: "Cold movers" }, { value: "volume", label: "Volume" },
   { value: "yes-desc", label: "YES high" }, { value: "yes-asc", label: "YES low" },
-  { value: "liquidity", label: "Liquidity" }
+  { value: "liquidity", label: "Liquidity" }, { value: "kickoff", label: "Kickoff" },
+  { value: "team", label: "Team" }, { value: "alpha", label: "Player A-Z" }
 ];
 
 export default function MarketsPage() {
@@ -58,7 +60,7 @@ export default function MarketsPage() {
   const [threshold, setThreshold] = useState<Threshold | "ALL">("ALL");
   const [team, setTeam] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState<MarketStatus | "ALL">("ALL");
-  const [sortBy, setSortBy] = useState<SortKey>("kickoff");
+  const [sortBy, setSortBy] = useState<MarketSortKey>("popular");
   const [selectedMarketByPlayer, setSelectedMarketByPlayer] = useState<Record<string, Threshold>>({});
 
   const loadPersonalization = useCallback(async () => {
@@ -115,7 +117,7 @@ export default function MarketsPage() {
       return selectedMarket ? { player, markets: orderedMarkets, selectedMarket } : null;
     }).filter((row): row is PlayerMarketRow => Boolean(row))
       .filter((row) => threshold === "ALL" || row.markets.some((market) => market.threshold === threshold))
-      .sort((a, b) => compareMarkets(a.selectedMarket, b.selectedMarket, sortBy));
+      .sort((a, b) => comparePlayerRows(a, b, sortBy));
   }, [live.markets, playerMap, position, search, selectedMarketByPlayer, sortBy, statusFilter, team, threshold]);
 
   function changeView(nextView: MarketView) {
@@ -187,7 +189,7 @@ export default function MarketsPage() {
             <FilterSelect label="Threshold" value={threshold} onChange={(value) => setThreshold(value as Threshold | "ALL")} options={THRESHOLDS.map(({ value, label }) => ({ value, label }))} />
             <FilterSelect label="Team" value={team} onChange={setTeam} options={[{ value: "ALL", label: "All teams" }, ...teams.map((value) => ({ value, label: value }))]} />
             <FilterSelect label="Status" value={statusFilter} onChange={(value) => setStatusFilter(value as MarketStatus | "ALL")} options={[{ value: "ALL", label: "All statuses" }, { value: "OPEN", label: "Open" }, { value: "LOCKED", label: "Locked" }, { value: "SETTLED", label: "Settled" }]} />
-            <FilterSelect label="Sort" value={sortBy} onChange={(value) => setSortBy(value as SortKey)} options={SORT_OPTIONS} />
+            <FilterSelect label="Sort" value={sortBy} onChange={(value) => setSortBy(value as MarketSortKey)} options={SORT_OPTIONS} />
           </div>
           {activeFiltersCount ? <button type="button" onClick={clearFilters} className="flex min-h-9 items-center gap-1 text-xs font-bold text-muted hover:text-crimson"><X className="h-3 w-3" />Clear filters</button> : null}
         </div>
@@ -199,6 +201,7 @@ export default function MarketsPage() {
 
       {!isLoading && !error && playerRows.length > 0 && view === "board" ? (
         <MarketBoardView rows={playerRows} positions={positionMap} watchlist={watchlist} isAuthenticated={isAuthenticated}
+          teams={teams} team={team} sortBy={sortBy} onTeamChange={setTeam} onSortChange={setSortBy}
           onTrade={(market, player, side, action) => setTicket({ market, player, side, action })} onWatch={(marketId) => void toggleWatch(marketId)} />
       ) : null}
 
@@ -223,12 +226,27 @@ export default function MarketsPage() {
   );
 }
 
-function compareMarkets(a: ExtendedMarket, b: ExtendedMarket, sort: SortKey) {
+function comparePlayerRows(a: PlayerMarketRow, b: PlayerMarketRow, sort: MarketSortKey) {
+  if (sort === "team") return a.player.team.localeCompare(b.player.team) || a.player.name.localeCompare(b.player.name);
+  if (sort === "alpha") return a.player.name.localeCompare(b.player.name);
+  return compareMarkets(a.selectedMarket, b.selectedMarket, sort);
+}
+
+function compareMarkets(a: ExtendedMarket, b: ExtendedMarket, sort: MarketSortKey) {
+  const movementA = a.yesPrice - a.openingPrice;
+  const movementB = b.yesPrice - b.openingPrice;
+  if (sort === "popular") return popularityScore(b) - popularityScore(a);
+  if (sort === "gainers") return movementB - movementA || b.volume - a.volume;
+  if (sort === "losers") return movementA - movementB || b.volume - a.volume;
   if (sort === "kickoff") return a.kickoffTime.localeCompare(b.kickoffTime);
   if (sort === "yes-asc") return a.yesPrice - b.yesPrice;
   if (sort === "yes-desc") return b.yesPrice - a.yesPrice;
   if (sort === "liquidity") return b.liquidity - a.liquidity;
   return b.volume - a.volume;
+}
+
+function popularityScore(market: ExtendedMarket) {
+  return market.volume + market.openInterest * 12 + market.liquidity * 0.08 + Math.abs(market.yesPrice - market.openingPrice) * 2500;
 }
 
 function updateSet(previous: Set<string>, value: string, include: boolean) {
